@@ -6,8 +6,8 @@ from _data_io.dat_loader import load_time_scans
 from apps.scan_averaging.domain.averaging import average_scans
 from apps.scan_averaging.domain.plotting import plot_averaged_scan
 
-folder_path = Path(r"Z:\Droplets\20251127\Scan3_ScanFiles")
-file_paths = DatFinder().find_scanfiles()
+folder_path = Path(r"Z:\Droplets\20251203\good avg")
+file_paths = DatFinder(folder_path).find_scanfiles()
 
 averagedScanData = average_scans(load_time_scans(file_paths))
 
