@@ -2,9 +2,9 @@
 from pathlib import Path
 import numpy as np
 
-from Lab_apps._base.models import Length, Point, Prefix, Time
-from Lab_apps._domain.config import DELAY_STAGE_CENTER_VALUE
-from Lab_apps._domain.models import C2TData, IonData, LoadableScanData
+from _domain.config import DELAY_STAGE_CENTER_VALUE
+from _domain.models import C2TData, IonData, LoadableScanData
+from base_lib.models import Length, Point, Prefix, Time
 
 
 

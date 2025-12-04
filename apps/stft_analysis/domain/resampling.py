@@ -2,9 +2,9 @@
 import numpy as np
 from scipy.interpolate import CubicSpline
 
-from Lab_apps._base.models import Range, Time
-from Lab_apps._domain.models import C2TData, LoadableScanData
-from Lab_apps.stft_analysis.domain.models import ResampledScan
+from base_lib.models import Range, Time
+from _domain.models import C2TData, LoadableScanData
+from stft_analysis.domain.models import ResampledScan
 
 def resample_scan(raw: LoadableScanData, axis: list[Time]) -> ResampledScan:
     x = raw.delay

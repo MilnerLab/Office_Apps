@@ -6,17 +6,17 @@ from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import numpy as np
 
-from Lab_apps._base.models import PlotColor, Prefix, Time
-from Lab_apps._domain.models import LoadableScanData
-from Lab_apps._io.dat_finder import DatFinder
-from Lab_apps._io.dat_loader import load_time_scans
-from Lab_apps.scan_averaging.domain.averaging import average_scans
-from Lab_apps.scan_averaging.domain.plotting import plot_averaged_scan
-from Lab_apps.single_scan.domain.plotting import plot_single_scan
-from Lab_apps.stft_analysis.domain.config import AnalysisConfig
-from Lab_apps.stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
-from Lab_apps.stft_analysis.domain.resampling import resample_scan, resample_scans
-from Lab_apps.stft_analysis.domain.stft_calculation import calculate_averaged_spectrogram
+from base_lib.models import PlotColor, Prefix, Time
+from _domain.models import LoadableScanData
+from _io.dat_finder import DatFinder
+from _io.dat_loader import load_time_scans
+from scan_averaging.domain.averaging import average_scans
+from scan_averaging.domain.plotting import plot_averaged_scan
+from single_scan.domain.plotting import plot_single_scan
+from stft_analysis.domain.config import AnalysisConfig
+from stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
+from stft_analysis.domain.resampling import resample_scan, resample_scans
+from stft_analysis.domain.stft_calculation import calculate_averaged_spectrogram
 
 SPECTROGRAM_THRESHOLD = Time(10, Prefix.PICO)
 

@@ -1,5 +1,4 @@
 from pathlib import Path
-import pathlib
 
 MOST_RECENT_FOLDER = Path(r"Z:\Droplets")
 SCAN_FILE_PATTERN = '*ScanFile.dat'

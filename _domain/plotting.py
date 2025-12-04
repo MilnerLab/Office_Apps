@@ -1,8 +1,8 @@
 from matplotlib.axes import Axes
 import numpy as np
+from _domain.models import ScanDataBase
 from base_lib.fitting import fit_gaussian
 
-from Code._domain.models import ScanDataBase
 from base_lib.models import PlotColor, Prefix
 
 def plot_ScanData(ax: Axes, data: ScanDataBase, label:str, color: PlotColor = PlotColor.RED) -> None:

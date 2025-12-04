@@ -3,8 +3,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from Lab_apps._base.models import Range, Time
-from Lab_apps._domain.models import LoadableScanData
+from base_lib.models import Range, Time
+from _domain.models import LoadableScanData
 
 @dataclass
 class AnalysisConfig:

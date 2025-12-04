@@ -2,13 +2,13 @@ from pathlib import Path
 
 from matplotlib import pyplot as plt
 
-from Lab_apps._base.models import Angle, AngleUnit, Length, Point, Range
-from Lab_apps._io.dat_finder import DatFinder
-from Lab_apps._io.dat_loader import load_ion_data
-from Lab_apps._io.dat_saver import create_save_path_for_calc_ScanFile
-from Lab_apps.c2t_calculation.domain.config import AnalysisConfig
-from Lab_apps.c2t_calculation.domain.pipeline import run_pipeline_for_multiple
-from Lab_apps.c2t_calculation.domain.plotting import plot_calculated_scan
+from base_lib.models import Angle, AngleUnit, Length, Point, Range
+from _io.dat_finder import DatFinder
+from _io.dat_loader import load_ion_data
+from _io.dat_saver import create_save_path_for_calc_ScanFile
+from c2t_calculation.domain.config import AnalysisConfig
+from c2t_calculation.domain.pipeline import run_pipeline_for_multiple
+from c2t_calculation.domain.plotting import plot_calculated_scan
 
 
 folder_path = Path(r"Z:\Droplets\20251121\Scan1")

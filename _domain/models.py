@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 
-from Lab_apps._base.models import Point, Time
+from base_lib.models import Point, Time
 
 
 @dataclass(frozen=True)

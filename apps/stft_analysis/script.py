@@ -2,13 +2,13 @@ from pathlib import Path
 from matplotlib import pyplot as plt
 import numpy as np
 
-from Lab_apps._base.models import Prefix, Time
-from Lab_apps._io.dat_finder import DatFinder
-from Lab_apps._io.dat_loader import load_time_scan, load_time_scans
-from Lab_apps.stft_analysis.domain.config import AnalysisConfig
-from Lab_apps.stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
-from Lab_apps.stft_analysis.domain.resampling import resample_scan, resample_scans
-from Lab_apps.stft_analysis.domain.stft_calculation import calculate_averaged_spectrogram, calculate_spectrogram
+from base_lib.models import Prefix, Time
+from _io.dat_finder import DatFinder
+from _io.dat_loader import load_time_scan, load_time_scans
+from stft_analysis.domain.config import AnalysisConfig
+from stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
+from stft_analysis.domain.resampling import resample_scan, resample_scans
+from stft_analysis.domain.stft_calculation import calculate_averaged_spectrogram, calculate_spectrogram
 
 folder_path = Path(r"Z:\Droplets\20251127\Scan3_ScanFiles")
 file_paths = DatFinder().find_scanfiles()

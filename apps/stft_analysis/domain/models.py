@@ -2,8 +2,8 @@ from dataclasses import dataclass
 from pathlib import Path
 import numpy as np
 
-from Lab_apps._base.models import Frequency, Range, Time
-from Lab_apps._domain.models import  ScanDataBase
+from base_lib.models import Frequency, Range, Time
+from _domain.models import  ScanDataBase
 
 @dataclass(frozen=True)
 class ResampledScan(ScanDataBase):
