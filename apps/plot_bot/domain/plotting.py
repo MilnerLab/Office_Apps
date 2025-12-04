@@ -58,6 +58,7 @@ class PlottingBotPlotting:
         else:
             averagedScanData = average_scans(self.scans)
             plot_averaged_scan(ax_spec, averagedScanData)
+            ax_spec.legend(loc="upper right")
         
         self.end(fig)
     

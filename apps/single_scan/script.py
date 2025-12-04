@@ -22,6 +22,7 @@ plt.show()
 
 def main() -> None:
     file_path = DatFinder().find_most_recent_scanfile()
+    #file_path = Path("Z:\\Droplets\\20251203192727_ScanFile.dat")
 
     fig, ax = plt.subplots(figsize=(8, 4))
     plt.subplots_adjust(bottom=0.2)  
