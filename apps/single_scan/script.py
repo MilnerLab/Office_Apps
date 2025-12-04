@@ -2,9 +2,10 @@ from pathlib import Path
 from matplotlib.widgets import Button
 from matplotlib import pyplot as plt
 
-from Lab_apps._io.dat_finder import DatFinder
-from Lab_apps._io.dat_loader import load_time_scan
-from Lab_apps.single_scan.domain.plotting import plot_single_scan
+from _data_io.dat_finder import DatFinder
+from _data_io.dat_loader import load_time_scan
+from apps.single_scan.domain.plotting import plot_single_scan
+
 
 '''
 file_path = find_most_recent_scanfile()

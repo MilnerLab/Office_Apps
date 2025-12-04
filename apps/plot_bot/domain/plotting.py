@@ -8,8 +8,8 @@ import numpy as np
 
 from base_lib.models import PlotColor, Prefix, Time
 from _domain.models import LoadableScanData
-from _io.dat_finder import DatFinder
-from _io.dat_loader import load_time_scans
+from _data_io.dat_finder import DatFinder
+from _data_io.dat_loader import load_time_scans
 from scan_averaging.domain.averaging import average_scans
 from scan_averaging.domain.plotting import plot_averaged_scan
 from single_scan.domain.plotting import plot_single_scan
@@ -33,12 +33,12 @@ class PlottingBotPlotting:
     dat_finder: DatFinder,
     output_path: Path,
     color_cos2: PlotColor,
-    color_ions: PlotColor) -> None:
+    color_data_ions: PlotColor) -> None:
         self.scans = load_time_scans(dat_finder.find_scanfiles())
         self.current_scan = self.scans[-1]
         self.output_path = output_path
         self.color_cos2 = color_cos2
-        self.color_ions = color_ions
+        self.color_data_ions = color_data_ions
         
         self.plot_double()
     
@@ -49,7 +49,7 @@ class PlottingBotPlotting:
             figsize=(10, 8),
             sharex=True 
         )
-        plot_single_scan(ax_scan, self.current_scan, True, self.color_cos2, self.color_ions)
+        plot_single_scan(ax_scan, self.current_scan, True, self.color_cos2, self.color_data_ions)
         ax_scan.legend(loc="upper right")
 
         if np.mean(np.abs(np.diff(self.current_scan.delay)))  < SPECTROGRAM_THRESHOLD:
@@ -64,7 +64,7 @@ class PlottingBotPlotting:
     '''
     def plot_single(self):
         fig, ax_scan = plt.subplots(figsize=(10, 6))
-        plot_single_scan(ax_scan, self.scan, True, self.color_cos2, self.color_ions)
+        plot_single_scan(ax_scan, self.scan, True, self.color_cos2, self.color_data_ions)
         ax_scan.legend(loc="upper right")
         self.end(fig, self.output_path)
     '''

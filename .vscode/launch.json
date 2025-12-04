@@ -5,7 +5,7 @@
       "name": "Debug c2t_calculation",
       "type": "python",
       "request": "launch",
-      "module": "Lab_apps.c2t_calculation.script",
+      "module": "apps.c2t_calculation.script",
       "console": "integratedTerminal",
       "justMyCode": true
     },
@@ -13,7 +13,7 @@
       "name": "Debug scan_averaging",
       "type": "python",
       "request": "launch",
-      "module": "Lab_apps.scan_averaging.script",
+      "module": "apps.scan_averaging.script",
       "console": "integratedTerminal",
       "justMyCode": true
     },
@@ -21,7 +21,7 @@
       "name": "Debug single_scan",
       "type": "python",
       "request": "launch",
-      "module": "Lab_apps.single_scan.script",
+      "module": "apps.single_scan.script",
       "console": "integratedTerminal",
       "justMyCode": true
     },
@@ -29,7 +29,7 @@
       "name": "Debug stft_analysis",
       "type": "python",
       "request": "launch",
-      "module": "Lab_apps.stft_analysis.script",
+      "module": "apps.stft_analysis.script",
       "console": "integratedTerminal",
       "justMyCode": true
     }

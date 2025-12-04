@@ -1,7 +1,8 @@
 from matplotlib.axes import Axes
 
-from Lab_apps._domain.plotting import plot_ScanData
-from Lab_apps.scan_averaging.domain.models import AveragedScansData
+from _domain.plotting import plot_ScanData
+from apps.scan_averaging.domain.models import AveragedScansData
+
 
 
 def plot_averaged_scan(ax: Axes, data: AveragedScansData) -> None:

@@ -1,8 +1,9 @@
 from matplotlib.axes import Axes
 import numpy as np
 
-from Lab_apps._domain.models import IonData, LoadableScanData
-from Lab_apps._domain.plotting import plot_ScanData
+from _domain.models import IonData, LoadableScanData
+from _domain.plotting import plot_ScanData
+
 
 
 def plot_calculated_scan(ax: Axes, data: LoadableScanData) -> None:

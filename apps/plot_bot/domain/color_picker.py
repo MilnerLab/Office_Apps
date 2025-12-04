@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from base_lib.models import PlotColor
-from _io.dat_finder import SCAN_FILE_PATTERN
+from _data_io.dat_finder import SCAN_FILE_PATTERN
 
 
 def pick_color(file_path: Path, num_color=1) -> PlotColor:

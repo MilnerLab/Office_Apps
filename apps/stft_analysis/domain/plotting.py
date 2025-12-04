@@ -1,9 +1,9 @@
 from matplotlib.axes import Axes
 import numpy as np
 
+from apps.stft_analysis.domain.models import SpectrogramBase
 from base_lib.models import Frequency, PlotColor, Prefix, Range
 from _domain.models import ScanDataBase
-from stft_analysis.domain.models import SpectrogramBase
 
 
 def plot_Spectrogram(ax: Axes, data: SpectrogramBase, v_range: Range[float] = Range(0, 0.2)) -> None:

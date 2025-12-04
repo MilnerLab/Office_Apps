@@ -1,11 +1,10 @@
 from pathlib import Path
 from matplotlib import pyplot as plt
 
-from Code._domain.plotting import plot_GaussianFit
-from Code._io.dat_finder import DatFinder
-from Code._io.dat_loader import load_time_scans
-from Code.scan_averaging.domain.averaging import average_scans
-from Code.scan_averaging.domain.plotting import plot_averaged_scan
+from _data_io.dat_finder import DatFinder
+from _data_io.dat_loader import load_time_scans
+from apps.scan_averaging.domain.averaging import average_scans
+from apps.scan_averaging.domain.plotting import plot_averaged_scan
 
 folder_path = Path(r"Z:\Droplets\20251127\Scan3_ScanFiles")
 file_paths = DatFinder().find_scanfiles()

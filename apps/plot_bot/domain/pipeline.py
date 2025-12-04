@@ -1,9 +1,9 @@
 from pathlib import Path
 
-from Code._io.dat_finder import MOST_RECENT_FOLDER, DatFinder
-from Code._io.dat_loader import load_time_scan
-from Code.plot_bot.domain.color_picker import pick_color
-from Code.plot_bot.domain.plotting import PlottingBotPlotting
+from _data_io.dat_finder import MOST_RECENT_FOLDER, DatFinder
+from _data_io.dat_loader import load_time_scan
+from plot_bot.domain.color_picker import pick_color
+from plot_bot.domain.plotting import PlottingBotPlotting
 
 def process_scan_file(file_path: Path) -> Path:
     
@@ -19,7 +19,7 @@ def process_scan_file(file_path: Path) -> Path:
         finder,
         png_path,
         color_cos2=pick_color(file_path),
-        color_ions=pick_color(file_path,num_color=2)
+        color_data_ions=pick_color(file_path,num_color=2)
     )
 
     return png_path

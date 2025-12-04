@@ -1,14 +1,15 @@
 from typing import List
 import numpy as np
 
-from Lab_apps._domain.models import C2TData, LoadableScanData
-from Lab_apps.scan_averaging.domain.models import AveragedScansData
 
 
 from typing import List
 from pathlib import Path
 
 import numpy as np
+
+from _domain.models import C2TData, LoadableScanData
+from apps.scan_averaging.domain.models import AveragedScansData
 
 
 def average_scans(scans: List[LoadableScanData]) -> AveragedScansData:

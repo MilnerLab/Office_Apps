@@ -4,7 +4,6 @@ import numpy as np
 from base_lib.models import PlotColor, Prefix
 from _domain.models import LoadableScanData
 from _domain.plotting import plot_ScanData
-from scan_averaging.domain.models import AveragedScansData
 
 
 def plot_single_scan(ax: Axes, data: LoadableScanData, show_ions: bool = False, data_color: PlotColor = PlotColor.RED, ion_color: PlotColor = PlotColor.GRAY) -> None:

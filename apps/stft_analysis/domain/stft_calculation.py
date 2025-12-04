@@ -2,9 +2,9 @@ from pathlib import Path
 import numpy as np
 from scipy.signal import stft, detrend
 
+from apps.stft_analysis.domain.config import AnalysisConfig
+from apps.stft_analysis.domain.models import AggregateSpectrogram, ResampledScan, SpectrogramResult
 from base_lib.models import Frequency, Time, Prefix
-from stft_analysis.domain.config import AnalysisConfig
-from stft_analysis.domain.models import AggregateSpectrogram, ResampledScan, SpectrogramResult
 
 BACKUP_WINDFRACT = 2
 
