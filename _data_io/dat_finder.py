@@ -1,6 +1,11 @@
 from pathlib import Path
+import os
 
-MOST_RECENT_FOLDER = Path(r"Z:\Droplets")
+if os.name == "nt":  # Windows
+    MOST_RECENT_FOLDER = Path(r"Z:\Droplets")
+else:                # Linux
+    MOST_RECENT_FOLDER = Path("/mnt/valeryshare/Droplets/")
+
 SCAN_FILE_PATTERN = '*ScanFile.dat'
 BATCH_PATTERN = '*ScanFile.txt'
 ION_FILE_PATTERN = '*mm.dat'
