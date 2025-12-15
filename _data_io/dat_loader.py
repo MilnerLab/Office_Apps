@@ -79,8 +79,9 @@ def load_ion_data(paths: list[Path]) -> list[IonData]:
 
 def extrect_infos_from_name(path: Path) -> tuple[int, Time]:
     stem = Path(path).stem
-    time_part, stage_part = stem.split("DLY__", 1)
+    time_part, stage_part = stem.split("DLY_", 1)
     
+    stage_part = stage_part.replace("_", "")
     stage_part = stage_part[:-2]
     stage_part = stage_part.replace("p", ".")
 
