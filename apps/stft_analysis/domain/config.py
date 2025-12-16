@@ -32,3 +32,4 @@ class AnalysisConfig:
             current_delay += self.resample_time
         
         self.stft_window_size = min(np.array(ends) - np.array(starts)) / 4
+        

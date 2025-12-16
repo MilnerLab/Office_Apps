@@ -2,10 +2,11 @@ from matplotlib.axes import Axes
 
 from _domain.plotting import plot_ScanData
 from apps.scan_averaging.domain.models import AveragedScansData
+from base_lib.models import PlotColor
 
 
 
-def plot_averaged_scan(ax: Axes, data: AveragedScansData) -> None:
+def plot_averaged_scan(ax: Axes, data: AveragedScansData, color: PlotColor = PlotColor.RED) -> None:
     n_files = len(data.file_names)
     label = f"{n_files} avg files"
-    plot_ScanData(ax, data, label)
+    plot_ScanData(ax, data, label,color)

@@ -16,6 +16,7 @@ class SpectrogramBase:
     frequency: list[Frequency]
     power: list[list[float]]
     
+    
 @dataclass(frozen=True)
 class SpectrogramResult(SpectrogramBase):
     file_path: Path

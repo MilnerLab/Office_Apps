@@ -53,6 +53,8 @@ class PlottingBotPlotting:
         ax_scan.legend(loc="upper right")
 
         if np.mean(np.abs(np.diff(self.current_scan.delay)))  < SPECTROGRAM_THRESHOLD:
+            averagedScanData = average_scans(self.scans)
+            plot_averaged_scan(ax_scan, averagedScanData, PlotColor.PURPLE)
             self.add_Spectrogram(ax_spec, self.scans)
             ax_spec.legend(loc="upper left")
         else:
@@ -76,7 +78,7 @@ class PlottingBotPlotting:
         plt.close(fig)
     
     def add_Spectrogram(self, ax: Axes, scans: list[LoadableScanData]) -> None:
-        config = AnalysisConfig(scans)
+        config = AnalysisConfig(scans,stft_window_size=Time(100,Prefix.PICO))
         resampled_scans = resample_scans(scans, config.axis)
         spectrogram = calculate_averaged_spectrogram(resampled_scans, config)
         plot_Spectrogram(ax, spectrogram)
