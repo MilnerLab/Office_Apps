@@ -10,71 +10,83 @@ import numpy as np
 
 from _domain.models import C2TData, LoadableScanData
 from apps.scan_averaging.domain.models import AveragedScansData
+from base_lib.models import Time
 
 
-def average_scans(scans: List[LoadableScanData]) -> AveragedScansData:
+from typing import List
+import numpy as np
+
+def average_scans(scans: List[LoadableScanData], *, key_digits: int = 12) -> AveragedScansData:
     """
-    Compute the weighted average of several scans and the corresponding
-    standard deviation, taking the y-errors into account.
+    Average scans with possibly different x-axes.
 
-    Assumptions:
-    - delay (x-axis) is identical for all scans.
-    - C2TData.error are 1σ uncertainties of each y-value.
+    - Build a union x-axis containing all x values that appear in any scan.
+    - Map each scan onto that axis into matrices (n_scans, n_x_union),
+      filling missing entries with np.nan.
+    - y-average: np.nanmean over scans.
+    - error-average (ignoring scatter): sqrt(sum(sigma^2)) / N  (over available errors).
+
+    key_digits: rounding precision for matching Time values robustly.
     """
     if not scans:
         raise ValueError("Scan list is empty.")
 
-    # --- Check that all scans share the same x-axis -------------------------
-    delay_scan_0 = scans[0].delay      # list[Time]
-    for s in scans[1:]:
-        if s.delay != delay_scan_0:
-            raise ValueError("All scans must have the same delay axis.")
+    # --- helpers ------------------------------------------------------------
+    def _key(t: Time) -> float:
+        # robust matching: treat Time as float-like (or fall back to .value)
+        try:
+            v = float(t)
+        except TypeError:
+            v = float(getattr(t, "value"))
+        return round(v, key_digits)
 
-    x0 = delay_scan_0                  # list[Time]
+    # --- build union x-axis (keep first seen Time object for each key) ------
+    key_to_time: dict[float, Time] = {}
+    for s in scans:
+        for t in s.delay:
+            k = _key(t)
+            if k not in key_to_time:
+                key_to_time[k] = t
 
-    # --- Stack arrays: shape (n_scans, n_points) ---------------------------
-    y = np.stack(
-        [[c.value for c in s.c2t] for s in scans],
-        axis=0,
-    )
-    sigma = np.stack(
-        [[c.error for c in s.c2t] for s in scans],
-        axis=0,
-    )
+    union_keys = sorted(key_to_time.keys())
+    x_union: list[Time] = [key_to_time[k] for k in union_keys]
+    key_to_idx = {k: i for i, k in enumerate(union_keys)}
 
-    # Weights from errors: w = 1 / sigma^2
-    w = 1.0 / sigma**2
+    # --- allocate matrices --------------------------------------------------
+    n_scans = len(scans)
+    n_x = len(x_union)
+    y_mat = np.full((n_scans, n_x), np.nan, dtype=float)
+    s_mat = np.full((n_scans, n_x), np.nan, dtype=float)
 
-    # Weighted mean for each x point
-    sum_w = np.sum(w, axis=0)
-    avg_y = np.sum(w * y, axis=0) / sum_w
+    # --- map scans onto union axis -----------------------------------------
+    for i, s in enumerate(scans):
+        if len(s.delay) != len(s.c2t):
+            raise ValueError(f"Scan {i} has mismatched delay/c2t lengths.")
 
-    # "Internal" error of the mean from the measurement errors
-    sigma_int = np.sqrt(1.0 / sum_w)
+        for t, c in zip(s.delay, s.c2t):
+            j = key_to_idx[_key(t)]
+            y_mat[i, j] = float(c.value)
+            s_mat[i, j] = float(c.error)
 
-    # --- Include additional scatter between scans, if present --------------
-    n = len(scans)
-    if n > 1:
-        # Chi-square of deviations
-        chi2 = np.sum(w * (y - avg_y) ** 2, axis=0)
-        dof = n - 1
-        chi2_red = chi2 / dof
+    # --- average y using nanmean -------------------------------------------
+    avg_y = np.nanmean(y_mat, axis=0)
 
-        # If real scatter is larger than expected (chi2_red > 1),
-        # scale the error accordingly (PDG prescription).
-        scale = np.sqrt(np.maximum(1.0, chi2_red))
-        sigma_tot = sigma_int * scale
-    else:
-        sigma_tot = sigma_int
+    # --- average errors as requested: sqrt(sum(sigma^2)) / N ---------------
+    sum_sq = np.nansum(s_mat ** 2, axis=0)
+    count = np.sum(~np.isnan(s_mat), axis=0).astype(float)
 
-    # --- Create C2TData-Object ----------------------------------
+    avg_sigma = np.full(n_x, np.nan, dtype=float)
+    mask = count > 0
+    avg_sigma[mask] = np.sqrt(sum_sq[mask]) / count[mask]
+
+    # --- build output -------------------------------------------------------
     avg_c2t: list[C2TData] = [
         C2TData(value=float(v), error=float(e))
-        for v, e in zip(avg_y, sigma_tot)
+        for v, e in zip(avg_y, avg_sigma)
     ]
 
     return AveragedScansData(
-        delay=x0.copy(),                       # list[Time]
-        c2t=avg_c2t,                          # list[C2TData]
-        file_names=[s.file_path for s in scans],  # list[Path]
+        delay=x_union.copy(),
+        c2t=avg_c2t,
+        file_names=[s.file_path for s in scans],
     )
