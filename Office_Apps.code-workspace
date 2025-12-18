@@ -8,6 +8,6 @@
 		}
 	],
 	"settings": {
-  "python.defaultInterpreterPath": "${workspaceFolder:Lab_Apps}\\.venv\\Scripts\\python.exe"
+  "python.defaultInterpreterPath": "${workspaceFolder:Office_Apps}\\.venv\\Scripts\\python.exe"
 }
 }

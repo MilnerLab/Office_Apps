@@ -11,7 +11,7 @@ from _data_io.dat_finder import DatFinder
 from _data_io.dat_loader import load_time_scan, load_time_scans
 
 folder_path = Path(r"Z:\Droplets\20251127\Scan3_ScanFiles")
-file_paths = DatFinder().find_scanfiles()
+file_paths = DatFinder(folder_path).find_scanfiles()
 scan_data = load_time_scans(file_paths)
 
 config = AnalysisConfig(scan_data)
