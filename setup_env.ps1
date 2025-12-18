@@ -1,6 +1,24 @@
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
+# -----------------------------
+# OS detection (PS 5.1 + PS 7+ kompatibel, ohne $IsWindows)
+# -----------------------------
+function Test-IsWindows {
+    # 1) Klassisch auf Windows (gibt es auch in PS7 auf Windows)
+    if ($env:OS -eq 'Windows_NT') { return $true }
+
+    # 2) Windows PowerShell ("Desktop") läuft nur auf Windows
+    if ($PSVersionTable.PSEdition -eq 'Desktop') { return $true }
+
+    # 3) PowerShell 6/7: Platform existiert oft
+    if ($PSVersionTable.ContainsKey('Platform') -and $PSVersionTable.Platform -eq 'Win32NT') { return $true }
+
+    return $false
+}
+
+$script:OnWindows = Test-IsWindows
+
 # Make paths independent from current working directory
 $root = $PSScriptRoot
 Set-Location $root
@@ -33,8 +51,8 @@ function Invoke-Native {
 }
 
 function Resolve-PythonRunner {
-    # Prefer Windows py launcher if available
-    if ($IsWindows -and (Get-Command py -ErrorAction SilentlyContinue)) {
+    # Prefer Windows py launcher if available (nur auf Windows sinnvoll)
+    if ($script:OnWindows -and (Get-Command py -ErrorAction SilentlyContinue)) {
         return @{ Exe = "py"; Args = @($windowsPySpec) }
     }
 
@@ -48,12 +66,12 @@ function Resolve-PythonRunner {
 }
 
 function Get-ActivateScriptPath([string] $Venv) {
-    if ($IsWindows) { return (Join-Path $Venv "Scripts/Activate.ps1") }
+    if ($script:OnWindows) { return (Join-Path $Venv "Scripts/Activate.ps1") }
     return (Join-Path $Venv "bin/Activate.ps1")
 }
 
 function Get-VenvPythonPath([string] $Venv) {
-    if ($IsWindows) { return (Join-Path $Venv "Scripts/python.exe") }
+    if ($script:OnWindows) { return (Join-Path $Venv "Scripts/python.exe") }
     return (Join-Path $Venv "bin/python")
 }
 
