@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from pathlib import Path
-from base_lib.math.models import Range
-from base_lib.quantities.models import Frequency, Time
+from base_core.math.models import Range
+from base_core.quantities.models import Frequency, Time
 import numpy as np
 
 from _domain.models import  ScanDataBase

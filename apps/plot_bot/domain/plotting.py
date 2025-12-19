@@ -4,9 +4,9 @@ from pathlib import Path
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
-from base_lib.plotting.enums import PlotColor
-from base_lib.quantities.enums import Prefix
-from base_lib.quantities.models import Time
+from base_core.plotting.enums import PlotColor
+from base_core.quantities.enums import Prefix
+from base_core.quantities.models import Time
 import numpy as np
 
 from _data_io.dat_finder import DatFinder

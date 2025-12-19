@@ -1,7 +1,7 @@
 # domain/config.py
 from dataclasses import dataclass
 
-from base_lib.math.models import Angle, Point, Range
+from base_core.math.models import Angle, Point, Range
 
 
 @dataclass

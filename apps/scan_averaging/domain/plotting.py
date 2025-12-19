@@ -2,7 +2,7 @@ from matplotlib.axes import Axes
 
 from _domain.plotting import plot_ScanData
 from apps.scan_averaging.domain.models import AveragedScansData
-from base_lib.plotting.enums import PlotColor
+from base_core.plotting.enums import PlotColor
 
 
 

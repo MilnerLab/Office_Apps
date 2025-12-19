@@ -1,5 +1,5 @@
 from pathlib import Path
-from base_lib.quantities.models import Frequency, Time
+from base_core.quantities.models import Frequency, Time
 import numpy as np
 from scipy.signal import stft, detrend
 

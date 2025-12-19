@@ -1,6 +1,6 @@
 # domain/resampling.py
-from base_lib.math.models import Range
-from base_lib.quantities.models import Time
+from base_core.math.models import Range
+from base_core.quantities.models import Time
 import numpy as np
 from scipy.interpolate import CubicSpline
 

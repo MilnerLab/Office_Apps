@@ -1,5 +1,5 @@
 from typing import List
-from base_lib.quantities.models import Time
+from base_core.quantities.models import Time
 import numpy as np
 
 
