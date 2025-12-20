@@ -36,7 +36,7 @@ class PlottingBotPlotting:
     output_path: Path,
     color_cos2: PlotColor,
     color_data_ions: PlotColor) -> None:
-        self.scans = load_time_scans(dat_finder.find_scanfiles(mergescans=True))
+        self.scans = load_time_scans(dat_finder.find_scanfiles(mergescans=False))
         self.current_scan = self.scans[-1]
         self.output_path = output_path
         self.color_cos2 = color_cos2
