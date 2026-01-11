@@ -14,26 +14,12 @@ def plot_ScanData(ax: Axes, data: ScanDataBase, label:str, color: PlotColor = Pl
     ax.plot(
         x,
         y,
-        marker="o",
-        linestyle="-",
-        linewidth=1.5,
-        markersize=3,
         color=color,
         label=label,
     )
 
-    ax.fill_between(
-        x,
-        y - error,
-        y + error,
-        color=color,
-        alpha=0.2,
-        linewidth=0,
-    )
-
     ax.set_xlabel("Probe Delay (ps)")
     ax.set_ylabel(r"$\langle \cos^2 \theta_\mathrm{2D} \rangle$")
-    ax.grid(True)
     
 def plot_GaussianFit(ax: Axes, data: ScanDataBase) -> None:
     gauss = fit_gaussian(data.delay, [c2t.value for c2t in data.c2t])
