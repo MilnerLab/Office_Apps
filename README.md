@@ -30,6 +30,9 @@ python -m apps.scan_averaging.script
 python -m apps.single_scan.script
 ```
 ```powershell
+python -m apps.gui_based_plotting.rungui
+```
+```powershell
 python -m apps.stft_analysis.script
 ```
 ---

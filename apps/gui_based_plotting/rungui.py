@@ -63,7 +63,7 @@ def main() -> None:
         
         
         There will then also need to be inputs like: 
-        moving average, STFT window size, window type, 
+        moving average, STFT window size, window type, frequency units
         
         and ones that aren't about calculations like axis limits, window aspect ratio, error bars vs shading
         

@@ -2,6 +2,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+from apps.c2t_calculation.domain.config import AnalysisConfig
 from base_core.math.models import Point
 from base_core.quantities.models import Time
 import numpy as np
@@ -45,5 +46,13 @@ class IonData:
         std  = float(np.std(c2, ddof=1)) if N > 1 else np.nan
         sem  = float(std / np.sqrt(N)) if (N > 1 and np.isfinite(std)) else np.nan
         self.c2t = C2TData(mean, sem)
+        
+    def apply_config(self, config: AnalysisConfig):
+        for point in self.points:
+            point.subtract(config.center)
+            point.affine_transform(config.transform_parameter)
+            point.rotate(config.angle)
+        self.points = [p for p in self.points if config.analysis_zone.is_in_range(p.distance_from_center())]
+   
 
     

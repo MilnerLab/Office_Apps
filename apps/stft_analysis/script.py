@@ -9,7 +9,7 @@ from apps.stft_analysis.domain.stft_calculation import calculate_averaged_spectr
 from _data_io.dat_finder import DatFinder
 from _data_io.dat_loader import load_time_scan, load_time_scans
 
-folder_path = Path(r"Z:\Droplets\20251127\Scan3_ScanFiles")
+folder_path = Path(r"/mnt/valeryshare/Droplets/20251213/Scan1+2+3_ScanFiles")
 file_paths = DatFinder(folder_path).find_scanfiles()
 scan_data = load_time_scans(file_paths)
 

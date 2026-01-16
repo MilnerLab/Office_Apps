@@ -57,20 +57,29 @@ def load_time_scans(paths: list[Path]) -> list[LoadableScanData]:
     return scanDatas
 
 
-def load_ion_data(paths: list[Path]) -> list[IonData]:
+from pathlib import Path
+import numpy as np
 
+def load_ion_data(paths: list[Path]) -> list[IonData]:
     output: list[IonData] = []
+    idx_by_delay: dict[Time, int] = {}  
 
     for path in sorted(paths):
-        
-        run_id, delay = extrect_infos_from_name(path)
+        run_id, delay = extract_infos_from_name(path)
 
-        arr = np.loadtxt(path, usecols=(1, 2))  
+        arr = np.loadtxt(path, usecols=(1, 2))
+        arr = np.atleast_2d(arr)  
+
         points = [Point(float(x), float(y)) for x, y in arr]
 
-        output.append(IonData(run_id, delay, points))
+        if delay in idx_by_delay:
+            output[idx_by_delay[delay]].points.extend(points)
+        else:
+            idx_by_delay[delay] = len(output)
+            output.append(IonData(run_id, delay, points))
 
     return output
+
 
 
 
@@ -79,7 +88,7 @@ def load_ion_data(paths: list[Path]) -> list[IonData]:
 ###########
 
 
-def extrect_infos_from_name(path: Path) -> tuple[int, Time]:
+def extract_infos_from_name(path: Path) -> tuple[int, Time]:
     stem = Path(path).stem
     time_part, stage_part = stem.split("DLY_", 1)
     
