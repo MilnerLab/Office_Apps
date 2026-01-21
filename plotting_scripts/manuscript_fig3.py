@@ -14,7 +14,6 @@ from base_core.plotting.enums import PlotColor
 from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Time
 
-
 mpl.rcParams.update({
 #copied from physrev.mplstyle file
     #"axes.prop_cycle": "(cycler('color', ['5d81b4', 'e09b24', '8eb031', 'eb6235', '8678b2', 'c46e1a', '5c9dc7', 'ffbf00', 'a5609c']) + cycler('ls', ['-', '--', '-.', (0, (1,0.85)), (0, (3, 1, 1, 1, 1, 1)), (0, (3, 1, 1, 1)), (0, (5, 1)), ':', (4, (10, 3))]))",  
