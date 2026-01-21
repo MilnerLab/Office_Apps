@@ -10,16 +10,14 @@ BACKUP_WINDFRACT = 2
 
 def calculate_spectrogram(resampled_scan: ResampledScan, config: AnalysisConfig) -> SpectrogramResult:
     
-    c2t = np.asarray([c.value for c in resampled_scan.c2t])
+    c2t = resampled_scan.detrend()
     
-    c2t = detrend(c2t, type='constant') #Remove constant component
-    sig_arr = detrend(c2t, type='linear') #remove "tilt" (linear change in C2T over time)
     
     samplesperseg = min(int(len(c2t)/BACKUP_WINDFRACT), int(round(config.stft_window_size / config.resample_time)))
     fs=1/config.resample_time
     numoverlap = samplesperseg - 1
     
-    f, t_s, Zxx = stft(sig_arr, fs=fs, nperseg=samplesperseg, noverlap=numoverlap,window='blackman')
+    f, t_s, Zxx = stft(c2t, fs=fs, nperseg=samplesperseg, noverlap=numoverlap,window='blackman')
 
     # -----
     SpecSig = (np.abs(Zxx))**2
