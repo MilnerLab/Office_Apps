@@ -10,6 +10,12 @@ from _domain.models import ScanDataBase
 from apps.scan_averaging.domain.averaging import average_scans
 from apps.scan_averaging.domain.models import AveragedScansData
 from apps.scan_averaging.domain.plotting import plot_averaged_scan
+
+from apps.stft_analysis.domain.config import AnalysisConfig
+from apps.stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
+from apps.stft_analysis.domain.resampling import resample_scans
+from apps.stft_analysis.domain.stft_calculation import calculate_averaged_spectrogram
+
 from base_core.plotting.enums import PlotColor
 from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Time
@@ -36,14 +42,14 @@ mpl.rcParams.update({
     #"grid.color": "xkcd:light gray",
 
     # --- Lines ---
-    "lines.linewidth": 1,
-    "lines.marker": "d",
-    "lines.markersize": 3,
+    "lines.linewidth": 0.5,
+    "lines.marker": "o",
+    "lines.markersize": 1,
     "hatch.linewidth": 0.25,
     "patch.antialiased": True,
     
     #---Errorbars---
-    "errorbar.capsize": 1,
+    "errorbar.capsize": 0,
 
     # --- Ticks (X) ---
     #"xtick.top": True,
@@ -52,8 +58,8 @@ mpl.rcParams.update({
     "xtick.minor.size": 1.5,
     "xtick.major.width": 0.5,
     "xtick.minor.width": 0.5,
-    "xtick.direction": "in",
-    "xtick.minor.visible": True,
+    "xtick.direction": "out",
+    "xtick.minor.visible": False,
     #"xtick.major.top": True,
     "xtick.major.bottom": True,
     "xtick.minor.bottom": True,
@@ -65,16 +71,16 @@ mpl.rcParams.update({
     "ytick.left": True,
     #"ytick.right": True,
     "ytick.major.size": 3.0,
-    "ytick.minor.size": 1.5,
+    #"ytick.minor.size": 1.5,
     "ytick.major.width": 0.5,
-    "ytick.minor.width": 0.5,
-    "ytick.direction": "in",
-    "ytick.minor.visible": True,
+    #"ytick.minor.width": 0.5,
+    "ytick.direction": "out",
+    #"ytick.minor.visible": True,
     "ytick.major.left": True,
     #"ytick.major.right": True,
-    "ytick.minor.left": True,
+    #"ytick.minor.left": True,
     "ytick.major.pad": 5.0,
-    "ytick.minor.pad": 5.0,
+    #"ytick.minor.pad": 5.0,
     "ytick.labelsize": 9,
     
     
@@ -90,40 +96,74 @@ mpl.rcParams.update({
     "legend.title_fontsize": 8,
  
     # --- Figure size ---
-    #"figure.figsize": (3.375, 2.4), #1- column fig
-    "figure.figsize": (6.75, 6.75), #approx. 2- column fig
+    "figure.figsize": (3.375, 4), #1- column fig
+    #"figure.figsize": (6.75, 6.75), #approx. 2- column fig
     "figure.subplot.left": 0.125,
     "figure.subplot.bottom": 0.175,
     "figure.subplot.top": 0.95,
     "figure.subplot.right": 0.95,
-    "figure.autolayout": False,
+    "figure.autolayout": True,
 
     # --- Fonts (computer modern) ---
-    #"text.usetex": True,  THIS LINE CAUSES UNRESPONSIVE FIGURE
+    "text.usetex": True,      
     #"mathtext.fontset": "cm",
     "font.family": "serif",
     "font.serif": ["cmr10"]
 
 })
 
-#Fig3a plot of the CS2 in Jet asympytotic cos^2\theta behaviour
-#stylefile = r"C:\Users\camp06\Documents\droplets_manuscript\physrev.mplstyle"
-#plt.style.use(stylefile)
-folder_path_a = Path(r"C:/Users/camp06/Documents/droplets_manuscript/20251128 120psi jet - Scan4_ScanFiles(figure3a)/Scan4_ScanFiles")
-folder_path_b = Path(r"C:\Users\camp06\Documents\droplets_manuscript\fig3a_data\20251215")
+#For Figure 2
 fig_filedir = r"C:/Users/camp06/Documents/droplets_manuscript/"
-fig_filename = fig_filedir + r"figure3.pdf"
-file_path_a = DatFinder(folder_path_a).find_scanfiles()
-file_path_b = DatFinder(folder_path_b).find_scanfiles()
-averagedScanData_a = average_scans(load_time_scans(file_path_a))
-averagedScanData_b = average_scans(load_time_scans(file_path_b))
-fig3, (ax3a,ax3b) = plt.subplots(2,1)
-plot_averaged_scan(ax3a, averagedScanData_a, PlotColor.BLUE)
-plot_averaged_scan(ax3b,averagedScanData_b,PlotColor.GREEN)
+fig_filename = fig_filedir + r"figure2.pdf"
+folder_path = Path(r"C:\Users\camp06\Documents\droplets_manuscript\202512_Droplets(figure2)\202512_Droplets")
+file_paths = DatFinder(folder_path).find_scanfiles()
+scan_data = load_time_scans(file_paths)
 
-#fig.suptitle("120 PSI Jet")
-fig3.savefig(fig_filename,format='pdf')
-#plt.grid(which='major',axis='both')
+averagedScanData = average_scans(scan_data)
+
+config = AnalysisConfig(scan_data)
+
+resampled_scans = resample_scans(scan_data, config.axis)
+spectrogram = calculate_averaged_spectrogram(resampled_scans, config)
+
+fig, (ax2a,ax2b) = plt.subplots(2,1)
+plot_averaged_scan(ax2a, averagedScanData, PlotColor.BLUE)
+plot_Spectrogram(ax2b, spectrogram)
+
+ax2a.xaxis.label.set_visible(False)
+ax2a.set_xticklabels("")
+ax2a.set_xticks([])
+ax2a.yaxis.set_major_locator(mpl.ticker.MultipleLocator(0.02)) 
+
+ylimits = {
+"vmin": 0,
+"vmax": 100        
+}
+xlimits = {
+    "vmin": -200,
+    "vmax": 200
+}
+#ax2b.xaxis.set_major_locator(mpl.ticker.MultipleLocator(100))
+#ax2b.xaxis.set_major_locator(mpl.ticker.LinearLocator(numticks=5,presets=xlimits))
+#ax2b.yaxis.set_major_locator(mpl.ticker.MultipleLocator(50))
+#ax2b.yaxis.set_major_locator(mpl.ticker.LinearLocator(numticks=3,presets=limits))
+
+
+ax2b.grid(False) 
+#ax2b.pcolormesh.cmap('magma')
+
+ax2a.text(
+    0.02, 0.95, r'\textbf{(a)}',
+    transform=ax2a.transAxes,
+    va='top'
+)
+ax2b.text(
+    0.02, 0.95, r'\textbf{(b)}',
+    transform=ax2b.transAxes,
+    va='top',
+    color='w'
+)
+
+fig.savefig(fig_filename,format='pdf')
+fig.tight_layout()
 plt.show()
-
-#Fig3b of uscfg and circularly polarized pulse in droplets overlaid subplots 

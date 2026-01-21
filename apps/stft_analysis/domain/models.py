@@ -4,7 +4,6 @@ from base_core.math.models import Range
 from base_core.quantities.models import Frequency, Time
 import numpy as np
 
-from base_lib.models import Frequency, Range, Time
 from _domain.models import  C2TData, ScanDataBase
 
 @dataclass(frozen=True)

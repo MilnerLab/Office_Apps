@@ -47,15 +47,25 @@
       "justMyCode": true
     },
     {
-      "name": "Debug plotting_scripts",
+      "name": "Debug plotting_scripts fig2",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder:Office_Apps}/plotting_scripts/manuscript_plots.py",
+      "program": "${workspaceFolder:Office_Apps}/plotting_scripts/manuscript_fig2.py",
 	  "cwd": "${workspaceFolder:Office_Apps}",
 	   "env": { "PYTHONPATH": "${workspaceFolder:Office_Apps}" },
       "console": "integratedTerminal",
       "justMyCode": true
     },
+    {
+      "name": "Debug plotting_scripts fig3",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder:Office_Apps}/plotting_scripts/manuscript_fig3.py",
+	  "cwd": "${workspaceFolder:Office_Apps}",
+	   "env": { "PYTHONPATH": "${workspaceFolder:Office_Apps}" },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    }
   ]
 },
   "settings": {

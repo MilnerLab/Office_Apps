@@ -1,6 +1,6 @@
 from matplotlib.axes import Axes
 from base_core.math.models import Range
-from base_core.plotting.enums import PlotColor
+from base_core.plotting.enums import PlotColor, PlotColorMap
 from base_core.quantities.enums import Prefix
 import numpy as np
 
@@ -9,13 +9,13 @@ from _domain.models import ScanDataBase
 from base_core.quantities.models import Frequency
 
 
-def plot_Spectrogram(ax: Axes, data: SpectrogramBase, v_range: Range[float] = Range(0, 1)) -> None:
+def plot_Spectrogram(ax: Axes, data: SpectrogramBase, v_range: Range[float] = Range(0, 1), colormap: PlotColorMap = PlotColorMap.MAGMA) -> None:
     
     delay = [d.value(Prefix.PICO) for d in data.delay]
     frequency = [f.value(Prefix.GIGA) for f in data.frequency]
     P = np.array(data.power)       
     
-    ax.pcolormesh(delay, frequency, P, shading="gouraud",cmap="viridis", vmin=v_range.min, vmax=v_range.max)
+    ax.pcolormesh(delay, frequency, P, shading="gouraud",cmap=colormap, vmin=v_range.min, vmax=v_range.max)
     ax.set_ylim(0, 150)
     ax.set_xlabel("Probe Delay (ps)")
     ax.set_ylabel("Oscillation \n Frequency (GHz)")
