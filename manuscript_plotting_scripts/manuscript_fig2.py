@@ -44,7 +44,7 @@ mpl.rcParams.update({
     # --- Lines ---
     "lines.linewidth": 0.5,
     "lines.marker": "o",
-    "lines.markersize": 1,
+    "lines.markersize": 1.5,
     "hatch.linewidth": 0.25,
     "patch.antialiased": True,
     
