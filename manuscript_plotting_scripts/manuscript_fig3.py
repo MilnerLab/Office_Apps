@@ -140,8 +140,10 @@ folder_path_b_hor = Path(r"C:\Users\Ian\Dropbox\Postdoc_DB\PD_Data\CS2_ForcedRot
 fig_filedir = r"C:/Users/camp06/Documents/droplets_manuscript/" #Cameron's desktop
 fig_filedir = r"C:\Users\Ian\Dropbox\Postdoc_DB\PD_Code\Figure_Dumping\\" #Ian's desktop
 
+raw_folder_path_a = Path(r"C:\Users\Ian\Dropbox\Postdoc_DB\PD_Data\CS2_ForcedRotation\20260112_Jet_raw\JetScan4+5") #Ian's desktop
+
 #All user input stuff above here
-raw_folder_path_a = Path(r"C:\Users\Ian\Dropbox\Postdoc_DB\PD_Data\CS2_ForcedRotation\20260112_Jet_raw\JetScan4+5")
+
 file_paths = DatFinder(raw_folder_path_a).find_datafiles()
 
 config = AnalysisConfig(
