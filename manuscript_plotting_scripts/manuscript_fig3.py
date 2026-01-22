@@ -17,7 +17,7 @@ from base_core.math.enums import AngleUnit
 from base_core.math.models import Angle, Point, Range
 from base_core.plotting.enums import PlotColor
 from base_core.quantities.enums import Prefix
-from base_core.quantities.models import Time
+from base_core.quantities.models import Length, Time
 
 mpl.rcParams.update({
 #copied from physrev.mplstyle file
@@ -145,12 +145,13 @@ raw_folder_path_a = Path(r"C:\Users\Ian\Dropbox\Postdoc_DB\PD_Data\CS2_ForcedRot
 file_paths = DatFinder(raw_folder_path_a).find_datafiles()
 
 config = AnalysisConfig(
+    delay_center = Length(98.054, Prefix.MILLI),
     center=Point(213.716,191.032),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](15, 120),
     transform_parameter= 0.75)
 
-ion_data = load_ion_data(file_paths)
+ion_data = load_ion_data(file_paths,config.delay_center)
 
 
 
