@@ -4,12 +4,17 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 from _data_io.dat_finder import DatFinder
-from _data_io.dat_loader import load_time_scans
+from _data_io.dat_loader import load_ion_data, load_time_scans
 from _domain.models import ScanDataBase
 #from _domain.plotting import plot_GaussianFit
+from apps.c2t_calculation.domain.config import AnalysisConfig
+from apps.c2t_calculation.domain.pipeline import run_pipeline
 from apps.scan_averaging.domain.averaging import average_scans
 from apps.scan_averaging.domain.models import AveragedScansData
 from apps.scan_averaging.domain.plotting import plot_averaged_scan
+from apps.single_scan.domain.plotting import plot_single_scan
+from base_core.math.enums import AngleUnit
+from base_core.math.models import Angle, Point, Range
 from base_core.plotting.enums import PlotColor
 from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Time
@@ -116,6 +121,8 @@ folder_path_a = Path(r"Y:\Droplets\20260112\Scan4_ScanFiles") #ValeryShare drive
 #folder_path_a2 = Path(r"Y:\Droplets\20260112\Scan5_ScanFiles")
 folder_path_a = Path(r"C:\Users\Ian\Dropbox\Postdoc_DB\PD_Data\CS2_ForcedRotation\20260112_Jet\Scan4+Scan5") #Ian's desktop
 
+#Raw ion data for a... 
+
 
 #for b there are two plots....
 #Folder for droplet scan with phase-averaged centrifuge
@@ -133,6 +140,20 @@ folder_path_b_hor = Path(r"C:\Users\Ian\Dropbox\Postdoc_DB\PD_Data\CS2_ForcedRot
 fig_filedir = r"C:/Users/camp06/Documents/droplets_manuscript/" #Cameron's desktop
 fig_filedir = r"C:\Users\Ian\Dropbox\Postdoc_DB\PD_Code\Figure_Dumping\\" #Ian's desktop
 
+#All user input stuff above here
+raw_folder_path_a = Path(r"C:\Users\Ian\Dropbox\Postdoc_DB\PD_Data\CS2_ForcedRotation\20260112_Jet_raw\JetScan4+5")
+file_paths = DatFinder(raw_folder_path_a).find_datafiles()
+
+config = AnalysisConfig(
+    center=Point(191.032, 213.716),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= Range[int](15, 120),
+    transform_parameter= 0.75)
+
+ion_data = load_ion_data(file_paths)
+
+
+
 fig_filename = fig_filedir + r"figure3.pdf"
 file_path_a = DatFinder(folder_path_a).find_scanfiles()
 file_path_b_cfg = DatFinder(folder_path_b_cfg).find_scanfiles()
@@ -142,8 +163,14 @@ averagedScanData_a = average_scans(load_time_scans(file_path_a))
 averagedScanData_b_cfg = average_scans(load_time_scans(file_path_b_cfg))
 averagedScanData_b_hor = average_scans(load_time_scans(file_path_b_hor))
 
+calculated_Scan = run_pipeline(ion_data,config, raw_folder_path_a)
+
+
+
+#Figure stuff below here
 fig3, (ax3a,ax3b) = plt.subplots(2,1)
 plot_averaged_scan(ax3a, averagedScanData_a, color=PlotColor.BLUE,ecolor=PlotColor.BLUE)
+plot_single_scan(ax3a, calculated_Scan, data_color=PlotColor.RED)
 plot_averaged_scan(ax3b,averagedScanData_b_cfg,color=PlotColor.GREEN,ecolor=PlotColor.GREEN)
 plot_averaged_scan(ax3b,averagedScanData_b_hor,PlotColor.RED,ecolor=PlotColor.RED)
 
