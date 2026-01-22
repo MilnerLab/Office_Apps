@@ -10,18 +10,21 @@ from _data_io.dat_finder import DatFinder
 from _data_io.dat_saver import create_save_path_for_calc_ScanFile
 from base_core.math.enums import AngleUnit
 from base_core.math.models import Angle, Point, Range
+from base_core.quantities.enums import Prefix
+from base_core.quantities.models import Length
 
 
 folder_path = Path(r"/home/soeren/Downloads/20260112_jet_raw and scanfiles/20260112_Jet_raw/JetScan4+5")
 file_paths = DatFinder(folder_path).find_datafiles()
 
 config = AnalysisConfig(
+    delay_center= Length(55, Prefix.MILLI),
     center=Point(189, 205),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](60, 120),
     transform_parameter= 0.75)
 
-ion_data = load_ion_data(file_paths)
+ion_data = load_ion_data(file_paths, config.delay_center)
 
 plot_ions = copy.deepcopy(ion_data[8])
 

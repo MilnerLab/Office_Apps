@@ -2,10 +2,12 @@
 from dataclasses import dataclass
 
 from base_core.math.models import Angle, Point, Range
+from base_core.quantities.models import Length
 
 
 @dataclass
 class AnalysisConfig:
+    delay_center: Length
     center: Point
     angle: Angle
     analysis_zone: Range

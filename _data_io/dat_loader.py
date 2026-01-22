@@ -57,7 +57,7 @@ def load_time_scans(paths: list[Path]) -> list[LoadableScanData]:
     return scanDatas
 
 
-def load_ion_data(paths: list[Path]) -> list[IonData]:
+def load_ion_data(paths: list[Path], delay_center: Length) -> list[IonData]:
     output: list[IonData] = []
     idx_by_delay: dict[Time, int] = {}  
 
@@ -88,7 +88,7 @@ def load_ion_data(paths: list[Path]) -> list[IonData]:
 ###########
 
 
-def extract_infos_from_name(path: Path) -> tuple[int, Time]:
+def extract_infos_from_name(path: Path, delay_center: Length) -> tuple[int, Time]:
     stem = Path(path).stem
     time_part, stage_part = stem.split("DLY_", 1)
     
@@ -96,12 +96,12 @@ def extract_infos_from_name(path: Path) -> tuple[int, Time]:
     stage_part = stage_part[:-2]
     stage_part = stage_part.replace("p", ".")
 
-    delay = calculate_time_delay(Length(float(stage_part), Prefix.MILLI))
+    delay = calculate_time_delay(Length(float(stage_part), Prefix.MILLI), delay_center)
 
     return int(time_part), delay
 
 
-def calculate_time_delay(stage_position: Length) -> Time:
-    delta = (stage_position - DELAY_STAGE_CENTER_VALUE) * 2
+def calculate_time_delay(stage_position: Length, delay_center: Length) -> Time:
+    delta = (stage_position - delay_center) * 2
 
     return Time(delta / SPEED_OF_LIGHT)
