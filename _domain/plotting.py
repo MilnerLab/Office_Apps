@@ -6,7 +6,7 @@ import numpy as np
 from _domain.models import ScanDataBase
 
 
-def plot_ScanData(ax: Axes, data: ScanDataBase, label:str, color: PlotColor = PlotColor.BLUE, ecolor: PlotColor = PlotColor.BLACK) -> None:
+def plot_ScanData(ax: Axes, data: ScanDataBase, label:str, color: PlotColor = PlotColor.BLUE, ecolor: PlotColor = PlotColor.BLACK,marker = 'o') -> None:
     x = [time.value(Prefix.PICO) for time in data.delay]
     y = np.array([c.value for c in data.c2t])
     error = np.array([c.error for c in data.c2t])
@@ -16,6 +16,7 @@ def plot_ScanData(ax: Axes, data: ScanDataBase, label:str, color: PlotColor = Pl
         y,
         color=color,
         label=label,
+        marker = marker,
     )
     ax.errorbar(
         x,
@@ -23,7 +24,7 @@ def plot_ScanData(ax: Axes, data: ScanDataBase, label:str, color: PlotColor = Pl
         yerr=error,
         ecolor=ecolor,
         color=color,
-        
+        marker = marker,
     )
     
 

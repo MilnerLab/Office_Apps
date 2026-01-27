@@ -42,7 +42,7 @@ mpl.rcParams.update({
     # --- Lines ---
     "lines.linewidth": 0.5,
     "lines.marker": "o",
-    "lines.markersize": 1,
+    "lines.markersize": 1.5,
     "hatch.linewidth": 0.25,
     "patch.antialiased": True,
     
@@ -140,8 +140,10 @@ folder_path_b_hor = Path(r"C:\Users\Ian\Dropbox\Postdoc_DB\PD_Data\CS2_ForcedRot
 fig_filedir = r"C:/Users/camp06/Documents/droplets_manuscript/" #Cameron's desktop
 fig_filedir = r"C:\Users\Ian\Dropbox\Postdoc_DB\PD_Code\Figure_Dumping\\" #Ian's desktop
 
+raw_folder_path_a = Path(r"C:\Users\Ian\Dropbox\Postdoc_DB\PD_Data\CS2_ForcedRotation\20260112_Jet_raw\JetScan4+5") #Ian's desktop
+
 #All user input stuff above here
-raw_folder_path_a = Path(r"C:\Users\Ian\Dropbox\Postdoc_DB\PD_Data\CS2_ForcedRotation\20260112_Jet_raw\JetScan4+5")
+
 file_paths = DatFinder(raw_folder_path_a).find_datafiles()
 
 config = AnalysisConfig(
@@ -172,9 +174,10 @@ calculated_Scan = run_pipeline(ion_data,config, raw_folder_path_a)
 #Figure stuff below here
 fig3, (ax3a,ax3b) = plt.subplots(2,1)
 #plot_averaged_scan(ax3a, averagedScanData_a, color=PlotColor.BLUE,ecolor=PlotColor.BLUE) #Scanfiles
-plot_single_scan(ax3a, calculated_Scan, data_color=PlotColor.RED,ecolor=PlotColor.GREEN) #Raw ions
-plot_averaged_scan(ax3b,averagedScanData_b_cfg,color=PlotColor.GREEN,ecolor=PlotColor.GREEN)
-plot_averaged_scan(ax3b,averagedScanData_b_hor,PlotColor.RED,ecolor=PlotColor.RED)
+plot_single_scan(ax3a, calculated_Scan, data_color=PlotColor.BLACK,ecolor=PlotColor.RED,marker='o') #Raw ions
+
+plot_averaged_scan(ax3b,averagedScanData_b_cfg,color=PlotColor.BLUE,ecolor=PlotColor.RED,marker='o')
+plot_averaged_scan(ax3b,averagedScanData_b_hor,PlotColor.GRAY,ecolor=PlotColor.GRAY,marker='d')
 
 
 ax3a.yaxis.set_major_locator(mpl.ticker.MultipleLocator(0.02)) 
