@@ -31,7 +31,7 @@ averagedScanData = average_scans(load_time_scans(file_paths))
 ax_r = ax.twinx()     
 plot_averaged_scan(ax_r, averagedScanData, PlotColor.GREEN, label=" -> CFG randomized")
 ax_r.tick_params(axis="y", colors=PlotColor.GREEN  )
-#plot_GaussianFit(ax, new)
+plot_GaussianFit(ax, averagedScanData)
 
 fig.suptitle('Droplets', fontsize=12)
 ax.legend(loc="upper left")

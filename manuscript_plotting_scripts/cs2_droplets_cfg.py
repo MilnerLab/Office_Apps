@@ -3,15 +3,18 @@ import matplotlib.pyplot as plt
 from _data_io.dat_finder import DatFinder
 from _data_io.dat_loader import load_ion_data
 from _data_io.dat_saver import create_save_path_for_calc_ScanFile
+from _domain.plotting import plot_GaussianFit
 from apps.c2t_calculation.domain.config import IonDataAnalysisConfig
 from apps.c2t_calculation.domain.pipeline import run_pipeline
 from apps.scan_averaging.domain.averaging import average_scans
+from apps.scan_averaging.domain.plotting import plot_averaged_scan
 from apps.stft_analysis.domain.config import StftAnalysisConfig
 from apps.stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
 from apps.stft_analysis.domain.resampling import resample_scans
 from apps.stft_analysis.domain.stft_calculation import calculate_averaged_spectrogram
 from base_core.math.enums import AngleUnit
 from base_core.math.models import Angle, Point, Range
+from base_core.plotting.enums import PlotColor
 from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Length
 
@@ -69,6 +72,20 @@ calculated_Scan_3 = run_pipeline(ion_data,config_3, save_path)
 
 
 scans = [calculated_Scan_1, calculated_Scan_2, calculated_Scan_3]
+
+
+config = StftAnalysisConfig(scans)
+
+resampled_scans = resample_scans(scans, config.axis)
+
+averagedScanData = average_scans(resampled_scans)
+fig, ax = plt.subplots(figsize=(8, 4))
+plot_averaged_scan(ax, averagedScanData, PlotColor.GREEN, label=" -> CFG randomized")
+plot_GaussianFit(ax, averagedScanData)
+fig.suptitle('Droplets', fontsize=12)
+ax.legend(loc="upper left")
+fig.tight_layout()
+plt.show()
 
 config = StftAnalysisConfig(scans)
 

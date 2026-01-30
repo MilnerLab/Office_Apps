@@ -1,6 +1,9 @@
 from dataclasses import dataclass
 from pathlib import Path
+from base_core.fitting.functions import fit_gaussian
+from base_core.math.functions import gaussian
 from base_core.math.models import Range
+from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Frequency, Time
 import numpy as np
 
@@ -11,12 +14,17 @@ class ResampledScan(ScanDataBase):
     file_path: Path
     scan_range: Range[Time]
     
-    def detrend(self)->list[float]:
-        c2t = np.asarray([c.value for c in self.c2t])
-        avg = np.nanmean(c2t)
-        new_c2t: list[C2TData] = []
-        [new_c2t.append(v) for v in c2t - avg]
-        return new_c2t
+    
+    def detrend(self) -> list[float]:
+        y = np.asarray([c.value for c in self.c2t], dtype=float)
+        t = np.asarray([d.value(Prefix.PICO) for d in self.delay], dtype=float)
+
+        x = t - t[0]
+
+        fit = fit_gaussian(x, y)
+        g = gaussian(x, fit.amplitude, fit.center, fit.sigma, fit.offset)
+
+        return (y - g).tolist()
         
 
 @dataclass(frozen=True)
