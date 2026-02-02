@@ -3,12 +3,12 @@ from base_core.quantities.models import Frequency, Time
 import numpy as np
 from scipy.signal import stft, detrend
 
-from apps.stft_analysis.domain.config import AnalysisConfig
+from apps.stft_analysis.domain.config import StftAnalysisConfig
 from apps.stft_analysis.domain.models import AggregateSpectrogram, ResampledScan, SpectrogramResult
 
 BACKUP_WINDFRACT = 2
 
-def calculate_spectrogram(resampled_scan: ResampledScan, config: AnalysisConfig) -> SpectrogramResult:
+def calculate_spectrogram(resampled_scan: ResampledScan, config: StftAnalysisConfig) -> SpectrogramResult:
     
     c2t = resampled_scan.detrend()
     
@@ -35,7 +35,7 @@ def calculate_spectrogram(resampled_scan: ResampledScan, config: AnalysisConfig)
 
 def calculate_averaged_spectrogram(
     resampled_scans: list[ResampledScan],
-    config: AnalysisConfig
+    config: StftAnalysisConfig
 ) -> AggregateSpectrogram:
     """
     Calculate the averaged spectrogram over multiple resampled scans.

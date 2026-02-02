@@ -1,11 +1,11 @@
 
 from pathlib import Path
-from apps.c2t_calculation.domain.config import AnalysisConfig
+from apps.c2t_calculation.domain.config import IonDataAnalysisConfig
 from _domain.models import C2TData, IonData, LoadableScanData
 from base_core.quantities.models import Time
 
 
-def run_pipeline(ion_data: list[IonData], config: AnalysisConfig, save_path: Path) -> LoadableScanData:
+def run_pipeline(ion_data: list[IonData], config: IonDataAnalysisConfig, save_path: Path) -> LoadableScanData:
     delays: list[Time] = []
     c2t: list[C2TData] = []
 

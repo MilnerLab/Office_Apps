@@ -7,7 +7,7 @@ import numpy as np
 from _domain.models import LoadableScanData
 
 @dataclass
-class AnalysisConfig:
+class StftAnalysisConfig:
     resample_time: Time 
     stft_window_size: Time
     axis: list[Time]

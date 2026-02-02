@@ -11,7 +11,7 @@ from apps.scan_averaging.domain.averaging import average_scans
 from apps.scan_averaging.domain.models import AveragedScansData
 from apps.scan_averaging.domain.plotting import plot_averaged_scan
 
-from apps.stft_analysis.domain.config import AnalysisConfig
+from apps.stft_analysis.domain.config import StftAnalysisConfig
 from apps.stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
 from apps.stft_analysis.domain.resampling import resample_scans
 from apps.stft_analysis.domain.stft_calculation import calculate_averaged_spectrogram
@@ -121,7 +121,7 @@ scan_data = load_time_scans(file_paths)
 
 averagedScanData = average_scans(scan_data)
 
-config = AnalysisConfig(scan_data)
+config = StftAnalysisConfig(scan_data)
 
 resampled_scans = resample_scans(scan_data, config.axis)
 spectrogram = calculate_averaged_spectrogram(resampled_scans, config)

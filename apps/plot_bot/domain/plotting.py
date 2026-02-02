@@ -15,7 +15,7 @@ from _domain.models import LoadableScanData
 from apps.scan_averaging.domain.averaging import average_scans
 from apps.scan_averaging.domain.plotting import plot_averaged_scan
 from apps.single_scan.domain.plotting import plot_single_scan
-from apps.stft_analysis.domain.config import AnalysisConfig
+from apps.stft_analysis.domain.config import StftAnalysisConfig
 from apps.stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
 from apps.stft_analysis.domain.resampling import resample_scans
 from apps.stft_analysis.domain.stft_calculation import calculate_averaged_spectrogram
@@ -65,6 +65,47 @@ class PlottingBotPlotting:
             ax_spec.legend(loc="upper right")
         
         self.end(fig)
+        
+    def plot_double(self):
+        use_spec = np.mean(np.abs(np.diff(self.current_scan.delay))) < SPECTROGRAM_THRESHOLD
+
+        if use_spec:
+            fig, (ax_scan, ax_avg, ax_spec) = plt.subplots(
+                nrows=3,
+                ncols=1,
+                figsize=(10, 10),
+                sharex=True,
+                constrained_layout=True,
+            )
+
+            plot_single_scan(ax_scan, self.current_scan, True, self.color_cos2, self.color_data_ions)
+            ax_scan.legend(loc="upper right")
+
+            averagedScanData = average_scans(self.scans)
+            plot_averaged_scan(ax_avg, averagedScanData, PlotColor.PURPLE)
+            ax_avg.legend(loc="upper right")
+
+            self.add_Spectrogram(ax_spec, self.scans)
+            ax_spec.legend(loc="upper left")
+
+        else:
+            fig, (ax_scan, ax_avg) = plt.subplots(
+                nrows=2,
+                ncols=1,
+                figsize=(10, 8),
+                sharex=True,
+                constrained_layout=True,
+            )
+
+            plot_single_scan(ax_scan, self.current_scan, True, self.color_cos2, self.color_data_ions)
+            ax_scan.legend(loc="upper right")
+
+            averagedScanData = average_scans(self.scans)
+            plot_averaged_scan(ax_avg, averagedScanData)
+            ax_avg.legend(loc="upper right")
+
+        self.end(fig)
+
     
     '''
     def plot_single(self):
@@ -80,7 +121,7 @@ class PlottingBotPlotting:
         plt.close(fig)
     
     def add_Spectrogram(self, ax: Axes, scans: list[LoadableScanData]) -> None:
-        config = AnalysisConfig(scans,stft_window_size=Time(100,Prefix.PICO))
+        config = StftAnalysisConfig(scans,stft_window_size=Time(100,Prefix.PICO))
         resampled_scans = resample_scans(scans, config.axis)
         spectrogram = calculate_averaged_spectrogram(resampled_scans, config)
         plot_Spectrogram(ax, spectrogram)

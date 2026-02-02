@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from apps.c2t_calculation.domain.config import AnalysisConfig
+from apps.c2t_calculation.domain.config import IonDataAnalysisConfig
 from base_core.math.models import Point
 from base_core.quantities.models import Time
 import numpy as np
@@ -47,7 +47,7 @@ class IonData:
         sem  = float(std / np.sqrt(N)) if (N > 1 and np.isfinite(std)) else np.nan
         self.c2t = C2TData(mean, sem)
         
-    def apply_config(self, config: AnalysisConfig):
+    def apply_config(self, config: IonDataAnalysisConfig):
         for point in self.points:
             point.subtract(config.center)
             point.affine_transform(config.transform_parameter)

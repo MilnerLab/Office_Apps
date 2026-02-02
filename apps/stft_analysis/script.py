@@ -2,7 +2,7 @@ from pathlib import Path
 from matplotlib import pyplot as plt
 import numpy as np
 
-from apps.stft_analysis.domain.config import AnalysisConfig
+from apps.stft_analysis.domain.config import StftAnalysisConfig
 from apps.stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
 from apps.stft_analysis.domain.resampling import resample_scans
 from apps.stft_analysis.domain.stft_calculation import calculate_averaged_spectrogram
@@ -19,7 +19,7 @@ folder_path = Path(r"/mnt/valeryshare/Droplets/")
 file_paths_avg = DatFinder().find_scanfiles()
 scan_data_avg = load_time_scans(file_paths)
 
-config = AnalysisConfig(scan_data_avg)
+config = StftAnalysisConfig(scan_data)
 
 resampled_scans = resample_scans(scan_data, config.axis)
 spectrogram = calculate_averaged_spectrogram(resampled_scans, config)

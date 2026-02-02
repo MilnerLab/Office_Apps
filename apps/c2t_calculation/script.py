@@ -3,7 +3,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 from _data_io.dat_loader import load_ion_data
-from apps.c2t_calculation.domain.config import AnalysisConfig
+from apps.c2t_calculation.domain.config import IonDataAnalysisConfig
 from apps.c2t_calculation.domain.pipeline import run_pipeline
 from apps.c2t_calculation.domain.plotting import plot_calculated_scan, plot_ions_square
 from _data_io.dat_finder import DatFinder
@@ -14,19 +14,19 @@ from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Length
 
 
-folder_path = Path(r"/home/soeren/Downloads/20260112_jet_raw and scanfiles/20260112_Jet_raw/JetScan4+5")
+folder_path = Path(r"/mnt/valeryshare/Droplets/20260128/Scan2_CFG")
 file_paths = DatFinder(folder_path).find_datafiles()
 
-config = AnalysisConfig(
-    delay_center= Length(55, Prefix.MILLI),
-    center=Point(189, 205),
+config = IonDataAnalysisConfig(
+    delay_center= Length(89.654, Prefix.MILLI),
+    center=Point(175, 204),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](60, 120),
-    transform_parameter= 0.75)
+    transform_parameter= 0.73)
 
 ion_data = load_ion_data(file_paths, config.delay_center)
 
-plot_ions = copy.deepcopy(ion_data[8])
+plot_ions = copy.deepcopy(ion_data[0])
 
 fig = plt.figure(figsize=(8, 6))
 gs = fig.add_gridspec(2, 2, height_ratios=[1, 1])  # oben/unten Höhe anpassen

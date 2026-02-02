@@ -7,7 +7,7 @@ from _data_io.dat_finder import DatFinder
 from _data_io.dat_loader import load_ion_data, load_time_scans
 from _domain.models import ScanDataBase
 #from _domain.plotting import plot_GaussianFit
-from apps.c2t_calculation.domain.config import AnalysisConfig
+from apps.c2t_calculation.domain.config import IonDataAnalysisConfig
 from apps.c2t_calculation.domain.pipeline import run_pipeline
 from apps.scan_averaging.domain.averaging import average_scans
 from apps.scan_averaging.domain.models import AveragedScansData
@@ -146,7 +146,7 @@ raw_folder_path_a = Path(r"C:\Users\Ian\Dropbox\Postdoc_DB\PD_Data\CS2_ForcedRot
 
 file_paths = DatFinder(raw_folder_path_a).find_datafiles()
 
-config = AnalysisConfig(
+config = IonDataAnalysisConfig(
     delay_center = Length(98.054, Prefix.MILLI),
 #    center=Point(213.716,191.032), #what was used in scanfiles
     center=Point(211.5,191), #gives a nice 0.5 for the first point

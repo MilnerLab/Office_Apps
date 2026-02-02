@@ -14,22 +14,11 @@ from base_core.plotting.enums import PlotColor
 from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Time
 
+'''
 
-plt.rcParams.update({
-    "axes.titlesize": 18,
-    "axes.labelsize": 16,
-    "xtick.labelsize": 13,
-    "ytick.labelsize": 13,
-    "legend.fontsize": 11,
-    "lines.linewidth": 0.5,
-    "lines.marker": "o",
-    "lines.markersize": 1.5,
-})
+folder_path = Path(r"/mnt/valeryshare/Droplets/20260119/Scan1_ScanFiles")
+file_paths = DatFinder(folder_path).find_scanfiles()
 
-#folder_path = Path(r"/mnt/valeryshare/Droplets/20260119/Scan1_ScanFiles")
-file_paths = DatFinder().find_scanfiles()
-file_path = Path(r"Z:\Droplets\20260129180427_ScanFile.dat")
-lastScanData = load_time_scan(file_path)
 averagedScanData = average_scans(load_time_scans(file_paths))
 
 fig, (ax1,ax2) = plt.subplots(2,1,figsize=(12, 8))
@@ -40,11 +29,14 @@ ax1.xaxis.label.set_visible(False)
 # ax.tick_params(axis="y", colors=PlotColor.BLUE)
 # #plot_GaussianFit(ax, new)
 
+folder_path = Path(r"/mnt/valeryshare/Droplets/20260120/All good cfg randomized scans")
+file_paths = DatFinder(folder_path).find_scanfiles(True)
 
-#ax_r = ax.twinx()     
-#plot_averaged_scan(ax_r, averagedScanData, PlotColor.GREEN)
-#ax_r.tick_params(axis="y", colors=PlotColor.GREEN  )
-#plot_GaussianFit(ax, new)
+averagedScanData = average_scans(load_time_scans(file_paths))
+ax_r = ax.twinx()     
+plot_averaged_scan(ax_r, averagedScanData, PlotColor.GREEN, label=" -> CFG randomized")
+ax_r.tick_params(axis="y", colors=PlotColor.GREEN  )
+plot_GaussianFit(ax, averagedScanData)
 
 fig.suptitle('Droplets', fontsize=12)
 #ax.legend(loc="upper left")
@@ -57,7 +49,7 @@ plt.show()
 '''
 
 folder_path = Path(r"/home/soeren/Downloads/all cfg scans")
-file_paths = DatFinder().find_scanfiles(mergescans=True)
+file_paths = DatFinder().find_scanfiles()
 
 averagedScanData = average_scans(load_time_scans(file_paths))
 fig, ax = plt.subplots(figsize=(8, 4))
@@ -67,4 +59,3 @@ fig.suptitle('Droplets', fontsize=12)
 ax.legend(loc="upper left")
 fig.tight_layout()
 plt.show()
-'''

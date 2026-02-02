@@ -6,7 +6,7 @@ from base_core.quantities.models import Length
 
 
 @dataclass
-class AnalysisConfig:
+class IonDataAnalysisConfig:
     delay_center: Length
     center: Point
     angle: Angle
