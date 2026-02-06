@@ -117,11 +117,13 @@ fig_filename = fig_filedir + r"fig2_januarydata.pdf"
 folder_path = Path(r"Z://Droplets/20260128/Scan1_CFG")
 file_paths = DatFinder(folder_path).find_datafiles()
 
+ring = Range[int](80, 120)
+
 config_1 = IonDataAnalysisConfig(
     delay_center= Length(89.654, Prefix.MILLI),
     center=Point(175, 204),
     angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](60, 120),
+    analysis_zone= ring,
     transform_parameter= 0.73)
 
 
@@ -136,7 +138,7 @@ config_2 = IonDataAnalysisConfig(
     delay_center= Length(89.654, Prefix.MILLI),
     center=Point(175, 204),
     angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](60, 120),
+    analysis_zone= ring,
     transform_parameter= 0.73)
 
 
@@ -153,7 +155,7 @@ config_3 = IonDataAnalysisConfig(
     delay_center= Length(89.654, Prefix.MILLI),
     center=Point(175, 204),
     angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](60, 120),
+    analysis_zone= ring,
     transform_parameter= 0.73)
 
 
@@ -169,7 +171,7 @@ config_4 = IonDataAnalysisConfig(
     delay_center= Length(89.654, Prefix.MILLI),
     center=Point(175, 204),
     angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](60, 120),
+    analysis_zone= ring,
     transform_parameter= 0.73)
 
 
@@ -184,7 +186,7 @@ config_5 = IonDataAnalysisConfig(
     delay_center= Length(89.654, Prefix.MILLI),
     center=Point(175, 204),
     angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](60, 120),
+    analysis_zone= ring,
     transform_parameter= 0.73)
 
 
@@ -199,7 +201,7 @@ config_6 = IonDataAnalysisConfig(
     delay_center= Length(89.654, Prefix.MILLI),
     center=Point(175, 204),
     angle= Angle(12.0, AngleUnit.DEG),
-    analysis_zone= Range[int](60, 120),
+    analysis_zone= ring,
     transform_parameter= 0.74)
 
 
@@ -223,7 +225,7 @@ resampled_scans = resample_scans(scans, config.axis)
 
 averagedScanData = average_scans(scans)
 fig, (ax1,ax2) = plt.subplots(2,1,sharex=True,gridspec_kw={'hspace': 0})
-plot_averaged_scan(ax1, averagedScanData, PlotColor.GREEN)
+plot_averaged_scan(ax1, averagedScanData, PlotColor.BLUE)
 #plot_GaussianFit(ax, averagedScanData)
 #fig.suptitle('Droplets', fontsize=12)
 #ax.legend(loc="upper left")
@@ -256,6 +258,7 @@ ax2.set_ylim((0,125))
 
 ylabels_b = ax2.get_yticklabels()
 ylabels_b[-1].set_visible(False)
+
 
 #ax2b.xaxis.set_major_locator(mpl.ticker.LinearLocator(numticks=5,presets=xlimits))
 #ax2b.yaxis.set_major_locator(mpl.ticker.MultipleLocator(50))
