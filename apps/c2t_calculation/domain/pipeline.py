@@ -23,4 +23,6 @@ def run_pipeline(raw_datas: list[RawScanData], save_path: Path) -> list[Loadable
             c2t.append(data.c2t)
         
         scans.append(LoadableScanData(delays, c2t, save_path))
+        
+    return scans
 

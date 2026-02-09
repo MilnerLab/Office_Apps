@@ -67,7 +67,7 @@ def load_ion_data(scans_paths: list[list[Path]], configs: list[IonDataAnalysisCo
     for i in range(len(scans_paths)):
         output: list[IonData] = []
         idx_by_delay: dict[Time, int] = {}  
-
+        
         for path in sorted(scans_paths[i]):
             run_id, delay = extract_infos_from_name(path,configs[i].delay_center)
 
