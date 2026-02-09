@@ -48,6 +48,68 @@ fig_filename = fig_filedir + r"\\MISC_OCS.pdf" #Name the file to save here
 
 
 
+'''
+DATA LOCATIONS! 
+2026/02 OCS data to compare is with three different centrifuges (GA=26mm, DA = 16.0mm, GA=26mm, DA=16.3mm and GA=0mm, DA=16.6mm),
+and for each of those we want to plot:
+cross-correlation traces with spectrograms,
+jet scan with spectrogram (we don't have this for OCS with the fastest centrifuge, but that's ok),
+droplet scan without spectrogram.
+
+
+
+--------XCORR---------
+FASTEST:
+GA=26mm, DA = 16.0mm, essentially the CFG used for CS2 experiments:
+Z:\Droplets\20260205\XCORR\CFG_2\202602051051AM_.csv
+        (Z:\Droplets\20260205\XCORR\ also contains GA and DA only scans)
+
+FAST ACCELERATION SLOW START:
+GA=26mm, DA = 16.3mm, used for OCS with the "quick" centrifuge that still has a slower starting frequency than in CS2 experiments
+Z:\Droplets\20260207\XCORR\CFG_16p3mm_26mm\20260207905AM_.csv
+
+SLOWEST:
+GA=0mm, DA = 16.6mm, used for OCS as the "slowest" centrifuge we can currently make
+Z:\Droplets\20260207\XCORR\CFG_16p6mm_0mm\202602071250_.csv
+
+
+--------JET---------
+GA=26, DA = 16.3mm
+Z:\Droplets\20260206\Scan7
+
+GA=0mm, DA = 16.6mm
+Z:\Droplets\20260207\Scan4
+
+--------DROPLETS---------
+GA = 26mm, DA = 16.0mm
+Z:\Droplets\20260204\Scan1
+Z:\Droplets\20260204\Scan2
+
+Z:\Droplets\20260205\Scan1
+Z:\Droplets\20260205\Scan2
+
+GA=26mm, DA = 16.3mm
+Z:\Droplets\20260205\Scan3
+Z:\Droplets\20260205\Scan4
+Z:\Droplets\20260205\Scan5
+Z:\Droplets\20260205\Scan6
+Z:\Droplets\20260205\Scan7
+
+Z:\Droplets\20260206\Scan5
+Z:\Droplets\20260206\Scan6
+
+Z:\Droplets\20260207\Scan1
+Z:\Droplets\20260207\Scan2
+Z:\Droplets\20260207\Scan3
+
+GA=0mm, DA = 16.6mm
+Z:\Droplets\20260207\Scan5
+Z:\Droplets\20260207\Scan6
+
+
+'''
+
+
 
 #Average the scan files
 file_path_a = DatFinder(folder_path_a).find_scanfiles()
@@ -55,7 +117,7 @@ file_path_b = DatFinder(folder_path_b).find_scanfiles()
 averagedScanData_a = average_scans(load_time_scans(file_path_a))
 averagedScanData_b = average_scans(load_time_scans(file_path_b))
 
-'''
+
 #Update the matplotlib settings
 mpl.rcParams.update({
 #copied from physrev.mplstyle file
@@ -147,7 +209,7 @@ mpl.rcParams.update({
     "font.serif": ["cmr10"]
 
 })
-'''
+
 
 #Create the figures and plot things!
 fig3, (ax_a,ax_b) = plt.subplots(2,1,sharex=True,gridspec_kw={'hspace': 0})
