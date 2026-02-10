@@ -8,9 +8,11 @@ from _data_io.dat_saver import create_save_path_for_calc_ScanFile
 from apps.c2t_calculation.domain.config import IonDataAnalysisConfig
 from apps.c2t_calculation.domain.pipeline import run_pipeline
 from apps.scan_averaging.domain.averaging import average_scans
+from apps.scan_averaging.domain.models import AveragedScansData
 from apps.scan_averaging.domain.plotting import plot_averaged_scan
 from apps.single_scan.domain.plotting import plot_single_scan
 from apps.stft_analysis.domain.config import StftAnalysisConfig
+from apps.stft_analysis.domain.models import AggregateSpectrogram
 from apps.stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
 from apps.stft_analysis.domain.resampling import resample_scans
 from apps.stft_analysis.domain.stft_calculation import calculate_averaged_spectrogram
@@ -20,7 +22,17 @@ from base_core.plotting.enums import PlotColor
 from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Length, Time
 
-
+def calculating(folders: list[Path], configs: list[IonDataAnalysisConfig]) -> tuple[AveragedScansData, AggregateSpectrogram]:
+    scans_paths = DatFinder(folders).find_datafiles()
+    raw_datas = load_ion_data(scans_paths, configs)
+    save_path = create_save_path_for_calc_ScanFile(folders[0], str(raw_datas[0].ion_datas[0].run_id))
+    calculated_scans = run_pipeline(raw_datas, save_path)
+    averagedScanData = average_scans(calculated_scans)
+    config = StftAnalysisConfig(calculated_scans)
+    resampled_scans = resample_scans(calculated_scans, config.axis)
+    spectrogram = calculate_averaged_spectrogram(resampled_scans, config)
+    
+    return (averagedScanData, spectrogram)
 
 #Path to save figure in
 fig_filedir = r"Z:\Droplets\plots" 
@@ -65,36 +77,13 @@ configs_2 = configs
 folders = folders_1
 configs = configs_1
 #Pipeline start
-scans_paths = DatFinder(folders).find_datafiles()
-raw_datas = load_ion_data(scans_paths, configs)
-save_path = create_save_path_for_calc_ScanFile(folders[0], str(raw_datas[0].ion_datas[0].run_id))
-calculated_scans = run_pipeline(raw_datas, save_path)
-averagedScanData = average_scans(calculated_scans)
-config = StftAnalysisConfig(calculated_scans)
-resampled_scans = resample_scans(calculated_scans, config.axis)
-spectrogram = calculate_averaged_spectrogram(resampled_scans, config)
-#Pipeline end for first experiment
-plottable_scan_1 = averagedScanData
-plottable_spectrogram_1 = spectrogram
-plottable_nyquist_1 = calculated_scans[0]
-'''!!!'''
+plottable_scan_1, plottable_spectrogram_1 = calculating(folders_1, configs_1)
 
 #Prep for pipeline for second experiment
 folders = folders_2
 configs = configs_2
 #Pipeline start
-scans_paths = DatFinder(folders).find_datafiles()
-raw_datas = load_ion_data(scans_paths, configs)
-save_path = create_save_path_for_calc_ScanFile(folders[0], str(raw_datas[0].ion_datas[0].run_id))
-calculated_scans = run_pipeline(raw_datas, save_path)
-averagedScanData = average_scans(calculated_scans)
-config = StftAnalysisConfig(calculated_scans)
-resampled_scans = resample_scans(calculated_scans, config.axis)
-spectrogram = calculate_averaged_spectrogram(resampled_scans, config)
-#Pipeline end for second experiment
-plottable_scan_2 = averagedScanData
-plottable_spectrogram_2 = spectrogram
-plottable_nyquist_2 = calculated_scans[0]
+plottable_scan_2, plottable_spectrogram_2 = calculating(folders_1, configs_1)
 
 #Plot histogram to check centre (change variable here)
 if False:
@@ -129,7 +118,7 @@ plot_averaged_scan(a, plottable_scan_1, PlotColor.BLUE,ecolor=PlotColor.RED)
 a = axs[0,1]
 plot_Spectrogram(a, plottable_spectrogram_1)
 a.set_ylim([0,120])
-plot_nyquist_frequency(a, plottable_nyquist_1)
+plot_nyquist_frequency(a, plottable_scan_1)
 
 
 #Plot second experiment in bottom row
@@ -139,7 +128,7 @@ plot_averaged_scan(a, plottable_scan_2, PlotColor.BLUE,ecolor=PlotColor.RED)
 a = axs[1,1]
 plot_Spectrogram(a, plottable_spectrogram_2)
 a.set_ylim([0,120])
-plot_nyquist_frequency(a, plottable_nyquist_2)
+plot_nyquist_frequency(a, plottable_scan_2)
 
 mainfig.suptitle(PlotTitle)
 
