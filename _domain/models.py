@@ -2,8 +2,10 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+from altair import DerivedStream
+
 from apps.c2t_calculation.domain.config import IonDataAnalysisConfig
-from base_core.math.models import Point
+from base_core.math.models import Point, Range
 from base_core.quantities.models import Time
 import numpy as np
 
@@ -47,14 +49,27 @@ class IonData:
         sem  = float(std / np.sqrt(N)) if (N > 1 and np.isfinite(std)) else np.nan
         self.c2t = C2TData(mean, sem)
         
-    
+    def get_2D_histogram(
+        self,
+        num_bins: int,
+        xy_range: Range[float],
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        if not self.points:
+            raise ValueError("IonData.points is empty.")
+
+        xs = np.array([p.x for p in self.points], dtype=float)
+        ys = np.array([p.y for p in self.points], dtype=float)
+
+        r = ((xy_range.min, xy_range.max), (xy_range.min, xy_range.max))
+        H, x_edges, y_edges = np.histogram2d(xs, ys, bins=num_bins, range=r)
+        return H, x_edges, y_edges
    
 
 @dataclass
 class RawScanData:
     ion_datas: list[IonData]
     config: IonDataAnalysisConfig 
-    
+
     def apply_config(self):
         for d in self.ion_datas:
             for point in d.points:
