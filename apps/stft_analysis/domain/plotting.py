@@ -15,7 +15,7 @@ def plot_Spectrogram(ax: Axes, data: SpectrogramBase, v_range: Range[float] = Ra
     frequency = [f.value(Prefix.GIGA) for f in data.frequency]
     P = np.array(data.power)       
     
-    ax.pcolormesh(delay, frequency, P, shading="auto",cmap=colormap, vmin=v_range.min, vmax=v_range.max)
+    ax.pcolormesh(delay, frequency, P, shading="gouraud",cmap=colormap, vmin=v_range.min, vmax=v_range.max)
     ax.set_ylim(0, 150)
     ax.set_xlabel("Probe Delay (ps)")
     ax.set_ylabel("Oscillation \n Frequency (GHz)")
