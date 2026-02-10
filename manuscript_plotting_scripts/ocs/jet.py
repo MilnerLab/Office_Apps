@@ -1,3 +1,4 @@
+print('Code start!')
 from pathlib import Path
 from matplotlib import pyplot as plt
 
@@ -18,13 +19,8 @@ from base_core.math.models import Angle, Point, Range
 from base_core.plotting.enums import PlotColor
 from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Length, Time
+print('Dependencies')
 
-fig, (ax_scan, ax_spec) = plt.subplots(
-            nrows=2,
-            ncols=1,
-            figsize=(10, 8),
-            sharex=True 
-        )
 
 # GA=26, DA = 16.3mm
 
@@ -34,7 +30,7 @@ folders: list[Path] = []
 folders.append(Path(r"20260206\Scan7"))
 configs.append(IonDataAnalysisConfig(
     delay_center= Length(92.654, Prefix.MILLI),
-    center=Point(202, 203),
+    center=Point(203, 202),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](30, 90),
     transform_parameter= 0.73))
@@ -42,18 +38,47 @@ configs.append(IonDataAnalysisConfig(
 scans_paths = DatFinder(folders).find_datafiles()
 
 raw_datas = load_ion_data(scans_paths, configs)
+print('Data loaded!')
 save_path = create_save_path_for_calc_ScanFile(folders[0], str(raw_datas[0].ion_datas[0].run_id))
 calculated_scans = run_pipeline(raw_datas, save_path)
 
+TestIndex = 4 #Delay point
+plot_radius = 150
+h_shift, edgex, edgey  = raw_datas[0].ion_datas[TestIndex].get_2D_histogram(num_bins=2*plot_radius,xy_range=Range(-plot_radius,plot_radius))
+
+
 averagedScanData = average_scans(calculated_scans)
-
-plot_averaged_scan(ax_scan, averagedScanData, PlotColor.GREEN, label=" -> CFG randomized")
-ax_scan.legend(loc="upper right")
-
 config = StftAnalysisConfig(calculated_scans)
 resampled_scans = resample_scans(calculated_scans, config.axis)
 spectrogram = calculate_averaged_spectrogram(resampled_scans, config)
-plot_Spectrogram(ax_spec, spectrogram)
-plot_nyquist_frequency(ax_spec, calculated_scans[0])
+
+
+ionfig, (ax_shift) = plt.subplots(
+            nrows=1,
+            ncols=1,
+            figsize=(4, 4), 
+        )
+
+ax_shift.pcolor(edgex,edgey,h_shift)
+ax_shift.axis('equal')
+
+
+fig, (axs) = plt.subplots(
+            nrows=2,
+            ncols=2,
+            figsize=(10, 8),
+            sharex=True 
+        )
+
+a = axs[0,0]
+plot_averaged_scan(a, averagedScanData, PlotColor.GREEN, label=" -> CFG randomized")
+a.legend(loc="upper right")
+
+
+a = axs[1,0]
+
+plot_Spectrogram(a, spectrogram)
+a.set_ylim([0,120])
+plot_nyquist_frequency(a, calculated_scans[0])
 
 plt.show()
