@@ -51,8 +51,8 @@ class IonData:
         
     def get_2D_histogram(
         self,
-        num_bins: int,
-        xy_range: Range[float],
+        xy_range: Range[float] = Range(0.0, 400.0),
+        num_bins: int = 400,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         if not self.points:
             raise ValueError("IonData.points is empty.")
