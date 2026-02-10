@@ -23,7 +23,7 @@ from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Length, Time
 
 def calculating(folders: list[Path], configs: list[IonDataAnalysisConfig]) -> tuple[AveragedScansData, AggregateSpectrogram]:
-    scans_paths = DatFinder(folders).find_datafiles()
+    scans_paths = DatFinder(folders).find_datafiles() #Change this if you want a specific path rather than the Droplets folder
     raw_datas = load_ion_data(scans_paths, configs)
     save_path = create_save_path_for_calc_ScanFile(folders[0], str(raw_datas[0].ion_datas[0].run_id))
     calculated_scans = run_pipeline(raw_datas, save_path)
@@ -43,47 +43,36 @@ PlotTitle = r'OCS Jet with usCFG set to max/min acceleration (above/below)'
 
 #FIRST EXPERIMENT
 # GA=26, DA = 16.3mm
-configs: list[IonDataAnalysisConfig] = []
-folders: list[Path] = []
+configs_1: list[IonDataAnalysisConfig] = []
+folders_1: list[Path] = []
 
-folders.append(Path(r"20260206\Scan7"))
-configs.append(IonDataAnalysisConfig(
+folders_1.append(Path(r"20260206\Scan7"))
+configs_1.append(IonDataAnalysisConfig(
     delay_center= Length(92.654, Prefix.MILLI),
     center=Point(203, 202),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](30, 90),
     transform_parameter= 0.73))
-folders_1 = folders
-configs_1 = configs
+
 
 #SECOND EXPERIMENT
 # GA=0, DA = 16.6mm
-configs: list[IonDataAnalysisConfig] = []
-folders: list[Path] = []
+configs_2: list[IonDataAnalysisConfig] = []
+folders_2: list[Path] = []
 
-folders.append(Path(r"20260207\Scan4"))
-configs.append(IonDataAnalysisConfig(
+folders_2.append(Path(r"20260207\Scan4"))
+configs_2.append(IonDataAnalysisConfig(
     delay_center= Length(92.654, Prefix.MILLI),
     center=Point(203, 202),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](30, 90),
     transform_parameter= 0.73))
-folders_2 = folders
-configs_2 = configs
 
 #--------------------------------------------------------------------------------------------------
 
-#Prep for pipeline for first experiment
-folders = folders_1
-configs = configs_1
-#Pipeline start
+#Pipeline 
 plottable_scan_1, plottable_spectrogram_1 = calculating(folders_1, configs_1)
-
-#Prep for pipeline for second experiment
-folders = folders_2
-configs = configs_2
-#Pipeline start
-plottable_scan_2, plottable_spectrogram_2 = calculating(folders_1, configs_1)
+plottable_scan_2, plottable_spectrogram_2 = calculating(folders_2, configs_2)
 
 #Plot histogram to check centre (change variable here)
 if False:
