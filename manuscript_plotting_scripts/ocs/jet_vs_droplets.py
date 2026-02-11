@@ -77,10 +77,10 @@ folders_2: list[Path] = []
 folders_2.append(Path(r"202602010\Scan4")) #EXTRA ZERO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 configs_2.append(IonDataAnalysisConfig(
     delay_center= Length(92.654-POSZEROSHIFT, Prefix.MILLI),
-    center=Point(175, 202),
+    center=Point(175, 205),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](60, 90),
-    transform_parameter= 0.73))
+    transform_parameter= 0.75))
 
 #--------------------------------------------------------------------------------------------------
 #Update the matplotlib settings
