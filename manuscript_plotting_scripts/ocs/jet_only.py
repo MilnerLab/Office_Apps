@@ -1,6 +1,7 @@
 print('Code start!')
 from pathlib import Path
 from matplotlib import pyplot as plt
+import matplotlib as mpl
 
 from _data_io.dat_finder import DatFinder
 from _data_io.dat_loader import load_ion_data
@@ -23,7 +24,10 @@ from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Length, Time
 
 STFTWINDOWSIZE = Time(180,Prefix.PICO)  #This should presumably be in the configs that come in, rather than coded here.
-
+EARLIEST_DELAY_PS = -550
+LATEST_DELAY_PS = -EARLIEST_DELAY_PS
+POSZEROSHIFT = 3 #millimetres :)
+USEFONTSIZE = 16
 #FUNCTION TO GENERATE THE PLOTTABLE DATA
 def calculating(folders: list[Path], configs: list[IonDataAnalysisConfig]) -> tuple[AveragedScansData, AggregateSpectrogram]:
     
@@ -46,7 +50,7 @@ fig_filedir = r"Z:\Droplets\plots"
 fig_filename = fig_filedir + r"\\jet_only_TEMP.png" #Name the file to save here
 
 #Plot on top
-PlotTitle = r'OCS Jet with usCFG set to max/min acceleration (above/below)'
+PlotTitle = r"OCS Jet with usCFG set to max/min acceleration (above/below)" "\n" "20260206 Scan7 and 20260207 Scan4"
 
 #FIRST EXPERIMENT
 # GA=26, DA = 16.3mm
@@ -76,6 +80,99 @@ configs_2.append(IonDataAnalysisConfig(
     transform_parameter= 0.73))
 
 #--------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
+#Update the matplotlib settings
+mpl.rcParams.update({
+#copied from physrev.mplstyle file
+    #"axes.prop_cycle": "(cycler('color', ['5d81b4', 'e09b24', '8eb031', 'eb6235', '8678b2', 'c46e1a', '5c9dc7', 'ffbf00', 'a5609c']) + cycler('ls', ['-', '--', '-.', (0, (1,0.85)), (0, (3, 1, 1, 1, 1, 1)), (0, (3, 1, 1, 1)), (0, (5, 1)), ':', (4, (10, 3))]))",  
+  
+    # --- Axes ---
+    "axes.titlesize": "medium",
+    "axes.labelsize": USEFONTSIZE,
+    "axes.formatter.use_mathtext": True,
+    "axes.linewidth": 0.5,
+    #"axes.grid": True,
+    #"axes.grid.axis": "both",  # which axis the grid should apply to
+    #"axes.grid.which": "major",
+    #"axes.axisbelow" : True,
+    #"grid.alpha": 0.25,
+
+    # --- Grid lines ---
+    #"grid.linewidth": 0.5,
+    #"grid.linestyle": "dashed",
+    #"grid.color": "xkcd:light gray",
+
+    # --- Lines ---
+    "lines.linewidth": 0.5,
+    "lines.marker": "d",
+    "lines.markersize": 0.5,
+    "hatch.linewidth": 0.25,
+    "patch.antialiased": True,
+    
+    #---Errorbars---
+    "errorbar.capsize": 1,
+
+    # --- Ticks (X) ---
+    #"xtick.top": True,
+    "xtick.bottom": True,
+    "xtick.major.size": 3.0,
+    "xtick.minor.size": 1.5,
+    "xtick.major.width": 0.5,
+    "xtick.minor.width": 0.5,
+    "xtick.direction": "in",
+    "xtick.minor.visible": False,
+    #"xtick.major.top": True,
+    "xtick.major.bottom": True,
+    "xtick.minor.bottom": True,
+    "xtick.major.pad": 5.0,
+    "xtick.minor.pad": 5.0,
+    "xtick.labelsize": USEFONTSIZE,
+
+    # --- Ticks (Y) ---
+    "ytick.left": True,
+    #"ytick.right": True,
+    "ytick.major.size": 3.0,
+    #"ytick.minor.size": 1.5,
+    "ytick.major.width": 0.5,
+    #"ytick.minor.width": 0.5,
+    "ytick.direction": "in",
+    #"ytick.minor.visible": True,
+    "ytick.major.left": True,
+    #"ytick.major.right": True,
+    #"ytick.minor.left": True,
+    "ytick.major.pad": 5.0,
+    #"ytick.minor.pad": 5.0,
+    "ytick.labelsize": USEFONTSIZE,
+    
+    
+    # --- Legend ---
+    "legend.frameon": True,
+    "legend.fontsize": 12,
+    "legend.handlelength": 1.375,
+    "legend.labelspacing": 0.4,
+    "legend.columnspacing": 1,
+    "legend.facecolor": "white",
+    "legend.edgecolor": "white",
+    "legend.framealpha": 1,
+    "legend.title_fontsize": 12,
+    "legend.loc": "lower center", #location is loc
+ 
+    # --- Figure size ---
+    "figure.figsize": (3.375, 3.6), #1- column fig
+    #"figure.figsize": (6.75, 6.75), #approx. 2- column fig
+    "figure.subplot.left": 0.125,
+    "figure.subplot.bottom": 0.175,
+    "figure.subplot.top": 0.9,
+    "figure.subplot.right": 0.95,
+    "figure.autolayout": True,
+
+    # --- Fonts (computer modern) ---
+    "text.usetex": False,       #<------------------------------------------------<-----<_<_<_ LATEX 
+    #"mathtext.fontset": "cm",
+    "font.family": "serif",
+    "font.serif": ["cmr10"],
+
+})
 
 
 
@@ -112,24 +209,26 @@ mainfig, (axs) = plt.subplots(
 
 #Plot first experiment in top row
 a = axs[0,0]
-plot_averaged_scan(a, plottable_scan_1, PlotColor.BLUE,ecolor=PlotColor.RED)
+plot_averaged_scan(a, plottable_scan_1, PlotColor.RED,ecolor=PlotColor.BLUE)
 #a.legend(loc="upper right")
+a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 a = axs[0,1]
 plot_Spectrogram(a, plottable_spectrogram_1)
+a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 a.set_ylim([0,120])
 plot_nyquist_frequency(a, plottable_scan_1)
 
 
 #Plot second experiment in bottom row
 a = axs[1,0]
-plot_averaged_scan(a, plottable_scan_2, PlotColor.BLUE,ecolor=PlotColor.RED)
+plot_averaged_scan(a, plottable_scan_2, PlotColor.RED,ecolor=PlotColor.BLUE)
 #a.legend(loc="upper right")
 a = axs[1,1]
 plot_Spectrogram(a, plottable_spectrogram_2)
 a.set_ylim([0,120])
 plot_nyquist_frequency(a, plottable_scan_2)
 
-mainfig.suptitle(PlotTitle)
+mainfig.suptitle(PlotTitle,fontsize=USEFONTSIZE,color='BLUE')
 
 mainfig.savefig(fig_filename,format='png')
 plt.show()

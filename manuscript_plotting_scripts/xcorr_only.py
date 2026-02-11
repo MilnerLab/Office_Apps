@@ -25,13 +25,15 @@ from base_core.quantities.models import Length, Time
 
 
 STFTWINDOWSIZE = Time(180,Prefix.PICO)  
-EARLIEST_DELAY_PS = -450
+EARLIEST_DELAY_PS = -550
 LATEST_DELAY_PS = -EARLIEST_DELAY_PS
+POSZEROSHIFT = 0 #millimetres :)
+USEFONTSIZE = 16
+
 
 #FUNCTION TO GENERATE THE PLOTTABLE DATA
 def calculating(filepath: Path, zero_delay_position: float) -> tuple[LoadableScanData, SpectrogramResult]:
     xcdata = load_xcorr_means(filepath,Length(zero_delay_position,Prefix.MILLI))
-    
     config = StftAnalysisConfig([xcdata])
     config.stft_window_size = STFTWINDOWSIZE 
     resampled_scans = resample_scans([xcdata], config.axis)
@@ -45,16 +47,16 @@ fig_filedir = r"Z:\Droplets\plots"
 fig_filename = fig_filedir + r"\\xcorr_only_TEMP.png" #Name the file to save here
 
 #Plot title on top
-PlotTitle = r'XCORR with usCFG set to max/min acceleration (above/below)'
+PlotTitle = r"Optical Cross-Correlation with usCFG set to max/min acceleration (above/below)" "\n" "From 20260207"
 
 #FIRST EXPERIMENT
 # GA=26, DA = 16.3mm
 file_xcorr_1 = Path(r"Z:\Droplets\20260207\XCORR\CFG_16p3mm_26mm\20260207905AM_.csv")
-zero_delay_position_1 = 170 #mm
+zero_delay_position_1 = 170 + POSZEROSHIFT #mm
 #SECOND EXPERIMENT
 # GA=0, DA = 16.6mm
 file_xcorr_2 = Path(r"Z:\Droplets\20260207\XCORR\CFG_16p6mm_0mm\202602071250_.csv")
-zero_delay_position_2 = 170 #mm
+zero_delay_position_2 = 170 + POSZEROSHIFT #mm
 
 #--------------------------------------------------------------------------------------------------
 #Update the matplotlib settings
@@ -64,7 +66,7 @@ mpl.rcParams.update({
   
     # --- Axes ---
     "axes.titlesize": "medium",
-    "axes.labelsize": 9,
+    "axes.labelsize": USEFONTSIZE,
     "axes.formatter.use_mathtext": True,
     "axes.linewidth": 0.5,
     #"axes.grid": True,
@@ -81,7 +83,7 @@ mpl.rcParams.update({
     # --- Lines ---
     "lines.linewidth": 0.5,
     "lines.marker": "d",
-    "lines.markersize": 1,
+    "lines.markersize": 0.5,
     "hatch.linewidth": 0.25,
     "patch.antialiased": True,
     
@@ -102,7 +104,7 @@ mpl.rcParams.update({
     "xtick.minor.bottom": True,
     "xtick.major.pad": 5.0,
     "xtick.minor.pad": 5.0,
-    "xtick.labelsize": 9,
+    "xtick.labelsize": USEFONTSIZE,
 
     # --- Ticks (Y) ---
     "ytick.left": True,
@@ -118,26 +120,27 @@ mpl.rcParams.update({
     #"ytick.minor.left": True,
     "ytick.major.pad": 5.0,
     #"ytick.minor.pad": 5.0,
-    "ytick.labelsize": 9,
+    "ytick.labelsize": USEFONTSIZE,
     
     
     # --- Legend ---
     "legend.frameon": True,
-    "legend.fontsize": 8,
+    "legend.fontsize": 12,
     "legend.handlelength": 1.375,
     "legend.labelspacing": 0.4,
     "legend.columnspacing": 1,
     "legend.facecolor": "white",
     "legend.edgecolor": "white",
     "legend.framealpha": 1,
-    "legend.title_fontsize": 8,
+    "legend.title_fontsize": 12,
+    "legend.loc": "lower center", #location is loc
  
     # --- Figure size ---
     "figure.figsize": (3.375, 3.6), #1- column fig
     #"figure.figsize": (6.75, 6.75), #approx. 2- column fig
     "figure.subplot.left": 0.125,
     "figure.subplot.bottom": 0.175,
-    "figure.subplot.top": 0.95,
+    "figure.subplot.top": 0.9,
     "figure.subplot.right": 0.95,
     "figure.autolayout": True,
 
@@ -145,7 +148,7 @@ mpl.rcParams.update({
     "text.usetex": False,       #<------------------------------------------------<-----<_<_<_ LATEX 
     #"mathtext.fontset": "cm",
     "font.family": "serif",
-    "font.serif": ["cmr10"]
+    "font.serif": ["cmr10"],
 
 })
 
@@ -174,13 +177,13 @@ mainfig, (axs) = plt.subplots(
 
 #Plot first experiment in top row
 a = axs[0,0]
-plot_single_scan(a,xcdata_1,data_color = PlotColor.RED)
+plot_single_scan(a,xcdata_1,data_color = PlotColor.GRAY)
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 a.set_ylabel('Photodiode Signal (V)')
 
 #a.legend(loc="upper right")
 a = axs[0,1]
-plot_Spectrogram(a, plottable_spectrogram_1)
+plot_Spectrogram(a, plottable_spectrogram_1,colormap='viridis')
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 a.set_ylim([0,120])
 #a.set_ylim([0,120])
@@ -189,12 +192,12 @@ a.set_ylim([0,120])
 
 #Plot second experiment in bottom row
 a = axs[1,0]
-plot_single_scan(a,xcdata_2,data_color = PlotColor.RED)
+plot_single_scan(a,xcdata_2,data_color = PlotColor.GRAY)
 a.set_ylabel('Photodiode Signal (V)')
 
 #a.legend(loc="upper right")
 a = axs[1,1]
-plot_Spectrogram(a, plottable_spectrogram_2)
+plot_Spectrogram(a, plottable_spectrogram_2,colormap='viridis')
 a.set_ylim([0,120])
 
 #a.set_ylim([0,120])
