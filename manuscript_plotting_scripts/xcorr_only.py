@@ -47,7 +47,7 @@ fig_filedir = r"Z:\Droplets\plots"
 fig_filename = fig_filedir + r"\\xcorr_only_TEMP.png" #Name the file to save here
 
 #Plot title on top
-PlotTitle = r"Optical Cross-Correlation with usCFG set to max/min acceleration (above/below)" "\n" "From 20260207"
+PlotTitle = r"Optical Cross-Correlation with usCFG set to max/min acceleration (above/below)" "\n" "20260207"
 
 #FIRST EXPERIMENT
 # GA=26, DA = 16.3mm
