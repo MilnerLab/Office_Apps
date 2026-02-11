@@ -66,7 +66,7 @@ configs_1.append(IonDataAnalysisConfig(
     center=Point(203, 202),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](30, 90),
-    transform_parameter= 0.73))
+    transform_parameter= 0.78))
 
 
 #DROPLETS EXPERIMENT
