@@ -106,6 +106,9 @@ GA=0mm, DA = 16.6mm
 Z:\Droplets\20260207\Scan5
 Z:\Droplets\20260207\Scan6
 
+Z:\Droplets\20260209\Scan1 #probably the nicest day (1-3)
+Z:\Droplets\20260209\Scan2 #probably the nicest day (1-3)
+Z:\Droplets\20260209\Scan3 #probably the nicest day (1-3)
 
 '''
 
