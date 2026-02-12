@@ -1,12 +1,12 @@
 
 from pathlib import Path
 from apps.c2t_calculation.domain.config import IonDataAnalysisConfig
-from _domain.models import Measurement, IonData, LoadableScanData, RawScanData
+from _domain.models import Measurement, IonData, C2TScanData, RawScanData
 from base_core.quantities.models import Time
 
 
-def run_pipeline(raw_datas: list[RawScanData], save_path: Path = None) -> list[LoadableScanData]:
-    scans: list[LoadableScanData] = []
+def run_pipeline(raw_datas: list[RawScanData], save_path: Path = None) -> list[C2TScanData]:
+    scans: list[C2TScanData] = []
     
     for raw_data in raw_datas:
         
@@ -22,7 +22,7 @@ def run_pipeline(raw_datas: list[RawScanData], save_path: Path = None) -> list[L
             assert data.c2t is not None
             c2t.append(data.c2t)
         
-        scans.append(LoadableScanData(delays, c2t, save_path))
+        scans.append(C2TScanData(delays, c2t, save_path))
         
     return scans
 

@@ -22,10 +22,9 @@ class ScanDataBase:
     measured_values: list[Measurement]
 
 @dataclass(frozen=True)
-class LoadableScanData(ScanDataBase):
+class C2TScanData(ScanDataBase):
     file_path: Path = None
     ions_per_frame: list[float] | None = None
-
 
 @dataclass
 class IonData:

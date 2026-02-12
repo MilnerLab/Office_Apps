@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from base_core.quantities.models import Time
 import numpy as np
 
-from _domain.models import ScanDataBase
+from _domain.models import C2TScanData, ScanDataBase
 
 @dataclass
 class StftAnalysisConfig:
@@ -20,8 +20,8 @@ class StftAnalysisConfig:
             self.stft_window_size = stft_window_size
 
     def set_from_data(self, scan_data: list[ScanDataBase]) -> None:
-        starts = [scan.delay[0] for scan in scan_data]
-        ends = [scan.delay[-1] for scan in scan_data]
+        starts = [scan.delays[0] for scan in scan_data]
+        ends = [scan.delays[-1] for scan in scan_data]
         min_delay_spacing = min(
                 b - a
                 for scan in scan_data

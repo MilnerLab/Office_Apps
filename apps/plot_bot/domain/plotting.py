@@ -11,7 +11,7 @@ import numpy as np
 
 from _data_io.dat_finder import DatFinder
 from _data_io.dat_loader import load_time_scans
-from _domain.models import LoadableScanData
+from _domain.models import C2TScanData
 from apps.scan_averaging.domain.averaging import average_scans
 from apps.scan_averaging.domain.plotting import plot_averaged_scan
 from apps.single_scan.domain.plotting import plot_single_scan
@@ -120,7 +120,7 @@ class PlottingBotPlotting:
         fig.savefig(self.output_path, dpi=50)
         plt.close(fig)
     
-    def add_Spectrogram(self, ax: Axes, scans: list[LoadableScanData]) -> None:
+    def add_Spectrogram(self, ax: Axes, scans: list[C2TScanData]) -> None:
         config = StftAnalysisConfig(scans,stft_window_size=Time(100,Prefix.PICO))
         resampled_scans = resample_scans(scans, config.axis)
         spectrogram = calculate_averaged_spectrogram(resampled_scans, config)

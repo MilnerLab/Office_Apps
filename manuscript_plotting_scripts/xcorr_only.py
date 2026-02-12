@@ -6,7 +6,7 @@ import matplotlib as mpl
 from _data_io.dat_finder import DatFinder
 from _data_io.dat_loader import load_ion_data, load_xcorr_means
 from _data_io.dat_saver import create_save_path_for_calc_ScanFile
-from _domain.models import LoadableScanData
+from _domain.models import C2TScanData
 from apps.c2t_calculation.domain.config import IonDataAnalysisConfig
 from apps.c2t_calculation.domain.pipeline import run_pipeline
 from apps.scan_averaging.domain.averaging import average_scans
@@ -32,7 +32,7 @@ USEFONTSIZE = 16
 
 
 #FUNCTION TO GENERATE THE PLOTTABLE DATA
-def calculating(filepath: Path, zero_delay_position: float) -> tuple[LoadableScanData, SpectrogramResult]:
+def calculating(filepath: Path, zero_delay_position: float) -> tuple[C2TScanData, SpectrogramResult]:
     xcdata = load_xcorr_means(filepath,Length(zero_delay_position,Prefix.MILLI))
     config = StftAnalysisConfig([xcdata])
     config.stft_window_size = STFTWINDOWSIZE 

@@ -1,13 +1,16 @@
 from matplotlib.axes import Axes
 import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from _domain.models import IonData, LoadableScanData
+from _domain.models import IonData, C2TScanData
 from _domain.plotting import plot_ScanData
 
 
 
-def plot_calculated_scan(ax: Axes, data: LoadableScanData,label:str = '') -> None:
-    #label = f"{data.file_path.stem}"
+def plot_calculated_scan(ax: Axes, data: C2TScanData,label:str = '') -> None:
+    if data.file_path is not None:
+        label = f"{data.file_path.stem}"
+    else:
+        label = "Calculated Scan"
     plot_ScanData(ax, data, label)
 
 def plot_ions_square(

@@ -9,14 +9,14 @@ from pathlib import Path
 
 import numpy as np
 
-from _domain.models import Measurement, LoadableScanData
+from _domain.models import Measurement, C2TScanData
 from apps.scan_averaging.domain.models import AveragedScansData
 
 
 from typing import List
 import numpy as np
 
-def average_scans(scans: List[LoadableScanData], *, key_digits: int = 12) -> AveragedScansData:
+def average_scans(scans: List[C2TScanData], *, key_digits: int = 12) -> AveragedScansData:
     """
     Average scans with possibly different x-axes.
 

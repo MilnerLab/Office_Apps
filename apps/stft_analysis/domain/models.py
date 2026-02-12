@@ -11,8 +11,8 @@ from _domain.models import  Measurement, ScanDataBase
 
 @dataclass(frozen=True)
 class ResampledScan(ScanDataBase):
-    file_path: Path
     scan_range: Range[Time]
+    file_path: Path = None
     
     
     def detrend(self) -> list[float]:
