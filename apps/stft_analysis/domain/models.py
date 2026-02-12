@@ -7,13 +7,11 @@ from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Frequency, Time
 import numpy as np
 
-from _domain.models import  Measurement, ScanDataBase
+from _domain.models import  LoadableScan
 
 @dataclass(frozen=True)
-class ResampledScan(ScanDataBase):
+class ResampledScan(LoadableScan):
     scan_range: Range[Time]
-    file_path: Path = None
-    
     
     def detrend(self) -> list[float]:
         y = np.asarray([c.value for c in self.measured_values], dtype=float)

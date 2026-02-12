@@ -5,9 +5,9 @@ import numpy as np
 from scipy.interpolate import CubicSpline, make_interp_spline
 
 from apps.stft_analysis.domain.models import ResampledScan
-from _domain.models import Measurement, C2TScanData, ScanDataBase
+from _domain.models import LoadableScan, Measurement, C2TScanData, ScanDataBase
 
-def resample_scan(raw: ScanDataBase, axis: list[Time]) -> ResampledScan:
+def resample_scan(raw: LoadableScan, axis: list[Time]) -> ResampledScan:
     x = raw.delays
     y = [c.value for c in raw.measured_values]
 
@@ -26,7 +26,7 @@ def resample_scan(raw: ScanDataBase, axis: list[Time]) -> ResampledScan:
         scan_range=Range(min(resample_axis), max(resample_axis))
     )
 
-def resample_scans(scans: list[C2TScanData], axis: list[Time]) -> list[ResampledScan]:
+def resample_scans(scans: list[LoadableScan], axis: list[Time]) -> list[ResampledScan]:
     
     resampled_scans: list[ResampledScan] = []
     

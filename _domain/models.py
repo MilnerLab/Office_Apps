@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from altair import DerivedStream
+from git import Tree
 
 from apps.c2t_calculation.domain.config import IonDataAnalysisConfig
 from base_core.math.models import Point, Range
@@ -22,8 +23,11 @@ class ScanDataBase:
     measured_values: list[Measurement]
 
 @dataclass(frozen=True)
-class C2TScanData(ScanDataBase):
+class LoadableScan(ScanDataBase):
     file_path: Path = None
+    
+@dataclass(frozen=True)
+class C2TScanData(LoadableScan):
     ions_per_frame: list[float] | None = None
 
 @dataclass
