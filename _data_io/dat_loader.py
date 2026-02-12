@@ -7,6 +7,7 @@ from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Length, Time
 import numpy as np
 import pandas as pd
+import time
 
 from _domain.models import Measurement, IonData, C2TScanData, RawScanData, ScanDataBase
 
@@ -69,20 +70,23 @@ def load_ion_data(scans_paths: list[list[Path]], configs: list[IonDataAnalysisCo
         output: list[IonData] = []
         idx_by_delay: dict[Time, int] = {}  
         
+        t0 = time.perf_counter()
+        
         for path in sorted(scans_paths[i]):
             run_id, delay = extract_infos_from_name(path,configs[i].delay_center)
 
-            arr = np.loadtxt(path, usecols=(1, 2))
-            arr = np.atleast_2d(arr)  
-
-            points = [Point(float(x), float(y)) for x, y in arr]
+            arr = np.loadtxt(path, usecols=(1, 2), ndmin=2)
+            points = [Point(x, y) for x, y in arr]
 
             if delay in idx_by_delay:
                 output[idx_by_delay[delay]].points.extend(points)
             else:
                 idx_by_delay[delay] = len(output)
                 output.append(IonData(run_id, delay, points))
-                
+        
+        t1 = time.perf_counter()
+        print("loadtxt:", t1 - t0)
+        
         output.sort(key=lambda x: x.delay)
         
         raw_scans.append(RawScanData(output, configs[i]))

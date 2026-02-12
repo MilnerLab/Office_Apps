@@ -40,6 +40,7 @@ def calculating(folders: list[Path], configs: list[IonDataAnalysisConfig]) -> tu
     print('Starting: ',folders)
     
     scans_paths = DatFinder(folders).find_datafiles() #Change this if you want a specific path rather than the Droplets folder
+    print('Data loaded!')
     raw_datas = load_ion_data(scans_paths, configs)
     print('Data loaded!')
     save_path = create_save_path_for_calc_ScanFile(folders[0], str(raw_datas[0].ion_datas[0].run_id))
