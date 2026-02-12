@@ -19,7 +19,7 @@ from apps.stft_analysis.domain.config import StftAnalysisConfig
 from apps.stft_analysis.domain.models import AggregateSpectrogram
 from apps.stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
 from apps.stft_analysis.domain.resampling import resample_scans
-from apps.stft_analysis.domain.stft_calculation import calculate_averaged_spectrogram
+from apps.stft_analysis.domain.stft_calculation import StftAnalysis
 from base_core.math.enums import AngleUnit
 from base_core.math.models import Angle, Point, Range
 from base_core.plotting.enums import PlotColor
@@ -49,7 +49,7 @@ def calculating(folders: list[Path], configs: list[IonDataAnalysisConfig]) -> tu
     config.stft_window_size = STFTWINDOWSIZE 
     resampled_scans = resample_scans(calculated_scans, config.axis)
     print('Scans resampled!')
-    spectrogram = calculate_averaged_spectrogram(resampled_scans, config)
+    spectrogram = StftAnalysis(resampled_scans, config).calculate_averaged_spectrogram()
     
     return (averagedScanData, spectrogram)
 #--------------------------------------------------------------------------------------------------

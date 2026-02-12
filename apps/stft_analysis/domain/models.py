@@ -11,7 +11,7 @@ from _domain.models import  LoadableScan
 
 @dataclass(frozen=True)
 class ResampledScan(LoadableScan):
-    scan_range: Range[Time]
+    scan_range: Range[Time] = None
     
     def detrend(self) -> list[float]:
         y = np.asarray([c.value for c in self.measured_values], dtype=float)
