@@ -1,6 +1,9 @@
 # for local data storage
 /_temp/
 
+#Cameron's user (non-admin) venv and it's setup script :D
+.venv_camp06/
+setup_env_camp06.ps1
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
