@@ -12,7 +12,7 @@ from apps.scan_averaging.domain.plotting import plot_averaged_scan
 from apps.stft_analysis.domain.config import StftAnalysisConfig
 from apps.stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
 from apps.stft_analysis.domain.resampling import resample_scans
-from apps.stft_analysis.domain.stft_calculation import calculate_averaged_spectrogram
+from apps.stft_analysis.domain.stft_calculation import StftAnalysis
 from base_core.math.enums import AngleUnit
 from base_core.math.models import Angle, Point, Range
 from base_core.plotting.enums import PlotColor
@@ -230,7 +230,7 @@ plot_averaged_scan(ax1, averagedScanData, PlotColor.BLUE)
 #fig.suptitle('Droplets', fontsize=12)
 #ax.legend(loc="upper left")
 
-spectrogram = calculate_averaged_spectrogram(resampled_scans, config)
+spectrogram = StftAnalysis(resampled_scans, config).calculate_averaged_spectrogram()
  
 
 

@@ -14,7 +14,7 @@ from apps.scan_averaging.domain.plotting import plot_averaged_scan
 from apps.stft_analysis.domain.config import StftAnalysisConfig
 from apps.stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
 from apps.stft_analysis.domain.resampling import resample_scans
-from apps.stft_analysis.domain.stft_calculation import calculate_averaged_spectrogram
+from apps.stft_analysis.domain.stft_calculation import StftAnalysis
 
 from base_core.plotting.enums import PlotColor
 from base_core.quantities.enums import Prefix
@@ -124,7 +124,7 @@ averagedScanData = average_scans(scan_data)
 config = StftAnalysisConfig(scan_data)
 
 resampled_scans = resample_scans(scan_data, config.axis)
-spectrogram = calculate_averaged_spectrogram(resampled_scans, config)
+spectrogram = StftAnalysis(resampled_scans, config).calculate_averaged_spectrogram()
 
 fig, (ax2a,ax2b) = plt.subplots(2,1,sharex=True)
 plot_averaged_scan(ax2a, averagedScanData, PlotColor.BLUE)
