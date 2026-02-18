@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import time
 
-from _domain.models import Measurement, IonData, C2TScanData, RawScanData, ScanDataBase
+from _domain.models import LoadableScan, Measurement, IonData, C2TScanData, RawScanData, ScanDataBase
 
 
 
@@ -49,12 +49,13 @@ def load_time_scan(path: Path) -> C2TScanData:
     return C2TScanData(delays=delays, measured_values=c2ts, file_path=file_name, ions_per_frame=ions)
 
 
-def load_time_scans(paths: list[Path]) -> list[C2TScanData]:
+def load_time_scans(folder_paths: list[Path]) -> list[C2TScanData]:
     
     scanDatas: list[C2TScanData] = []
     
-    for path in paths:
-        scanDatas.append(load_time_scan(path=path))
+    for folder_path in folder_paths:
+        for file_path in folder_path:
+            scanDatas.append(load_time_scan(path=file_path))
 
     return scanDatas
 
@@ -93,14 +94,15 @@ def load_ion_data(scans_paths: list[list[Path]], configs: list[IonDataAnalysisCo
 
     return raw_scans
 
-def load_xcorr_means(file_path:Path,pos_tzero:Length) -> ScanDataBase:
+def load_xcorr_means(file_path:Path,pos_tzero:Length) -> LoadableScan:
     ScopeData = np.array(pd.read_csv(file_path,header=None,sep='\t',lineterminator='\n',dtype=float))
     delay = [calculate_time_delay(Length(d,Prefix.MILLI),pos_tzero) for d in ScopeData[:,0]]
     signal = np.average(ScopeData[:,1:-1],axis=1)
     error = np.std(ScopeData[:,1:-1],axis=1)/np.sqrt(ScopeData.shape[1] - 1)
 
     values = [Measurement(signal[i], error[i]) for i in range(len(signal))]
-    return ScanDataBase(delays = delay, measured_values = values)
+    
+    return LoadableScan(file_path=file_path,delays = delay, measured_values = values)
 
 ###########
 #  Helper functions

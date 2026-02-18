@@ -6,17 +6,18 @@ import matplotlib as mpl
 from _data_io.dat_finder import DatFinder
 from _data_io.dat_loader import load_ion_data, load_xcorr_means
 from _data_io.dat_saver import create_save_path_for_calc_ScanFile
-from _domain.models import C2TScanData
+from _domain.models import C2TScanData, LoadableScan
+from _domain.plotting import plot_ScanData
 from apps.c2t_calculation.domain.config import IonDataAnalysisConfig
 from apps.c2t_calculation.domain.pipeline import run_pipeline
 from apps.scan_averaging.domain.averaging import average_scans
 from apps.scan_averaging.domain.plotting import plot_averaged_scan
 from apps.single_scan.domain.plotting import plot_single_scan
 from apps.stft_analysis.domain.config import StftAnalysisConfig
-from apps.stft_analysis.domain.models import SpectrogramResult
+from apps.stft_analysis.domain.models import SpectrogramResult, AggregateSpectrogram
 from apps.stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
 from apps.stft_analysis.domain.resampling import resample_scan, resample_scans
-from apps.stft_analysis.domain.stft_calculation import calculate_averaged_spectrogram, calculate_spectrogram
+from apps.stft_analysis.domain.stft_calculation import StftAnalysis
 from base_core.math.enums import AngleUnit
 from base_core.math.models import Angle, Point, Range
 from base_core.plotting.enums import PlotColor
@@ -32,32 +33,36 @@ USEFONTSIZE = 16
 
 
 #FUNCTION TO GENERATE THE PLOTTABLE DATA
-def calculating(filepath: Path, zero_delay_position: float) -> tuple[C2TScanData, SpectrogramResult]:
+def calculating(filepath: Path, zero_delay_position: float) -> tuple[C2TScanData, AggregateSpectrogram]:
     xcdata = load_xcorr_means(filepath,Length(zero_delay_position,Prefix.MILLI))
     config = StftAnalysisConfig([xcdata])
     config.stft_window_size = STFTWINDOWSIZE 
-    resampled_scans = resample_scans([xcdata], config.axis)
-    SpectrogramResult = calculate_averaged_spectrogram(resampled_scans, config)
     
-    return (xcdata, SpectrogramResult)
+    resampled_scans = resample_scans([xcdata], config.axis)
+    SpectrogramResult = StftAnalysis(resampled_scans, config)
+    
+    return (xcdata, SpectrogramResult.calculate_averaged_spectrogram())
 
 
 #Path to save figure in
-fig_filedir = r"Z:\Droplets\plots" 
-fig_filename = fig_filedir + r"\\xcorr_only_TEMP.png" #Name the file to save here
+fig_filedir = r"C:\Users\camp06\OneDrive - UBC\Documents\droplets_manuscript" 
+fig_filename = fig_filedir + r"\\xcorr20260213_to_cs2_cfg_comp1.png" #Name the file to save here
 
 #Plot title on top
-PlotTitle = r"Optical Cross-Correlation with usCFG set to max/min acceleration (above/below)" "\n" "20260207"
+PlotTitle = r"Centrifuge comparison" 
 
 #FIRST EXPERIMENT
 # GA=26, DA = 16.3mm
-file_xcorr_1 = Path(r"Z:\Droplets\20260207\XCORR\CFG_16p3mm_26mm\20260207905AM_.csv")
-zero_delay_position_1 = 170 + POSZEROSHIFT #mm
+# file_xcorr_1 = Path(r"Z:\Droplets\20260207\XCORR\CFG_16p3mm_26mm\20260207905AM_.csv")
+# zero_delay_position_1 = 170 + POSZEROSHIFT #mm
 #SECOND EXPERIMENT
 # GA=0, DA = 16.6mm
-file_xcorr_2 = Path(r"Z:\Droplets\20260207\XCORR\CFG_16p6mm_0mm\202602071250_.csv")
+file_xcorr_2 = Path(r"Z:\Droplets\20260207\XCORR\CFG_16p3mm_26mm\20260207905AM_.csv")
 zero_delay_position_2 = 170 + POSZEROSHIFT #mm
 
+#GA=26, DA=16.0 mm
+file_xcorr3 = Path(r"C:\Users\camp06\OneDrive - UBC\Documents\droplets_manuscript\202602131102AM_.csv")
+zero_delay_position_3 = 170 + POSZEROSHIFT #mm
 #--------------------------------------------------------------------------------------------------
 #Update the matplotlib settings
 mpl.rcParams.update({
@@ -158,10 +163,10 @@ mpl.rcParams.update({
 
 
 
-xcdata_1, plottable_spectrogram_1 = calculating(file_xcorr_1,zero_delay_position_1)
+#xcdata_1, plottable_spectrogram_1 = calculating(file_xcorr_1,zero_delay_position_1)
 xcdata_2, plottable_spectrogram_2 = calculating(file_xcorr_2,zero_delay_position_2)
 
-
+xcdata_3, plottable_spectrogram_3 = calculating(file_xcorr3,zero_delay_position_3)
 #--------------------------------------------------------------------------------------------------
 
 
@@ -177,13 +182,15 @@ mainfig, (axs) = plt.subplots(
 
 #Plot first experiment in top row
 a = axs[0,0]
-plot_single_scan(a,xcdata_1,data_color = PlotColor.GRAY)
+plot_ScanData(a,xcdata_2,color = PlotColor.GRAY,label="CS2 Centrifuge (GA=26,DA=16)")
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 a.set_ylabel('Photodiode Signal (V)')
+a.legend(loc="upper right")
 
 #a.legend(loc="upper right")
 a = axs[0,1]
-plot_Spectrogram(a, plottable_spectrogram_1,colormap='viridis')
+plot_Spectrogram(a, plottable_spectrogram_2,colormap='viridis')
+#plot_Spectrogram(a, plottable_spectrogram_3,colormap='magma')
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 a.set_ylim([0,120])
 #a.set_ylim([0,120])
@@ -192,13 +199,13 @@ a.set_ylim([0,120])
 
 #Plot second experiment in bottom row
 a = axs[1,0]
-plot_single_scan(a,xcdata_2,data_color = PlotColor.GRAY)
+plot_ScanData(a,xcdata_3,color = PlotColor.GRAY,label="GA=26,DA=16.0")
 a.set_ylabel('Photodiode Signal (V)')
-
-#a.legend(loc="upper right")
+a.legend()
+a.legend(loc="upper right")
 a = axs[1,1]
-plot_Spectrogram(a, plottable_spectrogram_2,colormap='viridis')
-a.set_ylim([0,120])
+plot_Spectrogram(a, plottable_spectrogram_3,colormap='viridis')
+a.set_ylim([0,150])
 
 #a.set_ylim([0,120])
 #plot_nyquist_frequency(a, plottable_nyquist_1)

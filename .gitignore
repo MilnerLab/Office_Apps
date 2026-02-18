@@ -2,6 +2,7 @@
 /_temp/
 
 
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -147,6 +148,9 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+#Cameron's user (non-admin) venv and it's setup script :D
+.venv_camp06/
+setup_env_camp06.ps1
 
 # Spyder project settings
 .spyderproject
