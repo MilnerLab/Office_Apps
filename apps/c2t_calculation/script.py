@@ -15,14 +15,14 @@ from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Length
 POSZEROSHIFT = 6.8 #millimetres :)
 
-folder_path = Path(r"202602010\Scan3")
+folder_path = Path(r"20260211\Scan2")
 file_paths = DatFinder(folder_path).find_datafiles()
 
 config = IonDataAnalysisConfig(
     delay_center= Length(92.654-POSZEROSHIFT, Prefix.MILLI),
-    center=Point(203, 202),
+    center=Point(174, 206),
     angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](30, 90),
+    analysis_zone= Range[int](50, 120),
     transform_parameter= 0.78)
 
 
