@@ -18,7 +18,7 @@ from apps.single_scan.domain.plotting import plot_single_scan
 from apps.stft_analysis.domain.config import StftAnalysisConfig
 from apps.stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
 from apps.stft_analysis.domain.resampling import resample_scans
-from apps.stft_analysis.domain.stft_calculation import calculate_averaged_spectrogram
+from apps.stft_analysis.domain.stft_calculation import StftAnalysis
 
 SPECTROGRAM_THRESHOLD = Time(10, Prefix.PICO)
 
@@ -123,7 +123,7 @@ class PlottingBotPlotting:
     def add_Spectrogram(self, ax: Axes, scans: list[C2TScanData]) -> None:
         config = StftAnalysisConfig(scans,stft_window_size=Time(100,Prefix.PICO))
         resampled_scans = resample_scans(scans, config.axis)
-        spectrogram = calculate_averaged_spectrogram(resampled_scans, config)
+        spectrogram = StftAnalysis(resampled_scans, config).calculate_averaged_spectrogram
         plot_Spectrogram(ax, spectrogram)
         plot_nyquist_frequency(ax, self.current_scan)
         

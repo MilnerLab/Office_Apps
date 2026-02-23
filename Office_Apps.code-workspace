@@ -125,6 +125,16 @@
 	   "env": { "PYTHONPATH": "${workspaceFolder:Office_Apps}" },
       "console": "integratedTerminal",
       "justMyCode": true
+    },
+        {
+      "name": "Debug plotting_scripts OCS single arm comparison",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder:Office_Apps}/manuscript_plotting_scripts/OCS/OCS_droplets_vs_1arm.py",
+	  "cwd": "${workspaceFolder:Office_Apps}",
+	   "env": { "PYTHONPATH": "${workspaceFolder:Office_Apps}" },
+      "console": "integratedTerminal",
+      "justMyCode": true
     }
   ]
 },
