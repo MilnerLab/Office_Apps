@@ -6,17 +6,18 @@ import numpy as np
 from apps.stft_analysis.domain.config import StftAnalysisConfig
 from apps.stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
 from apps.stft_analysis.domain.resampling import resample_scans
-from apps.stft_analysis.domain.stft_calculation import calculate_averaged_spectrogram
+from apps.stft_analysis.domain.stft_calculation import StftAnalysis
 from _data_io.dat_finder import DatFinder
 from _data_io.dat_loader import load_time_scan, load_time_scans
 from apps.scan_averaging.domain.averaging import average_scans
 from apps.scan_averaging.domain.models import AveragedScansData
 from apps.scan_averaging.domain.plotting import plot_averaged_scan
+from apps.single_scan.domain.plotting import plot_single_scan
 from base_core.plotting.enums import PlotColor
 from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Time
 
-folder_path1 = Path(r"Z:\Droplets\20260211\Scan1_ScanFiles")
+""" folder_path1 = Path(r"Z:\Droplets\20260211\Scan1_ScanFiles")
 folder_path2 = Path(r"Z:\Droplets\20260211\Scan2_ScanFiles")
 folder_path4 = Path(r"Z:\Droplets\20260211\Scan4_ScanFiles")
 
@@ -50,9 +51,41 @@ spectrogram2 = calculate_averaged_spectrogram(resampled_scans2, config2)
 spectrogram4 = calculate_averaged_spectrogram(resampled_scans4, config4)
 plot_Spectrogram(ax[0,0], spectrogram1)
 plot_Spectrogram(ax[0,1], spectrogram2)
-plot_Spectrogram(ax[0,2], spectrogram4)
+plot_Spectrogram(ax[0,2], spectrogram4) """
 
-#plot_nyquist_frequency(ax1, scan_data_avg[0])
+fig_path = Path(r"C:\Users\camp06\OneDrive - UBC\Documents\droplets_manuscript\test\20260219_jet_avg.png")
+folder_path = Path(r"Z:\Droplets\20260221\Scan1_ScanFiles")
+#file_paths_avg = DatFinder(folder_path).find_scanfiles()
+#scan_data_avg = load_time_scans(file_paths_avg)
+
+file_paths_avg = DatFinder().find_scanfiles()
+scan_data_avg = load_time_scans(file_paths_avg)
+
+""" fig,(axs) = plt.subplots(2,3,figsize=(16,8))
+i = 0
+for scan in scan_data_avg:
+    if i <= 2:
+        plot_single_scan(axs[0,i],data=scan)
+    else: 
+        plot_single_scan(axs[1,i-3],data=scan)
+    i += 1
 fig.tight_layout()
-fig.savefig(r"C:\Users\camp06\Documents\20260211.pdf", format='pdf')
+fig.savefig(fig_path,format='png')
+plt.show() """
+
+config = StftAnalysisConfig(scan_data_avg)
+resampled_scans = resample_scans(scan_data_avg,config.axis)
+averaged_data = average_scans(scan_data_avg)
+
+
+fig,(ax1,ax2) = plt.subplots(2,1,figsize=(8,5))
+
+plot_averaged_scan(ax1,data=averaged_data)
+spectrogram = StftAnalysis(resampled_scans,config).calculate_averaged_spectrogram()
+plot_Spectrogram(ax2,spectrogram)
+plot_nyquist_frequency(ax2,scan_data_avg[0])
+ax2.set_xlim(-200,200)
+fig.suptitle('OCS Droplets', fontsize=12)
+fig.tight_layout()
+#fig.savefig(fig_path,format='png')
 plt.show()

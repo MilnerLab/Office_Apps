@@ -16,19 +16,20 @@ from base_core.quantities.models import Length
 POSZEROSHIFT = 6.8 #millimetres :)
 
 folder_path = Path(r"202602010\Scan3")
-file_paths = DatFinder(folder_path).find_datafiles()
+#file_paths = DatFinder(folder_path).find_datafiles()
+file_path = [[Path(r"Z:\Droplets\20260223\Scan1\20260223122413DLY___4p5000mm.dat")]]
 
 config = IonDataAnalysisConfig(
-    delay_center= Length(92.654-POSZEROSHIFT, Prefix.MILLI),
-    center=Point(203, 202),
+    delay_center= Length(94.500-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(175, 204),
     angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](30, 90),
-    transform_parameter= 0.78)
+    analysis_zone= Range[int](60, 120),
+    transform_parameter= 0.73)
 
 
 label = "Center = (" + str(config.center.x) + ", " + str(config.center.y) + "), Angle = " + str(round(config.angle.Deg,1)) + "\n"\
         + "Ring: (" + str(config.analysis_zone.min) + ", " + str(config.analysis_zone.max) + "), ScaleX = " + str(config.transform_parameter)
-raw_scans = load_ion_data(file_paths, [config])
+raw_scans = load_ion_data(file_path, [config])
 
 raw_copy = copy.deepcopy(raw_scans[0])
 
@@ -49,5 +50,6 @@ save_path = create_save_path_for_calc_ScanFile(folder_path, str(raw_scans[0].ion
 calculated_Scan = run_pipeline(raw_scans, save_path)
 plot_calculated_scan(ax3, calculated_Scan[0],label=label)
 ax3.legend(loc="upper right")
+ax3.grid(visible=True,which='both',alpha=0.5)
 fig.tight_layout()
 plt.show()
