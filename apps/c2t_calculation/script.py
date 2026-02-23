@@ -13,17 +13,17 @@ from base_core.math.enums import AngleUnit
 from base_core.math.models import Angle, Point, Range
 from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Length
-POSZEROSHIFT = 6.8 #millimetres :)
+POSZEROSHIFT = 0 #millimetres :)
 
-folder_path = Path(r"202602010\Scan3")
-file_paths = DatFinder(folder_path).find_datafiles()
+folder_path = Path(r"C:\git\milnerlab-python\Office_Apps\_temp\20260223\Scan1_-600ps")
+file_paths = DatFinder(folder_path,is_full_path=True).find_datafiles()
 
 config = IonDataAnalysisConfig(
-    delay_center= Length(92.654-POSZEROSHIFT, Prefix.MILLI),
-    center=Point(203, 202),
+    delay_center= Length(94.5-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(174, 206),
     angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](30, 90),
-    transform_parameter= 0.78)
+    analysis_zone= Range[int](60, 120),
+    transform_parameter=0.74)
 
 
 label = "Center = (" + str(config.center.x) + ", " + str(config.center.y) + "), Angle = " + str(round(config.angle.Deg,1)) + "\n"\
