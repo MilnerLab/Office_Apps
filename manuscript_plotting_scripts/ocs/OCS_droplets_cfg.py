@@ -22,13 +22,15 @@ from base_core.plotting.enums import PlotColor
 from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Length, Time
 
+STFTWINDOWSIZE = Time(180,Prefix.PICO)  
 
 mpl.rcParams.update({
 #copied from physrev.mplstyle file
-    
+    #"axes.prop_cycle": "(cycler('color', ['5d81b4', 'e09b24', '8eb031', 'eb6235', '8678b2', 'c46e1a', '5c9dc7', 'ffbf00', 'a5609c']) + cycler('ls', ['-', '--', '-.', (0, (1,0.85)), (0, (3, 1, 1, 1, 1, 1)), (0, (3, 1, 1, 1)), (0, (5, 1)), ':', (4, (10, 3))]))",  
+  
     # --- Axes ---
     "axes.titlesize": "medium",
-    "axes.labelsize": 9,
+    "axes.labelsize": 16,
     "axes.formatter.use_mathtext": True,
     "axes.linewidth": 0.5,
     #"axes.grid": True,
@@ -44,13 +46,13 @@ mpl.rcParams.update({
 
     # --- Lines ---
     "lines.linewidth": 0.5,
-    "lines.marker": "o",
-    "lines.markersize": 1.5,
+    "lines.marker": "d",
+    "lines.markersize": 0.5,
     "hatch.linewidth": 0.25,
     "patch.antialiased": True,
     
     #---Errorbars---
-    "errorbar.capsize": 0,
+    "errorbar.capsize": 1,
 
     # --- Ticks (X) ---
     #"xtick.top": True,
@@ -59,14 +61,14 @@ mpl.rcParams.update({
     "xtick.minor.size": 1.5,
     "xtick.major.width": 0.5,
     "xtick.minor.width": 0.5,
-    "xtick.direction": "out",
+    "xtick.direction": "in",
     "xtick.minor.visible": False,
     #"xtick.major.top": True,
     "xtick.major.bottom": True,
     "xtick.minor.bottom": True,
     "xtick.major.pad": 5.0,
     "xtick.minor.pad": 5.0,
-    "xtick.labelsize": 9,
+    "xtick.labelsize": 16,
 
     # --- Ticks (Y) ---
     "ytick.left": True,
@@ -75,44 +77,44 @@ mpl.rcParams.update({
     #"ytick.minor.size": 1.5,
     "ytick.major.width": 0.5,
     #"ytick.minor.width": 0.5,
-    "ytick.direction": "out",
+    "ytick.direction": "in",
     #"ytick.minor.visible": True,
     "ytick.major.left": True,
     #"ytick.major.right": True,
     #"ytick.minor.left": True,
     "ytick.major.pad": 5.0,
     #"ytick.minor.pad": 5.0,
-    "ytick.labelsize": 9,
+    "ytick.labelsize": 16,
     
     
     # --- Legend ---
     "legend.frameon": True,
-    "legend.fontsize": 8,
+    "legend.fontsize": 12,
     "legend.handlelength": 1.375,
     "legend.labelspacing": 0.4,
     "legend.columnspacing": 1,
     "legend.facecolor": "white",
     "legend.edgecolor": "white",
     "legend.framealpha": 1,
-    "legend.title_fontsize": 8,
+    "legend.title_fontsize": 12,
+    "legend.loc": "lower center", #location is loc
  
     # --- Figure size ---
-    "figure.figsize": (3.375, 4), #1- column fig
+    "figure.figsize": (3.375, 3.6), #1- column fig
     #"figure.figsize": (6.75, 6.75), #approx. 2- column fig
     "figure.subplot.left": 0.125,
     "figure.subplot.bottom": 0.175,
-    "figure.subplot.top": 0.95,
+    "figure.subplot.top": 0.9,
     "figure.subplot.right": 0.95,
     "figure.autolayout": True,
 
     # --- Fonts (computer modern) ---
-    "text.usetex": True,      
+    "text.usetex": False,       #<------------------------------------------------<-----<_<_<_ LATEX 
     #"mathtext.fontset": "cm",
     "font.family": "serif",
-    "font.serif": ["cmr10"]
+    "font.serif": ["cmr10"],
 
 })
-
 #FUNCTION TO GENERATE THE PLOTTABLE DATA
 def calculating(folders: list[Path], configs: list[IonDataAnalysisConfig]) -> tuple[AveragedScansData, AveragedScansData, AggregateSpectrogram, list[Time]]:
     print('Starting: ',folders)
@@ -124,7 +126,7 @@ def calculating(folders: list[Path], configs: list[IonDataAnalysisConfig]) -> tu
     save_path = create_save_path_for_calc_ScanFile(folders[0], str(raw_datas[0].ion_datas[0].run_id))
     calculated_scans = run_pipeline(raw_datas, save_path)
     averagedScanData = average_scans(calculated_scans)
-    config = StftAnalysisConfig(calculated_scans)
+    config = StftAnalysisConfig(calculated_scans, STFTWINDOWSIZE)
     resampled_scans = resample_scans(calculated_scans, config.axis)
     print('Scans resampled!')
     spectrogram = StftAnalysis(resampled_scans, config).calculate_averaged_spectrogram()
@@ -134,78 +136,18 @@ def calculating(folders: list[Path], configs: list[IonDataAnalysisConfig]) -> tu
 fig_filedir = r"C:/Users/camp06/Documents/droplets_manuscript/"
 fig_filedir = r"/home/soeren/Desktop/"
 fig_filename = fig_filedir + r"130-140.pdf"
-
 configs_1: list[IonDataAnalysisConfig] = []
 folders_1: list[Path] = []
 
-folders_1.append(Path(r"20260128/Scan1_CFG"))
-
-ring = Range[int](60, 120)
-
+ring = Range[int](130, 140)
+folders_1.append(Path(r"202602010\Scan4")) #EXTRA ZERO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 configs_1.append(IonDataAnalysisConfig(
-    delay_center= Length(89.654, Prefix.MILLI),
-    center=Point(175, 204),
+    delay_center= Length(92.654, Prefix.MILLI),
+    center=Point(175, 205),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= ring,
-    transform_parameter= 0.73))
+    transform_parameter= 0.75))
 
-
-folders_1.append(Path(r"20260128/Scan2_CFG"))
-
-configs_1.append(IonDataAnalysisConfig(
-    delay_center= Length(89.654, Prefix.MILLI),
-    center=Point(175, 204),
-    angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= ring,
-    transform_parameter= 0.73))
-
-
-
-folders_1.append(Path(r"20260129/Scan1"))
-
-configs_1.append(IonDataAnalysisConfig(
-    delay_center= Length(89.654, Prefix.MILLI),
-    center=Point(175, 204),
-    angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= ring,
-    transform_parameter= 0.73))
-
-
-folders_1.append(Path(r"20260130/Scan2"))
-configs_1.append(IonDataAnalysisConfig(
-    delay_center= Length(89.654, Prefix.MILLI),
-    center=Point(175, 204),
-    angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= ring,
-    transform_parameter= 0.73))
-
-folders_1.append(Path(r"20260130/Scan3"))
-
-configs_1.append(IonDataAnalysisConfig(
-    delay_center= Length(89.654, Prefix.MILLI),
-    center=Point(175, 204),
-    angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= ring,
-    transform_parameter= 0.73))
-
-
-folders_1.append(Path(r"20260202\Scan1_CFG"))
-
-configs_1.append(IonDataAnalysisConfig(
-    delay_center= Length(89.654, Prefix.MILLI),
-    center=Point(175, 204),
-    angle= Angle(12.0, AngleUnit.DEG),
-    analysis_zone= ring,
-    transform_parameter= 0.74))
-
-
-folders_1.append(Path(r"20260202\Scan2_CFG"))
-configs_1.append(IonDataAnalysisConfig(
-    delay_center= Length(89.654, Prefix.MILLI),
-    center=Point(175, 204),
-    angle= Angle(12.0, AngleUnit.DEG),
-    analysis_zone= ring,
-    transform_parameter= 0.74))
 
 
 
@@ -227,32 +169,14 @@ ax0.plot(x, trend)
 ax2.plot(x, y)
 fig.suptitle('Droplets: Ring constant 130-140 (detrend gaussian)', fontsize=12)
 #ax.legend(loc="upper left")
-
-
 plot_Spectrogram(ax3, spectrogram)
 ax3.grid(False) 
 #ax2b.pcolormesh.cmap('magma')
 
-ax1.text(
-    0.02, 0.95, r'\textbf{(a)}',
-    transform=ax1.transAxes,
-    va='top'
-)
-ax3.text(
-    0.02, 0.95, r'\textbf{(b)}',
-    transform=ax2.transAxes,
-    va='top',
-    color='w'
-)
-
-ax3.xaxis.set_major_locator(mpl.ticker.MultipleLocator(100))
-ax3.set_xlim((-300,300))
 ax1.set_xlabel("")
 ax1.tick_params(axis='x', direction='in',labelbottom=False)
-ax3.set_ylim((0,125))
-
-ylabels_b = ax3.get_yticklabels()
-ylabels_b[-1].set_visible(False)
+ax3.set_ylim((0,120))
+ax3.set_xlim([-550,550])
 
 
 #ax2b.xaxis.set_major_locator(mpl.ticker.LinearLocator(numticks=5,presets=xlimits))

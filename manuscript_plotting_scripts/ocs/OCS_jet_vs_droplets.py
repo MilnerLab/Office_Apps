@@ -20,6 +20,7 @@ from apps.stft_analysis.domain.models import AggregateSpectrogram
 from apps.stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
 from apps.stft_analysis.domain.resampling import resample_scans
 from apps.stft_analysis.domain.stft_calculation import StftAnalysis
+from apps.stft_analysis.domain.stft_calculation import StftAnalysis
 from base_core.math.enums import AngleUnit
 from base_core.math.models import Angle, Point, Range
 from base_core.plotting.enums import PlotColor
@@ -44,9 +45,9 @@ def calculating(folders: list[Path], configs: list[IonDataAnalysisConfig]) -> tu
     save_path = create_save_path_for_calc_ScanFile(folders[0], str(raw_datas[0].ion_datas[0].run_id))
     calculated_scans = run_pipeline(raw_datas, save_path)
     averagedScanData = average_scans(calculated_scans)
-    config = StftAnalysisConfig(calculated_scans)
-    config.stft_window_size = STFTWINDOWSIZE 
+    config = StftAnalysisConfig(calculated_scans, STFTWINDOWSIZE)
     resampled_scans = resample_scans(calculated_scans, config.axis)
+    spectrogram = StftAnalysis(resampled_scans, config).calculate_averaged_spectrogram()
     spectrogram = StftAnalysis(resampled_scans, config).calculate_averaged_spectrogram()
     
     return (averagedScanData, spectrogram)
@@ -93,7 +94,15 @@ configs_1.append(IonDataAnalysisConfig(
 configs_2: list[IonDataAnalysisConfig] = []
 folders_2: list[Path] = []
 
-folders_2.append(Path(r"20260210\Scan4")) 
+folders_2.append(Path(r"202602010\Scan4")) #EXTRA ZERO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+configs_2.append(IonDataAnalysisConfig(
+    delay_center= Length(92.654-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(175, 205),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= Range[int](DROPLETRADIUSMIN, 90),
+    transform_parameter= 0.75))
+'''
+folders_2.append(Path(r"20260209\Scan3")) #EXTRA ZERO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 configs_2.append(IonDataAnalysisConfig(
     delay_center= Length(92.654-POSZEROSHIFT, Prefix.MILLI),
     center=Point(175, 205),
@@ -101,21 +110,14 @@ configs_2.append(IonDataAnalysisConfig(
     analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
     transform_parameter= 0.75))
 
-
-# GA=26mm, DA = 15.2mm
-configs_2: list[IonDataAnalysisConfig] = []
-folders_2: list[Path] = []
-
-folders_2.append(Path(r"20260222\Scan3")) 
+folders_2.append(Path(r"20260207\Scan3")) #EXTRA ZERO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 configs_2.append(IonDataAnalysisConfig(
-    delay_center= Length(94.5-POSZEROSHIFT, Prefix.MILLI),
-    center=Point(174, 206),
+    delay_center= Length(92.654-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(175, 205),
     angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
-    transform_parameter= 0.74))
-folders_2.append(Path(r"20260223\Scan1")) 
-configs_2.append(configs_2[0])
-
+    analysis_zone= Range[int](DROPLETRADIUSMIN, 90),
+    transform_parameter= 0.75))
+'''
 #--------------------------------------------------------------------------------------------------
 #Update the matplotlib settings
 mpl.rcParams.update({
@@ -262,7 +264,7 @@ a.legend()
 a = axs[1,1]
 plot_Spectrogram(a, plottable_spectrogram_2)
 a.set_ylim([0,120])
-plot_nyquist_frequency(a, plottable_scan_2)
+#plot_nyquist_frequency(a, plottable_scan_2)
 
 mainfig.suptitle(PlotTitle,fontsize=USEFONTSIZE,color='red')
 

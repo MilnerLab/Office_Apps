@@ -25,8 +25,8 @@ PlotTitle = 'OCS'
 
 #Data Files
 #20260206 is with GA=26mm, DA=16.3mm, there's a good cross-correlation trace in 20260207 with this exact centrifuge
-folder_path_a= Path(r"Z:\Droplets\20260206\Scan7_ScanFiles") #20260206 scan7 is jet data
-folder_path_b = Path(r"Z:\Droplets\20260206\Scan6_ScanFiles") #20260206 scan6 is droplet data
+folder_path_a= Path(r"20260206\Scan7_ScanFiles") #20260206 scan7 is jet data
+folder_path_b = Path(r"20260206\Scan6_ScanFiles") #20260206 scan6 is droplet data
 
 #20260205 scans 2 and earlier are DA=16mm, more similar to the good CS2 data
 #folder_path_a= Path(r"Z:\Droplets\20260204\Scan2_ScanFiles") #DA = 16mm
