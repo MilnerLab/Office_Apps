@@ -1,4 +1,5 @@
 
+import csv
 from dataclasses import dataclass
 import math
 from pathlib import Path
@@ -22,6 +23,12 @@ class Measurement:
 class ScanDataBase:
     delays: list[Time]
     measured_values: list[Measurement]
+    
+    def to_csv(self, path: str | Path) -> None:
+        with Path(path).open("w", newline="", encoding="utf-8") as f:
+            w = csv.writer(f)
+            for d, m in zip(self.delays, self.measured_values):
+                w.writerow([d, m.value, m.error])
 
 @dataclass(frozen=True)
 class LoadableScan(ScanDataBase):
