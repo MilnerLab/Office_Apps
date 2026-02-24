@@ -20,6 +20,7 @@ from apps.stft_analysis.domain.models import AggregateSpectrogram
 from apps.stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
 from apps.stft_analysis.domain.resampling import resample_scans
 from apps.stft_analysis.domain.stft_calculation import StftAnalysis
+from apps.stft_analysis.domain.stft_calculation import StftAnalysis
 from base_core.math.enums import AngleUnit
 from base_core.math.models import Angle, Point, Range
 from base_core.plotting.enums import PlotColor
@@ -44,9 +45,9 @@ def calculating(folders: list[Path], configs: list[IonDataAnalysisConfig]) -> tu
     save_path = create_save_path_for_calc_ScanFile(folders[0], str(raw_datas[0].ion_datas[0].run_id))
     calculated_scans = run_pipeline(raw_datas, save_path)
     averagedScanData = average_scans(calculated_scans)
-    config = StftAnalysisConfig(calculated_scans)
-    config.stft_window_size = STFTWINDOWSIZE 
+    config = StftAnalysisConfig(calculated_scans, STFTWINDOWSIZE)
     resampled_scans = resample_scans(calculated_scans, config.axis)
+    spectrogram = StftAnalysis(resampled_scans, config).calculate_averaged_spectrogram()
     spectrogram = StftAnalysis(resampled_scans, config).calculate_averaged_spectrogram()
     
     return (averagedScanData, spectrogram)
@@ -57,14 +58,17 @@ fig_filedir = r"Z:\Droplets\plots"
 fig_filename = fig_filedir + r"\\OCS_jet_vs_droplets_TEMP.png" #Name the file to save here
 
 #Plot on top
-PlotTitle = r"OCS - same centrifuge, same day." "\n" "20260210 Scans 3 and 4"
 
-#JET EXPERIMENT
-# GA=26, DA = 16.3mm
+PlotTitle = r"OCS - same centrifuge, same day, GA=0mm." "\n" "20260210 Scans 3 and 4" #GA = 0mm
+PlotTitle = r"OCS - same centrifuge, same day, GA=26mm." "\n" "20260222 Scans 2 and 3" #GA = 26mm
+
+
+#JET EXPERIMENT#--------------------------------------------------------------------------------------------------
+# GA=0, DA = 16.3mm
 configs_1: list[IonDataAnalysisConfig] = []
 folders_1: list[Path] = []
 
-folders_1.append(Path(r"202602010\Scan3")) #EXTRA ZERO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+folders_1.append(Path(r"20260210\Scan3")) 
 configs_1.append(IonDataAnalysisConfig(
     delay_center= Length(92.654-POSZEROSHIFT, Prefix.MILLI),
     center=Point(203, 202),
@@ -72,8 +76,20 @@ configs_1.append(IonDataAnalysisConfig(
     analysis_zone= Range[int](30, 90),
     transform_parameter= 0.78))
 
+# GA=26, DA = 15.2mm
+configs_1: list[IonDataAnalysisConfig] = []
+folders_1: list[Path] = []
 
-#DROPLETS EXPERIMENT
+folders_1.append(Path(r"20260222\Scan2")) 
+configs_1.append(IonDataAnalysisConfig(
+    delay_center= Length(94.5-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(202, 204),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= Range[int](30, 90),
+    transform_parameter= 0.73))
+
+
+#DROPLETS EXPERIMENT#--------------------------------------------------------------------------------------------------
 # GA=0, DA = 16.6mm
 configs_2: list[IonDataAnalysisConfig] = []
 folders_2: list[Path] = []
@@ -85,7 +101,23 @@ configs_2.append(IonDataAnalysisConfig(
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](DROPLETRADIUSMIN, 90),
     transform_parameter= 0.75))
+'''
+folders_2.append(Path(r"20260209\Scan3")) #EXTRA ZERO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+configs_2.append(IonDataAnalysisConfig(
+    delay_center= Length(92.654-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(175, 205),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
+    transform_parameter= 0.75))
 
+folders_2.append(Path(r"20260207\Scan3")) #EXTRA ZERO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+configs_2.append(IonDataAnalysisConfig(
+    delay_center= Length(92.654-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(175, 205),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= Range[int](DROPLETRADIUSMIN, 90),
+    transform_parameter= 0.75))
+'''
 #--------------------------------------------------------------------------------------------------
 #Update the matplotlib settings
 mpl.rcParams.update({
@@ -232,7 +264,7 @@ a.legend()
 a = axs[1,1]
 plot_Spectrogram(a, plottable_spectrogram_2)
 a.set_ylim([0,120])
-plot_nyquist_frequency(a, plottable_scan_2)
+#plot_nyquist_frequency(a, plottable_scan_2)
 
 mainfig.suptitle(PlotTitle,fontsize=USEFONTSIZE,color='red')
 

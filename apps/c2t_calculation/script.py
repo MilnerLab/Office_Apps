@@ -13,17 +13,17 @@ from base_core.math.enums import AngleUnit
 from base_core.math.models import Angle, Point, Range
 from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Length
-POSZEROSHIFT = 6.8 #millimetres :)
+POSZEROSHIFT = 0 #millimetres :)
 
-folder_path = Path(r"20260211\Scan2")
-file_paths = DatFinder(folder_path).find_datafiles()
+folder_path = Path(r"C:\git\milnerlab-python\Office_Apps\_temp\20260223\Scan1_-600ps")
+file_paths = DatFinder(folder_path,is_full_path=True).find_datafiles()
 
 config = IonDataAnalysisConfig(
-    delay_center= Length(92.654-POSZEROSHIFT, Prefix.MILLI),
+    delay_center= Length(94.5-POSZEROSHIFT, Prefix.MILLI),
     center=Point(174, 206),
     angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](50, 120),
-    transform_parameter= 0.78)
+    analysis_zone= Range[int](60, 120),
+    transform_parameter=0.74)
 
 
 label = "Center = (" + str(config.center.x) + ", " + str(config.center.y) + "), Angle = " + str(round(config.angle.Deg,1)) + "\n"\
@@ -49,5 +49,6 @@ save_path = create_save_path_for_calc_ScanFile(folder_path, str(raw_scans[0].ion
 calculated_Scan = run_pipeline(raw_scans, save_path)
 plot_calculated_scan(ax3, calculated_Scan[0],label=label)
 ax3.legend(loc="upper right")
+ax3.grid(visible=True,which='both',alpha=0.5)
 fig.tight_layout()
 plt.show()

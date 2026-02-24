@@ -123,6 +123,7 @@ class DatFinder:
     ):
         if folder_paths is None:
             folder_paths = [MOST_RECENT_FOLDER]
+            is_full_path = True
         elif isinstance(folder_paths, Path):
             folder_paths = [folder_paths]
         else:

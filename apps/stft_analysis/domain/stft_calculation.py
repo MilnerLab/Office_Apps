@@ -35,7 +35,7 @@ class StftAnalysis:
         nperseg, _, _ = self._stft_params()
 
         for scan in self.scans:
-            c2t = np.asarray(scan.detrend(), dtype=float)
+            c2t, _ = np.asarray(scan.detrend(), dtype=float)
             n_valid = int(np.count_nonzero(np.isfinite(c2t)))
             if n_valid < nperseg:
                 return False
@@ -67,7 +67,7 @@ class StftAnalysis:
         return nperseg, noverlap, fs
 
     def calculate_spectrogram(self, resampled_scan: ResampledScan) -> SpectrogramResult:
-        c2t = resampled_scan.detrend()
+        c2t, _ = resampled_scan.detrend()
         nperseg, noverlap, fs = self._stft_params()
 
         f, t_s, Zxx = stft(

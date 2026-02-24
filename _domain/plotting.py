@@ -1,5 +1,6 @@
 from matplotlib.axes import Axes
 from base_core.fitting.functions import fit_gaussian
+from base_core.fitting.models import GaussianFitResult
 from base_core.plotting.enums import PlotColor
 from base_core.quantities.enums import Prefix
 import numpy as np
@@ -35,4 +36,6 @@ def plot_GaussianFit(ax: Axes, data: ScanDataBase) -> None:
     x = np.linspace(data.delays[0].value(Prefix.PICO), data.delays[-1].value(Prefix.PICO), resampling_const)
     
     ax.plot(x, y)
-    
+    ax.text(0.95,0.95, f"Center = {gauss.center:.2E} ± {gauss.center_err:.2E} ps", transform=ax.transAxes, ha='right', va='top', fontsize=10)
+    #print("center = ",gauss.center, " error = ", gauss.center_err)
+   

@@ -13,7 +13,7 @@ def process_scan_file(file_path: Path) -> Path:
     
     finder = DatFinder()
     
-    if file_path.stem == finder.find_scanfiles()[-1].stem:
+    if file_path.stem == finder.find_scanfiles()[-1][-1].stem:
         PlottingBotPlotting(
         finder,
         png_path,

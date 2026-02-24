@@ -132,7 +132,8 @@ class ScanDiscordBot(commands.Bot):
         try:
             png_path = process_scan_file(file_path)
         except Exception as exc:
-            msg = f"Error while processing `{file_path.name}`: `{exc}`"
+            
+            msg = "Plotbot is sad! Please investigate.\n"f"Error while processing `{file_path.name}`: `{exc}`"
             print(msg)
             await self.target_channel.send(msg)
             return
