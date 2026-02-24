@@ -1,6 +1,7 @@
 from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+import numpy as np
 from _data_io.dat_finder import DatFinder
 from _data_io.dat_loader import load_ion_data
 from _data_io.dat_saver import create_save_path_for_calc_ScanFile
@@ -8,16 +9,18 @@ from _domain.plotting import plot_GaussianFit
 from apps.c2t_calculation.domain.config import IonDataAnalysisConfig
 from apps.c2t_calculation.domain.pipeline import run_pipeline
 from apps.scan_averaging.domain.averaging import average_scans
+from apps.scan_averaging.domain.models import AveragedScansData
 from apps.scan_averaging.domain.plotting import plot_averaged_scan
 from apps.stft_analysis.domain.config import StftAnalysisConfig
+from apps.stft_analysis.domain.models import AggregateSpectrogram
 from apps.stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
-from apps.stft_analysis.domain.resampling import resample_scans
+from apps.stft_analysis.domain.resampling import resample_scan, resample_scans
 from apps.stft_analysis.domain.stft_calculation import StftAnalysis
 from base_core.math.enums import AngleUnit
 from base_core.math.models import Angle, Point, Range
 from base_core.plotting.enums import PlotColor
 from base_core.quantities.enums import Prefix
-from base_core.quantities.models import Length
+from base_core.quantities.models import Length, Time
 
 
 mpl.rcParams.update({
@@ -110,132 +113,124 @@ mpl.rcParams.update({
 
 })
 
+#FUNCTION TO GENERATE THE PLOTTABLE DATA
+def calculating(folders: list[Path], configs: list[IonDataAnalysisConfig]) -> tuple[AveragedScansData, AveragedScansData, AggregateSpectrogram, list[Time]]:
+    print('Starting: ',folders)
+    
+    scans_paths = DatFinder(folders).find_datafiles() #Change this if you want a specific path rather than the Droplets folder
+    print('Data loaded!')
+    raw_datas = load_ion_data(scans_paths, configs)
+    print('Data loaded!')
+    save_path = create_save_path_for_calc_ScanFile(folders[0], str(raw_datas[0].ion_datas[0].run_id))
+    calculated_scans = run_pipeline(raw_datas, save_path)
+    averagedScanData = average_scans(calculated_scans)
+    config = StftAnalysisConfig(calculated_scans)
+    resampled_scans = resample_scans(calculated_scans, config.axis)
+    print('Scans resampled!')
+    spectrogram = StftAnalysis(resampled_scans, config).calculate_averaged_spectrogram()
+    
+    return (averagedScanData, average_scans(resampled_scans), spectrogram, config.axis)
 
 fig_filedir = r"C:/Users/camp06/Documents/droplets_manuscript/"
-fig_filename = fig_filedir + r"fig2_januarydata.pdf"
+fig_filedir = r"/home/soeren/Desktop/"
+fig_filename = fig_filedir + r"130-140.pdf"
 
-folder_path = Path(r"Z://Droplets/20260128/Scan1_CFG")
-file_paths = DatFinder(folder_path).find_datafiles()
+configs_1: list[IonDataAnalysisConfig] = []
+folders_1: list[Path] = []
 
-ring = Range[int](80, 120)
+folders_1.append(Path(r"20260128/Scan1_CFG"))
 
-config_1 = IonDataAnalysisConfig(
+ring = Range[int](60, 120)
+
+configs_1.append(IonDataAnalysisConfig(
     delay_center= Length(89.654, Prefix.MILLI),
     center=Point(175, 204),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= ring,
-    transform_parameter= 0.73)
+    transform_parameter= 0.73))
 
 
-ion_data = load_ion_data(file_paths, config_1.delay_center)
-save_path = create_save_path_for_calc_ScanFile(folder_path, str(ion_data[0].run_id))
-calculated_Scan_1 = run_pipeline(ion_data,config_1, save_path)
+folders_1.append(Path(r"20260128/Scan2_CFG"))
 
-folder_path = Path(r"Z://Droplets/20260128/Scan2_CFG")
-file_paths = DatFinder(folder_path).find_datafiles()
-
-config_2 = IonDataAnalysisConfig(
+configs_1.append(IonDataAnalysisConfig(
     delay_center= Length(89.654, Prefix.MILLI),
     center=Point(175, 204),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= ring,
-    transform_parameter= 0.73)
-
-
-ion_data = load_ion_data(file_paths, config_2.delay_center)
-save_path = create_save_path_for_calc_ScanFile(folder_path, str(ion_data[0].run_id))
-calculated_Scan_2 = run_pipeline(ion_data,config_2, save_path)
+    transform_parameter= 0.73))
 
 
 
-folder_path = Path(r"Z://Droplets/20260129/Scan1")
-file_paths = DatFinder(folder_path).find_datafiles()
+folders_1.append(Path(r"20260129/Scan1"))
 
-config_3 = IonDataAnalysisConfig(
+configs_1.append(IonDataAnalysisConfig(
     delay_center= Length(89.654, Prefix.MILLI),
     center=Point(175, 204),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= ring,
-    transform_parameter= 0.73)
+    transform_parameter= 0.73))
 
 
-ion_data = load_ion_data(file_paths, config_3.delay_center)
-save_path = create_save_path_for_calc_ScanFile(folder_path, str(ion_data[0].run_id))
-calculated_Scan_3 = run_pipeline(ion_data,config_3, save_path)
-
-
-folder_path = Path(r"Z://Droplets/20260130/Scan2")
-file_paths = DatFinder(folder_path).find_datafiles()
-
-config_4 = IonDataAnalysisConfig(
+folders_1.append(Path(r"20260130/Scan2"))
+configs_1.append(IonDataAnalysisConfig(
     delay_center= Length(89.654, Prefix.MILLI),
     center=Point(175, 204),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= ring,
-    transform_parameter= 0.73)
+    transform_parameter= 0.73))
 
+folders_1.append(Path(r"20260130/Scan3"))
 
-ion_data = load_ion_data(file_paths, config_4.delay_center)
-save_path = create_save_path_for_calc_ScanFile(folder_path, str(ion_data[0].run_id))
-calculated_Scan_4 = run_pipeline(ion_data,config_4, save_path)
-
-folder_path = Path(r"Z://Droplets/20260130/Scan3")
-file_paths = DatFinder(folder_path).find_datafiles()
-
-config_5 = IonDataAnalysisConfig(
+configs_1.append(IonDataAnalysisConfig(
     delay_center= Length(89.654, Prefix.MILLI),
     center=Point(175, 204),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= ring,
-    transform_parameter= 0.73)
+    transform_parameter= 0.73))
 
 
-ion_data = load_ion_data(file_paths, config_5.delay_center)
-save_path = create_save_path_for_calc_ScanFile(folder_path, str(ion_data[0].run_id))
-calculated_Scan_5 = run_pipeline(ion_data,config_5, save_path)
+folders_1.append(Path(r"20260202\Scan1_CFG"))
 
-folder_path = Path(r"Z:\Droplets\20260202\Scan1_CFG")
-file_paths = DatFinder(folder_path).find_datafiles()
-
-config_6 = IonDataAnalysisConfig(
+configs_1.append(IonDataAnalysisConfig(
     delay_center= Length(89.654, Prefix.MILLI),
     center=Point(175, 204),
     angle= Angle(12.0, AngleUnit.DEG),
     analysis_zone= ring,
-    transform_parameter= 0.74)
+    transform_parameter= 0.74))
 
 
-ion_data = load_ion_data(file_paths, config_6.delay_center)
-save_path = create_save_path_for_calc_ScanFile(folder_path, str(ion_data[0].run_id))
-calculated_Scan_6 = run_pipeline(ion_data,config_6, save_path)
-
-folder_path = Path(r"Z:\Droplets\20260202\Scan2_CFG")
-file_paths = DatFinder(folder_path).find_datafiles()
-#Scan2 from 20260202 has same config as Scan1
-ion_data = load_ion_data(file_paths, config_6.delay_center)
-save_path = create_save_path_for_calc_ScanFile(folder_path, str(ion_data[0].run_id))
-calculated_Scan_7 = run_pipeline(ion_data,config_6, save_path)
-
-scans = [calculated_Scan_1, calculated_Scan_2, calculated_Scan_3, calculated_Scan_4, calculated_Scan_5,calculated_Scan_6,calculated_Scan_7]
+folders_1.append(Path(r"20260202\Scan2_CFG"))
+configs_1.append(IonDataAnalysisConfig(
+    delay_center= Length(89.654, Prefix.MILLI),
+    center=Point(175, 204),
+    angle= Angle(12.0, AngleUnit.DEG),
+    analysis_zone= ring,
+    transform_parameter= 0.74))
 
 
-config = StftAnalysisConfig(scans)
 
-resampled_scans = resample_scans(scans, config.axis)
 
-averagedScanData = average_scans(scans)
-fig, (ax1,ax2) = plt.subplots(2,1,sharex=True,gridspec_kw={'hspace': 0})
+
+averagedScanData, resampled_avg, spectrogram, axis = calculating(folders_1, configs_1)
+x = [time.value(Prefix.PICO) for time in axis]
+
+fig, (ax1,ax0, ax2, ax3) = plt.subplots(4,1,sharex=True,gridspec_kw={'hspace': 0})
 plot_averaged_scan(ax1, averagedScanData, PlotColor.BLUE)
-#plot_GaussianFit(ax, averagedScanData)
-#fig.suptitle('Droplets', fontsize=12)
+y, trend = resample_scan(resampled_avg, axis).detrend()
+plot_averaged_scan(ax0, resampled_avg, PlotColor.BLUE)
+ax0.plot(x, trend)
+#plot_GaussianFit(ax0, resampled_avg)
+#dsa = resample_scan(averagedScanData, axis)
+#y = np.asarray([c.value for c in dsa.measured_values], dtype=float)
+#ax1.plot(y)
+
+ax2.plot(x, y)
+fig.suptitle('Droplets: Ring constant 130-140 (detrend gaussian)', fontsize=12)
 #ax.legend(loc="upper left")
 
-spectrogram = StftAnalysis(resampled_scans, config).calculate_averaged_spectrogram()
- 
 
-
-plot_Spectrogram(ax2, spectrogram)
-ax2.grid(False) 
+plot_Spectrogram(ax3, spectrogram)
+ax3.grid(False) 
 #ax2b.pcolormesh.cmap('magma')
 
 ax1.text(
@@ -243,20 +238,20 @@ ax1.text(
     transform=ax1.transAxes,
     va='top'
 )
-ax2.text(
+ax3.text(
     0.02, 0.95, r'\textbf{(b)}',
     transform=ax2.transAxes,
     va='top',
     color='w'
 )
 
-ax2.xaxis.set_major_locator(mpl.ticker.MultipleLocator(100))
-ax2.set_xlim((-300,300))
+ax3.xaxis.set_major_locator(mpl.ticker.MultipleLocator(100))
+ax3.set_xlim((-300,300))
 ax1.set_xlabel("")
 ax1.tick_params(axis='x', direction='in',labelbottom=False)
-ax2.set_ylim((0,125))
+ax3.set_ylim((0,125))
 
-ylabels_b = ax2.get_yticklabels()
+ylabels_b = ax3.get_yticklabels()
 ylabels_b[-1].set_visible(False)
 
 

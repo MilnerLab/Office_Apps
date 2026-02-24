@@ -28,7 +28,7 @@ config = IonDataAnalysisConfig(
 
 label = "Center = (" + str(config.center.x) + ", " + str(config.center.y) + "), Angle = " + str(round(config.angle.Deg,1)) + "\n"\
         + "Ring: (" + str(config.analysis_zone.min) + ", " + str(config.analysis_zone.max) + "), ScaleX = " + str(config.transform_parameter)
-raw_scans = load_ion_data(file_path, [config])
+raw_scans = load_ion_data(file_paths, [config])
 
 raw_copy = copy.deepcopy(raw_scans[0])
 

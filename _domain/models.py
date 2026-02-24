@@ -1,10 +1,8 @@
 
+import csv
 from dataclasses import dataclass
-import math
 from pathlib import Path
 
-from altair import DerivedStream
-from git import Tree
 
 from apps.c2t_calculation.domain.config import IonDataAnalysisConfig
 from base_core.math.models import Point, Range
@@ -22,6 +20,28 @@ class Measurement:
 class ScanDataBase:
     delays: list[Time]
     measured_values: list[Measurement]
+    
+    def to_csv(self, path: str | Path) -> None:
+        if path == None:
+            print('No path specified, did not save data.')
+        else:
+            with Path(path).open("w", newline="", encoding="utf-8") as f:
+                w = csv.writer(f)
+                for d, m in zip(self.delays, self.measured_values):
+                    w.writerow([d, m.value, m.error])
+            print("Data saved to:",path)
+            
+    def cut(self, start: int = 0, end: int = 0) -> None:
+        n = len(self.delays)
+        if len(self.measured_values) != n or start < 0 or end < 0 or start + end > n:
+            raise ValueError("Invalid cut range.")
+
+        if end:
+            del self.delays[-end:]
+            del self.measured_values[-end:]
+        if start:
+            del self.delays[:start]
+            del self.measured_values[:start]
 
 @dataclass(frozen=True)
 class LoadableScan(ScanDataBase):
