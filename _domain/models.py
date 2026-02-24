@@ -25,10 +25,14 @@ class ScanDataBase:
     measured_values: list[Measurement]
     
     def to_csv(self, path: str | Path) -> None:
-        with Path(path).open("w", newline="", encoding="utf-8") as f:
-            w = csv.writer(f)
-            for d, m in zip(self.delays, self.measured_values):
-                w.writerow([d, m.value, m.error])
+        if path == None:
+            print('No path specified, did not save data.')
+        else:
+            with Path(path).open("w", newline="", encoding="utf-8") as f:
+                w = csv.writer(f)
+                for d, m in zip(self.delays, self.measured_values):
+                    w.writerow([d, m.value, m.error])
+            print("Data saved to:",path)
 
 @dataclass(frozen=True)
 class LoadableScan(ScanDataBase):
