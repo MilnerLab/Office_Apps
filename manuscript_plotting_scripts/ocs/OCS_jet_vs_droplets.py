@@ -2,7 +2,6 @@ print('Code start!')
 from pathlib import Path
 from altair import FontWeight
 import matplotlib as mpl
-
 from matplotlib import pyplot as plt
 
 from _data_io.dat_finder import DatFinder
@@ -47,7 +46,7 @@ def calculating(folders: list[Path], configs: list[IonDataAnalysisConfig]) -> tu
     averagedScanData = average_scans(calculated_scans)
     config = StftAnalysisConfig(calculated_scans, STFTWINDOWSIZE)
     resampled_scans = resample_scans(calculated_scans, config.axis)
-    spectrogram = StftAnalysis(resampled_scans, config).calculate_averaged_spectrogram()
+
     spectrogram = StftAnalysis(resampled_scans, config).calculate_averaged_spectrogram()
     
     return (averagedScanData, spectrogram)
@@ -66,64 +65,67 @@ savedata_filename_2 = savedata_filedir + r"\OCS_usCFG_droplets.csv" #Name the fi
 #Plot on top
 
 #PlotTitle = r"OCS - same centrifuge, same day, GA=0mm." "\n" "20260210 Scans 3 and 4" #GA = 0mm
-PlotTitle = r"OCS - STFT with 180 ps blackman window. Same centrifuge for each scan." "\n" "20260222 Scans 2 and 3" #GA = 26mm
+
+PlotTitle = r"OCS - STFT with 180 ps blackman window. Same centrifuge for each scan." "\n" "20260210 Scans 3 and 4" #GA = 0mm
+
+#PlotTitle = r"OCS - STFT with 180 ps blackman window. Same centrifuge for each scan." "\n" "20260222 Scans 2 and 3" #GA = 26mm
 
 
 #JET EXPERIMENT#--------------------------------------------------------------------------------------------------
 # GA=0, DA = 16.3mm
 
-# configs_1: list[IonDataAnalysisConfig] = []
-# folders_1: list[Path] = []
-
-# folders_1.append(Path(r"20260210\Scan3")) 
-# configs_1.append(IonDataAnalysisConfig(
-#     delay_center= Length(92.654-POSZEROSHIFT, Prefix.MILLI),
-#     center=Point(203, 202),
-#     angle= Angle(12, AngleUnit.DEG),
-#     analysis_zone= Range[int](30, 90),
-#     transform_parameter= 0.78))
-
-# GA=26, DA = 15.2mm
 configs_1: list[IonDataAnalysisConfig] = []
 folders_1: list[Path] = []
 
-folders_1.append(Path(r"20260222\Scan2")) 
+folders_1.append(Path(r"20260210\Scan3")) 
 configs_1.append(IonDataAnalysisConfig(
-    delay_center= Length(94.5-POSZEROSHIFT, Prefix.MILLI),
-    center=Point(202, 204),
+    delay_center= Length(92.654-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(203, 202),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](30, 90),
-    transform_parameter= 0.73))
+    transform_parameter= 0.78))
+
+# GA=26, DA = 15.2mm
+# configs_1: list[IonDataAnalysisConfig] = []
+# folders_1: list[Path] = []
+
+# folders_1.append(Path(r"20260222\Scan2")) 
+# configs_1.append(IonDataAnalysisConfig(
+#     delay_center= Length(94.5-POSZEROSHIFT, Prefix.MILLI),
+#     center=Point(202, 204),
+#     angle= Angle(12, AngleUnit.DEG),
+#     analysis_zone= Range[int](30, 90),
+#     transform_parameter= 0.73))
 #folders_1.append(Path(r"20260223\Scan2_Jet")) 
 
 
 #DROPLETS EXPERIMENT#--------------------------------------------------------------------------------------------------
 # GA=0, DA = 16.6mm
 
-# configs_2: list[IonDataAnalysisConfig] = []
-# folders_2: list[Path] = []
-
-# folders_2.append(Path(r"20260210\Scan4")) 
-# configs_2.append(IonDataAnalysisConfig(
-#     delay_center= Length(92.654-POSZEROSHIFT, Prefix.MILLI),
-#     center=Point(175, 205),
-#     angle= Angle(12, AngleUnit.DEG),
-#     analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
-#     transform_parameter= 0.75))
-
-# GA=26mm, DA = 15.2mm
 configs_2: list[IonDataAnalysisConfig] = []
 folders_2: list[Path] = []
 
-folders_2.append(Path(r"20260222\Scan3")) 
+folders_2.append(Path(r"20260210\Scan4")) 
 configs_2.append(IonDataAnalysisConfig(
-    delay_center= Length(94.5-POSZEROSHIFT, Prefix.MILLI),
-    center=Point(174, 206),
+    delay_center= Length(92.654-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(175, 205),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
-    transform_parameter= 0.74))
-folders_2.append(Path(r"20260223\Scan1")) 
-configs_2.append(configs_2[0])
+    transform_parameter= 0.75))
+
+# GA=26mm, DA = 15.2mm
+# configs_2: list[IonDataAnalysisConfig] = []
+# folders_2: list[Path] = []
+
+# folders_2.append(Path(r"20260222\Scan3")) 
+# configs_2.append(IonDataAnalysisConfig(
+#     delay_center= Length(94.5-POSZEROSHIFT, Prefix.MILLI),
+#     center=Point(174, 206),
+#     angle= Angle(12, AngleUnit.DEG),
+#     analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
+#     transform_parameter= 0.74))
+#folders_2.append(Path(r"20260223\Scan1")) 
+#configs_2.append(configs_2[0])
 #--------------------------------------------------------------------------------------------------
 #Update the matplotlib settings
 mpl.rcParams.update({
@@ -220,28 +222,10 @@ mpl.rcParams.update({
 
 
 
-
-
 #Pipeline 
 plottable_scan_1, plottable_spectrogram_1 = calculating(folders_1, configs_1)
 plottable_scan_2, plottable_spectrogram_2 = calculating(folders_2, configs_2)
 
-print(plottable_scan_1.delays[3:])
-
-if False:
-    TestIndex = 4 #Delay point
-    plot_radius = 150
-    h_shift, edgex, edgey  = raw_datas[0].ion_datas[TestIndex].get_2D_histogram(num_bins=2*plot_radius,xy_range=Range(-plot_radius,plot_radius))
-
-    #Create figures
-    ionfig, (ax_shift) = plt.subplots(
-                nrows=1,
-                ncols=1,
-                figsize=(4, 4), 
-            )
-
-    ax_shift.pcolor(edgex,edgey,h_shift)
-    ax_shift.axis('equal')
 
 #Main figure
 mainfig, (axs) = plt.subplots(
