@@ -33,6 +33,18 @@ class ScanDataBase:
                 for d, m in zip(self.delays, self.measured_values):
                     w.writerow([d, m.value, m.error])
             print("Data saved to:",path)
+            
+    def cut(self, start: int = 0, end: int = 0) -> None:
+        n = len(self.delays)
+        if len(self.measured_values) != n or start < 0 or end < 0 or start + end > n:
+            raise ValueError("Invalid cut range.")
+
+        if end:
+            del self.delays[-end:]
+            del self.measured_values[-end:]
+        if start:
+            del self.delays[:start]
+            del self.measured_values[:start]
 
 @dataclass(frozen=True)
 class LoadableScan(ScanDataBase):
