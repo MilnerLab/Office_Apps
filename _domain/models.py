@@ -1,11 +1,8 @@
 
 import csv
 from dataclasses import dataclass
-import math
 from pathlib import Path
 
-from altair import DerivedStream
-from git import Tree
 
 from apps.c2t_calculation.domain.config import IonDataAnalysisConfig
 from base_core.math.models import Point, Range
