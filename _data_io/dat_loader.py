@@ -49,13 +49,12 @@ def load_time_scan(path: Path) -> C2TScanData:
     return C2TScanData(delays=delays, measured_values=c2ts, file_path=file_name, ions_per_frame=ions)
 
 
-def load_time_scans(folder_paths: list[Path]) -> list[C2TScanData]:
+def load_time_scans(paths: list[Path]) -> list[C2TScanData]:
     
     scanDatas: list[C2TScanData] = []
     
-    for folder_path in folder_paths:
-        for file_path in folder_path:
-            scanDatas.append(load_time_scan(path=file_path))
+    for path in paths:
+        scanDatas.append(load_time_scan(path=path))
 
     return scanDatas
 
