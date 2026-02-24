@@ -66,7 +66,7 @@ savedata_filename_2 = savedata_filedir + r"\OCS_usCFG_droplets.csv" #Name the fi
 #Plot on top
 
 #PlotTitle = r"OCS - same centrifuge, same day, GA=0mm." "\n" "20260210 Scans 3 and 4" #GA = 0mm
-PlotTitle = r"OCS - same centrifuge, same day, GA=26mm." "\n" "20260222 Scans 2 and 3" #GA = 26mm
+PlotTitle = r"OCS - STFT with 180 ps blackman window. Same centrifuge for each scan." "\n" "20260222 Scans 2 and 3" #GA = 26mm
 
 
 #JET EXPERIMENT#--------------------------------------------------------------------------------------------------
@@ -135,16 +135,16 @@ mpl.rcParams.update({
     "axes.labelsize": USEFONTSIZE,
     "axes.formatter.use_mathtext": True,
     "axes.linewidth": 0.5,
-    #"axes.grid": True,
-    #"axes.grid.axis": "both",  # which axis the grid should apply to
-    #"axes.grid.which": "major",
+    "axes.grid": True,
+    "axes.grid.axis": "both",  # which axis the grid should apply to
+    "axes.grid.which": "major",
     #"axes.axisbelow" : True,
-    #"grid.alpha": 0.25,
+    "grid.alpha": 1,
 
     # --- Grid lines ---
-    #"grid.linewidth": 0.5,
-    #"grid.linestyle": "dashed",
-    #"grid.color": "xkcd:light gray",
+    "grid.linewidth": 0.3,
+    "grid.linestyle": "solid",
+    "grid.color": "grey",
 
     # --- Lines ---
     "lines.linewidth": 0.5,
@@ -226,7 +226,8 @@ mpl.rcParams.update({
 plottable_scan_1, plottable_spectrogram_1 = calculating(folders_1, configs_1)
 plottable_scan_2, plottable_spectrogram_2 = calculating(folders_2, configs_2)
 
-#Plot histogram to check centre (change variable here)
+print(plottable_scan_1.delays[3:])
+
 if False:
     TestIndex = 4 #Delay point
     plot_radius = 150
@@ -247,30 +248,30 @@ mainfig, (axs) = plt.subplots(
             nrows=2,
             ncols=2,
             figsize=(10, 8),
-            sharex=True, 
-            gridspec_kw={'hspace': 0,'wspace' : 0.275},
-            
+            sharex=True,             
         )
 
 #Plot first experiment in top row
 a = axs[0,0]
 plot_averaged_scan(a, plottable_scan_1, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d', label = "80 PSI Jet")
+a.grid(color='grey',linewidth=0.3)
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 a.legend(loc="lower center")
 a = axs[0,1]
-plot_Spectrogram(a, plottable_spectrogram_1)
+plot_Spectrogram(a, plottable_spectrogram_1,shading="auto")
 a.set_ylim([0,120])
 plot_nyquist_frequency(a, plottable_scan_1)
 
 #Plot second experiment in bottom row
 a = axs[1,0]
-plot_averaged_scan(a, plottable_scan_2, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d',label="30 Bar / 18 K Droplets")
+plot_averaged_scan(a, plottable_scan_2, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d',label="30 bar / 18 K Droplets")
+a.grid(color='grey',linewidth=0.3)
 a.legend()
 a = axs[1,1]
-plot_Spectrogram(a, plottable_spectrogram_2)
+plot_Spectrogram(a, plottable_spectrogram_2,shading="auto")
 a.set_ylim([0,120])
-#plot_nyquist_frequency(a, plottable_scan_2)
-mainfig.suptitle(PlotTitle,fontsize=USEFONTSIZE,color='red')
+plot_nyquist_frequency(a, plottable_scan_2)
+mainfig.suptitle(PlotTitle,fontsize=USEFONTSIZE,color='black')
 
 #Save scans
 plottable_scan_1.to_csv(savedata_filename_1)
@@ -278,3 +279,4 @@ plottable_scan_2.to_csv(savedata_filename_2)
 
 mainfig.savefig(fig_filename,format='png')
 plt.show()
+print('Done!')
