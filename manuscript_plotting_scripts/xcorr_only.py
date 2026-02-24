@@ -45,24 +45,24 @@ def calculating(filepath: Path, zero_delay_position: float) -> tuple[C2TScanData
 
 
 #Path to save figure in
-fig_filedir = r"C:\Users\camp06\OneDrive - UBC\Documents\droplets_manuscript" 
-fig_filename = fig_filedir + r"\\xcorr20260213_to_cs2_cfg_comp1.png" #Name the file to save here
+fig_filedir = r"Z:\Droplets\plots" 
+fig_filename = fig_filedir + r"\\xcorr_temp.png" #Name the file to save here
 
 #Plot title on top
-PlotTitle = r"Centrifuge comparison" 
+PlotTitle = r"Cross-correlation Centrifuge comparison" 
 
 #FIRST EXPERIMENT
 # GA=26, DA = 16.3mm
-# file_xcorr_1 = Path(r"Z:\Droplets\20260207\XCORR\CFG_16p3mm_26mm\20260207905AM_.csv")
-# zero_delay_position_1 = 170 + POSZEROSHIFT #mm
+file_xcorr_1 = Path(r"Z:\Droplets\20260207\XCORR\CFG_16p3mm_26mm\20260207905AM_.csv")
+zero_delay_position_1 = 170 + POSZEROSHIFT #mm
 #SECOND EXPERIMENT
 # GA=0, DA = 16.6mm
-file_xcorr_2 = Path(r"Z:\Droplets\20260207\XCORR\CFG_16p3mm_26mm\20260207905AM_.csv")
+file_xcorr_2 = Path(r"Z:\Droplets\20260207\XCORR\CFG_16p6mm_0mm\202602071250_.csv")
 zero_delay_position_2 = 170 + POSZEROSHIFT #mm
 
 #GA=26, DA=16.0 mm
-file_xcorr3 = Path(r"C:\Users\camp06\OneDrive - UBC\Documents\droplets_manuscript\202602131102AM_.csv")
-zero_delay_position_3 = 170 + POSZEROSHIFT #mm
+#file_xcorr3 = Path(r"C:\Users\camp06\OneDrive - UBC\Documents\droplets_manuscript\202602131102AM_.csv")
+#zero_delay_position_3 = 170 + POSZEROSHIFT #mm
 #--------------------------------------------------------------------------------------------------
 #Update the matplotlib settings
 mpl.rcParams.update({
@@ -74,16 +74,16 @@ mpl.rcParams.update({
     "axes.labelsize": USEFONTSIZE,
     "axes.formatter.use_mathtext": True,
     "axes.linewidth": 0.5,
-    #"axes.grid": True,
-    #"axes.grid.axis": "both",  # which axis the grid should apply to
-    #"axes.grid.which": "major",
+    "axes.grid": True,
+    "axes.grid.axis": "both",  # which axis the grid should apply to
+    "axes.grid.which": "major",
     #"axes.axisbelow" : True,
-    #"grid.alpha": 0.25,
+    "grid.alpha": 1,
 
     # --- Grid lines ---
-    #"grid.linewidth": 0.5,
-    #"grid.linestyle": "dashed",
-    #"grid.color": "xkcd:light gray",
+    "grid.linewidth": 0.3,
+    "grid.linestyle": "solid",
+    "grid.color": "grey",
 
     # --- Lines ---
     "lines.linewidth": 0.5,
@@ -163,10 +163,10 @@ mpl.rcParams.update({
 
 
 
-#xcdata_1, plottable_spectrogram_1 = calculating(file_xcorr_1,zero_delay_position_1)
+xcdata_1, plottable_spectrogram_1 = calculating(file_xcorr_1,zero_delay_position_1)
 xcdata_2, plottable_spectrogram_2 = calculating(file_xcorr_2,zero_delay_position_2)
 
-xcdata_3, plottable_spectrogram_3 = calculating(file_xcorr3,zero_delay_position_3)
+#xcdata_3, plottable_spectrogram_3 = calculating(file_xcorr3,zero_delay_position_3)
 #--------------------------------------------------------------------------------------------------
 
 
@@ -176,20 +176,19 @@ mainfig, (axs) = plt.subplots(
             ncols=2,
             figsize=(10, 8),
             sharex=True, 
-            gridspec_kw={'hspace': 0,'wspace' : 0.275},
         )
 
 
 #Plot first experiment in top row
 a = axs[0,0]
-plot_ScanData(a,xcdata_2,color = PlotColor.GRAY,label="CS2 Centrifuge (GA=26,DA=16)")
+plot_ScanData(a,xcdata_1,color = PlotColor.GRAY,label="CS2 Centrifuge (GA=26mm, DA=16.3mm)")
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 a.set_ylabel('Photodiode Signal (V)')
 a.legend(loc="upper right")
 
 #a.legend(loc="upper right")
 a = axs[0,1]
-plot_Spectrogram(a, plottable_spectrogram_2,colormap='viridis')
+plot_Spectrogram(a, plottable_spectrogram_1,colormap='viridis')
 #plot_Spectrogram(a, plottable_spectrogram_3,colormap='magma')
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 a.set_ylim([0,120])
@@ -199,12 +198,12 @@ a.set_ylim([0,120])
 
 #Plot second experiment in bottom row
 a = axs[1,0]
-plot_ScanData(a,xcdata_3,color = PlotColor.GRAY,label="GA=26,DA=16.0")
+plot_ScanData(a,xcdata_2,color = PlotColor.GRAY,label="OCS Centrifuge (GA=0mm, DA=16.6mm)")
 a.set_ylabel('Photodiode Signal (V)')
 a.legend()
 a.legend(loc="upper right")
 a = axs[1,1]
-plot_Spectrogram(a, plottable_spectrogram_3,colormap='viridis')
+plot_Spectrogram(a, plottable_spectrogram_2,colormap='viridis')
 a.set_ylim([0,150])
 
 #a.set_ylim([0,120])
