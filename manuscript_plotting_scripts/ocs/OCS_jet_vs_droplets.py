@@ -114,6 +114,7 @@ configs_2.append(IonDataAnalysisConfig(
     transform_parameter= 0.75))
 
 # GA=26mm, DA = 15.2mm
+#as of 2026/02/24, the interpolation was causing a weird line in the spectrogram, so this was plotted with the first two points deleted from the data folder. 
 # configs_2: list[IonDataAnalysisConfig] = []
 # folders_2: list[Path] = []
 
