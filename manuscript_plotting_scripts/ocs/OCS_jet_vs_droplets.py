@@ -59,7 +59,7 @@ fig_filename = fig_filedir + r"\\OCS_jet_vs_droplets_TEMP.png" #Name the file to
 #Plot on top
 
 PlotTitle = r"OCS - same centrifuge, same day, GA=0mm." "\n" "20260210 Scans 3 and 4" #GA = 0mm
-PlotTitle = r"OCS - same centrifuge, same day, GA=26mm." "\n" "20260222 Scans 2 and 3" #GA = 26mm
+PlotTitle = r"OCS -  GA=26mm." "\n" "20260222 Scans 2 and 3 and 20260223 Scan 1" #GA = 26mm
 
 
 #JET EXPERIMENT#--------------------------------------------------------------------------------------------------
@@ -79,13 +79,14 @@ configs_1.append(IonDataAnalysisConfig(
 configs_1: list[IonDataAnalysisConfig] = []
 folders_1: list[Path] = []
 
-folders_1.append(Path(r"20260222\Scan2")) 
+#folders_1.append(Path(r"20260222\Scan2")) 
 configs_1.append(IonDataAnalysisConfig(
     delay_center= Length(94.5-POSZEROSHIFT, Prefix.MILLI),
     center=Point(202, 204),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](30, 90),
     transform_parameter= 0.73))
+folders_1.append(Path(r"20260223\Scan2_Jet")) 
 
 
 #DROPLETS EXPERIMENT#--------------------------------------------------------------------------------------------------
@@ -127,14 +128,14 @@ mpl.rcParams.update({
     "axes.labelsize": USEFONTSIZE,
     "axes.formatter.use_mathtext": True,
     "axes.linewidth": 0.5,
-    #"axes.grid": True,
-    #"axes.grid.axis": "both",  # which axis the grid should apply to
+    "axes.grid": True,
+    "axes.grid.axis": "both",  # which axis the grid should apply to
     #"axes.grid.which": "major",
     #"axes.axisbelow" : True,
-    #"grid.alpha": 0.25,
+    "grid.alpha": 0.25,
 
     # --- Grid lines ---
-    #"grid.linewidth": 0.5,
+    "grid.linewidth": 0.5,
     #"grid.linestyle": "dashed",
     #"grid.color": "xkcd:light gray",
 
