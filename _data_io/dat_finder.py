@@ -123,6 +123,7 @@ class DatFinder:
     ):
         if folder_paths is None:
             folder_paths = [MOST_RECENT_FOLDER]
+            is_full_path = True
         elif isinstance(folder_paths, Path):
             folder_paths = [folder_paths]
         else:
@@ -135,8 +136,8 @@ class DatFinder:
 
         self.folder_paths: list[Path] = folders
 
-    def find_scanfiles(self, merge_batches: bool = False) -> list[list[Path]]:
-        scans_paths: list[list[Path]] = []
+    def find_scanfiles(self, merge_batches: bool = False) -> list[Path]:
+        scans_paths: list[Path] = []
 
         for f in self.folder_paths:
             file_list: list[Path] = sorted(f.glob(SCAN_FILE_PATTERN))
@@ -155,7 +156,7 @@ class DatFinder:
                 if not file_list:
                     continue
 
-            scans_paths.append(file_list)
+            scans_paths.extend(file_list)
 
         return scans_paths
 

@@ -49,5 +49,6 @@ save_path = create_save_path_for_calc_ScanFile(folder_path, str(raw_scans[0].ion
 calculated_Scan = run_pipeline(raw_scans, save_path)
 plot_calculated_scan(ax3, calculated_Scan[0],label=label)
 ax3.legend(loc="upper right")
+ax3.grid(visible=True,which='both',alpha=0.5)
 fig.tight_layout()
 plt.show()

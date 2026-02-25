@@ -7,6 +7,17 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Debug plot_bot",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder:Office_Apps}/apps/plot_bot/script.py",
+	  "cwd": "${workspaceFolder:Office_Apps}",
+	   "env": { "PYTHONPATH": "${workspaceFolder:Office_Apps}" },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+
+    {
       "name": "Debug c2t_calculation",
       "type": "debugpy",
       "request": "launch",
@@ -91,6 +102,17 @@
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder:Office_Apps}/manuscript_plotting_scripts/ocs/OCS_jet_only.py",
+	  "cwd": "${workspaceFolder:Office_Apps}",
+	   "env": { "PYTHONPATH": "${workspaceFolder:Office_Apps}" },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+
+        {
+      "name": "Debug plotting_scripts OCS droplets only",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder:Office_Apps}/manuscript_plotting_scripts/ocs/OCS_droplets_cfg.py",
 	  "cwd": "${workspaceFolder:Office_Apps}",
 	   "env": { "PYTHONPATH": "${workspaceFolder:Office_Apps}" },
       "console": "integratedTerminal",

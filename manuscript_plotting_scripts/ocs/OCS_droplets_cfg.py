@@ -1,10 +1,7 @@
-print('Code start!')
 from pathlib import Path
-from altair import FontWeight
+import matplotlib.pyplot as plt
 import matplotlib as mpl
-
-from matplotlib import pyplot as plt
-
+import numpy as np
 from _data_io.dat_finder import DatFinder
 from _data_io.dat_loader import load_ion_data
 from _data_io.dat_saver import create_save_path_for_calc_ScanFile
@@ -14,84 +11,26 @@ from apps.c2t_calculation.domain.pipeline import run_pipeline
 from apps.scan_averaging.domain.averaging import average_scans
 from apps.scan_averaging.domain.models import AveragedScansData
 from apps.scan_averaging.domain.plotting import plot_averaged_scan
-
+from apps.stft_analysis.domain.config import StftAnalysisConfig
 from apps.stft_analysis.domain.models import AggregateSpectrogram
-
+from apps.stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
+from apps.stft_analysis.domain.resampling import resample_scan, resample_scans
+from apps.stft_analysis.domain.stft_calculation import StftAnalysis
 from base_core.math.enums import AngleUnit
 from base_core.math.models import Angle, Point, Range
 from base_core.plotting.enums import PlotColor
 from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Length, Time
-print('Dependencies loaded.')
 
-DROPLETRADIUSMIN = 60
 STFTWINDOWSIZE = Time(180,Prefix.PICO)  
-EARLIEST_DELAY_PS = -720
-LATEST_DELAY_PS = -EARLIEST_DELAY_PS
-POSZEROSHIFT = 0 #millimetres :)
 
-USEFONTSIZE = 16
-
-#FUNCTION TO GENERATE THE PLOTTABLE DATA
-def calculating(folders: list[Path], configs: list[IonDataAnalysisConfig]) -> tuple[AveragedScansData, AggregateSpectrogram]:
-    print('Starting: ',folders)
-    
-    scans_paths = DatFinder(folders).find_datafiles() #Change this if you want a specific path rather than the Droplets folder
-    print('Data found!')
-    raw_datas = load_ion_data(scans_paths, configs)
-    print('Data loaded!')
-    save_path = create_save_path_for_calc_ScanFile(folders[0], str(raw_datas[0].ion_datas[0].run_id))
-    calculated_scans = run_pipeline(raw_datas, save_path)
-    averagedScanData = average_scans(calculated_scans)
-    print('Scans resampled!')
-    
-    return (averagedScanData)
-#--------------------------------------------------------------------------------------------------
-
-#Path to save figure in
-fig_filedir = r"Z:\Droplets\plots" 
-fig_filename = fig_filedir + r"\\OCS_1arm_temp.png" #Name the file to save here
-
-#Plot title on top
-PlotTitle = r"OCS - Droplets" "\n" "20260211"
-
-tracenames: list[str] = []
-
-#Trace 2
-configs_1: list[IonDataAnalysisConfig] = []
-folders_1: list[Path] = [Path(r"20260211\Scan1")]
-
-tracenames.append("3mJ CFG (polarization averaged)")
-#folders_1.append(Path(r"20260211\Scan1"))  
-configs_1.append(IonDataAnalysisConfig(
-    delay_center= Length(92.654-POSZEROSHIFT, Prefix.MILLI),
-    center=Point(174, 206),
-    angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](50, 120),
-    transform_parameter= 0.78))
-
-#Trace 2
-folders_2: list[Path] = [Path(r"20260211\Scan2")]
-tracenames.append("1.5mJ Circular Polarization")
-
-#Trace 3
-folders_3: list[Path] = [Path(r"20260211\Scan4")]#scan 3 also but not needed.
-tracenames.append("1.5mJ // Linear Polarization")
-#Trace 4
-folders_4: list[Path] = [Path(r"20260211\Scan5")]
-tracenames.append("1.5mJ // Linear Polarization \n with droplet beam blocked.")
-
-
-
-#--------------------------------------------------------------------------------------------------
-#Update the matplotlib settings
 mpl.rcParams.update({
 #copied from physrev.mplstyle file
     #"axes.prop_cycle": "(cycler('color', ['5d81b4', 'e09b24', '8eb031', 'eb6235', '8678b2', 'c46e1a', '5c9dc7', 'ffbf00', 'a5609c']) + cycler('ls', ['-', '--', '-.', (0, (1,0.85)), (0, (3, 1, 1, 1, 1, 1)), (0, (3, 1, 1, 1)), (0, (5, 1)), ':', (4, (10, 3))]))",  
   
     # --- Axes ---
     "axes.titlesize": "medium",
-    "axes.labelsize": USEFONTSIZE,
+    "axes.labelsize": 16,
     "axes.formatter.use_mathtext": True,
     "axes.linewidth": 0.5,
     #"axes.grid": True,
@@ -108,7 +47,7 @@ mpl.rcParams.update({
     # --- Lines ---
     "lines.linewidth": 0.5,
     "lines.marker": "d",
-    "lines.markersize": 5,
+    "lines.markersize": 0.5,
     "hatch.linewidth": 0.25,
     "patch.antialiased": True,
     
@@ -129,7 +68,7 @@ mpl.rcParams.update({
     "xtick.minor.bottom": True,
     "xtick.major.pad": 5.0,
     "xtick.minor.pad": 5.0,
-    "xtick.labelsize": USEFONTSIZE,
+    "xtick.labelsize": 16,
 
     # --- Ticks (Y) ---
     "ytick.left": True,
@@ -145,7 +84,7 @@ mpl.rcParams.update({
     #"ytick.minor.left": True,
     "ytick.major.pad": 5.0,
     #"ytick.minor.pad": 5.0,
-    "ytick.labelsize": USEFONTSIZE,
+    "ytick.labelsize": 16,
     
     
     # --- Legend ---
@@ -176,44 +115,75 @@ mpl.rcParams.update({
     "font.serif": ["cmr10"],
 
 })
+#FUNCTION TO GENERATE THE PLOTTABLE DATA
+def calculating(folders: list[Path], configs: list[IonDataAnalysisConfig]) -> tuple[AveragedScansData, AveragedScansData, AggregateSpectrogram, list[Time]]:
+    print('Starting: ',folders)
+    
+    scans_paths = DatFinder(folders).find_datafiles() #Change this if you want a specific path rather than the Droplets folder
+    print('Data loaded!')
+    raw_datas = load_ion_data(scans_paths, configs)
+    print('Data loaded!')
+    save_path = create_save_path_for_calc_ScanFile(folders[0], str(raw_datas[0].ion_datas[0].run_id))
+    calculated_scans = run_pipeline(raw_datas, save_path)
+    averagedScanData = average_scans(calculated_scans)
+    config = StftAnalysisConfig(calculated_scans, STFTWINDOWSIZE)
+    resampled_scans = resample_scans(calculated_scans, config.axis)
+    print('Scans resampled!')
+    spectrogram = StftAnalysis(resampled_scans, config).calculate_averaged_spectrogram()
+    
+    return (averagedScanData, average_scans(resampled_scans), spectrogram, config.axis)
+
+fig_filedir = r"C:/Users/camp06/Documents/droplets_manuscript/"
+fig_filedir = r"/home/soeren/Desktop/"
+fig_filename = fig_filedir + r"130-140.pdf"
+configs_1: list[IonDataAnalysisConfig] = []
+folders_1: list[Path] = []
+
+ring = Range[int](130, 140)
+folders_1.append(Path(r"202602010\Scan4")) #EXTRA ZERO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+configs_1.append(IonDataAnalysisConfig(
+    delay_center= Length(92.654, Prefix.MILLI),
+    center=Point(175, 205),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= ring,
+    transform_parameter= 0.75))
 
 
 
 
 
-#Pipeline 
-plottable_scan_1 = calculating(folders_1, configs_1) #Same config used for each 
-plottable_scan_2 = calculating(folders_2, configs_1)
-plottable_scan_3 = calculating(folders_3, configs_1)
-plottable_scan_4 = calculating(folders_4, configs_1)
 
-print('Done calculating!')
+averagedScanData, resampled_avg, spectrogram, axis = calculating(folders_1, configs_1)
+x = [time.value(Prefix.PICO) for time in axis]
 
-#Main figure
-mainfig, (axs) = plt.subplots(
-            nrows=1,
-            ncols=1,
-            figsize=(10, 8),
-            sharex=True, 
-            gridspec_kw={'hspace': 0,'wspace' : 0.275},
-            
-        )
+fig, (ax1,ax0, ax2, ax3) = plt.subplots(4,1,sharex=True,gridspec_kw={'hspace': 0})
+plot_averaged_scan(ax1, averagedScanData, PlotColor.BLUE)
+y, trend = resample_scan(resampled_avg, axis).detrend()
+plot_averaged_scan(ax0, resampled_avg, PlotColor.BLUE)
+ax0.plot(x, trend)
+#plot_GaussianFit(ax0, resampled_avg)
+#dsa = resample_scan(averagedScanData, axis)
+#y = np.asarray([c.value for c in dsa.measured_values], dtype=float)
+#ax1.plot(y)
 
-a = axs
+ax2.plot(x, y)
+fig.suptitle('Droplets: Ring constant 130-140 (detrend gaussian)', fontsize=12)
+#ax.legend(loc="upper left")
+plot_Spectrogram(ax3, spectrogram)
+ax3.grid(False) 
+#ax2b.pcolormesh.cmap('magma')
+
+ax1.set_xlabel("")
+ax1.tick_params(axis='x', direction='in',labelbottom=False)
+ax3.set_ylim((0,120))
+ax3.set_xlim([-550,550])
 
 
-plot_averaged_scan(a, plottable_scan_1, marker='x', label = tracenames[0])
-plot_averaged_scan(a, plottable_scan_2, marker='d', label=tracenames[1])
-plot_averaged_scan(a, plottable_scan_3, marker='s', label=tracenames[2])
-plot_averaged_scan(a, plottable_scan_4, marker='P', label=tracenames[3])
+#ax2b.xaxis.set_major_locator(mpl.ticker.LinearLocator(numticks=5,presets=xlimits))
+#ax2b.yaxis.set_major_locator(mpl.ticker.MultipleLocator(50))
+#ax2b.yaxis.set_major_locator(mpl.ticker.LinearLocator(numticks=3,presets=limits))
 
-a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
-a.legend(loc="upper left")
-#a.legend()
-
-print(a.get_children)
-
-mainfig.suptitle(PlotTitle,fontsize=USEFONTSIZE,color='GRAY')
-
-mainfig.savefig(fig_filename,format='png')  
+#plot_nyquist_frequency(ax, scans[0])
+fig.savefig(fig_filename,format='pdf')
+fig.tight_layout()
 plt.show()

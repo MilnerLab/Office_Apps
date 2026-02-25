@@ -1,23 +1,18 @@
 from matplotlib.axes import Axes
 from base_core.fitting.functions import fit_gaussian
+from base_core.fitting.models import GaussianFitResult
 from base_core.plotting.enums import PlotColor
 from base_core.quantities.enums import Prefix
 import numpy as np
 from _domain.models import ScanDataBase
 
 
-def plot_ScanData(ax: Axes, data: ScanDataBase, label:str, color: PlotColor = PlotColor.BLUE, ecolor: PlotColor = PlotColor.BLACK,marker = 'o') -> None:
+def plot_ScanData(ax: Axes, data: ScanDataBase, label:str, color: PlotColor = None, ecolor: PlotColor = None,marker = 'o') -> None:
     x = [time.value(Prefix.PICO) for time in data.delays]
     y = np.array([c.value for c in data.measured_values])
     error = np.array([c.error for c in data.measured_values])
 
-    ax.plot(
-        x,
-        y,
-        color=color,
-        label=label,
-        marker = marker,
-    )
+
     ax.errorbar(
         x,
         y,
@@ -25,6 +20,7 @@ def plot_ScanData(ax: Axes, data: ScanDataBase, label:str, color: PlotColor = Pl
         ecolor=ecolor,
         color=color,
         marker = marker,
+        label = label,
     )
     
 
@@ -40,4 +36,6 @@ def plot_GaussianFit(ax: Axes, data: ScanDataBase) -> None:
     x = np.linspace(data.delays[0].value(Prefix.PICO), data.delays[-1].value(Prefix.PICO), resampling_const)
     
     ax.plot(x, y)
-    
+    ax.text(0.95,0.95, f"Center = {gauss.center:.2E} ± {gauss.center_err:.2E} ps", transform=ax.transAxes, ha='right', va='top', fontsize=10)
+    #print("center = ",gauss.center, " error = ", gauss.center_err)
+   

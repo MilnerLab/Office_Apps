@@ -6,25 +6,27 @@ from _data_io.dat_finder import DatFinder
 from _data_io.dat_loader import load_time_scan
 from apps.single_scan.domain.plotting import plot_single_scan
 
-'''
 
-file_path = file_path = Path("Z:\\Droplets\\20251210\\JS1_Scanfiles\\20251210132842_ScanFile.dat")
 
-scan_data = load_time_scan(file_path)
+# file_path1 = Path(r"Z:\Droplets\20260221135531_ScanFile.dat")
 
-fig, ax = plt.subplots(figsize=(8, 4))
-plot_single_scan(ax, scan_data)
+# scan_data1 = load_time_scan(file_path1)
 
-file_path = file_path = Path("Z:\\Droplets\\20251210\\JS1_Scanfiles\\20251210141036_ScanFile.dat")
+# fig, ax = plt.subplots(figsize=(8, 4))
+# plot_single_scan(ax, scan_data1)
 
-scan_data = load_time_scan(file_path)
 
-plot_single_scan(ax, scan_data, data_color=PlotColor.GREEN)
+# file_path2 = Path(r"Z:\Droplets\20260221135955_ScanFile.dat")
 
-ax.legend(loc="upper right")
-fig.tight_layout()
-plt.show()
-'''
+# scan_data2 = load_time_scan(file_path2)
+
+# plot_single_scan(ax, scan_data1)
+# fig2,ax2 = plt.subplots(figsize=(8,4))
+# plot_single_scan(ax2,scan_data2)
+# #ax.legend(loc="upper right")
+# fig.tight_layout()
+# plt.show()
+
 
 def main() -> None:
     file_path = DatFinder().find_most_recent_scanfile()
@@ -41,6 +43,7 @@ def main() -> None:
         ax.clear()
         plot_single_scan(ax, scan_data)
         ax.legend(loc="upper right")
+        ax.grid(visible=True,which='major',alpha=0.5)
         fig.canvas.draw_idle()
 
     refresh_button.on_clicked(on_refresh)

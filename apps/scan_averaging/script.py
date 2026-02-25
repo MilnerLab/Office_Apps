@@ -48,14 +48,17 @@ plt.show()
 
 '''
 
-folder_path = Path(r"/home/soeren/Downloads/all cfg scans")
+
+
+fig_folder_path = Path(r"C:\Users\camp06\OneDrive - UBC\Documents\droplets_manuscript\test\jetscan.png")
 file_paths = DatFinder().find_scanfiles()
 
 averagedScanData = average_scans(load_time_scans(file_paths))
-fig, ax = plt.subplots(figsize=(8, 4))
-plot_averaged_scan(ax, averagedScanData, PlotColor.GREEN, label=" -> CFG randomized")
-plot_GaussianFit(ax, averagedScanData)
-fig.suptitle('Droplets', fontsize=12)
+fig, ax = plt.subplots(figsize=(8, 5))
+plot_averaged_scan(ax, averagedScanData, PlotColor.GREEN)
+#plot_GaussianFit(ax, averagedScanData)
+fig.suptitle('OCS Jet', fontsize=12)
 ax.legend(loc="upper left")
 fig.tight_layout()
+#fig.savefig(fig_folder_path,format='png')
 plt.show()
