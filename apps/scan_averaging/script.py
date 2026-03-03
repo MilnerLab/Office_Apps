@@ -50,15 +50,24 @@ plt.show()
 
 
 
+#folder_path = [Path(r"Z:\Droplets\20260210\Scan3_ScanFiles"),Path(r"Z:\Droplets\20260210\Scan4_ScanFiles")]
+scan3_path = Path(r"Z:\Droplets\20260210\Scan3_ScanFiles")
+scan4_path = Path(r"Z:\Droplets\20260210\Scan4_ScanFiles")
 fig_folder_path = Path(r"C:\Users\camp06\OneDrive - UBC\Documents\droplets_manuscript\test\jetscan.png")
-file_paths = DatFinder().find_scanfiles()
-
-averagedScanData = average_scans(load_time_scans(file_paths))
-fig, ax = plt.subplots(figsize=(8, 5))
-plot_averaged_scan(ax, averagedScanData, PlotColor.GREEN)
+scan3_files = DatFinder(scan3_path).find_scanfiles()
+#scan4_files = DatFinder(scan4_path).find_scanfiles()
+scan4_files = [Path(r"Z:\Droplets\20260210\Scan4_ScanFiles\20260210150041_ScanFile.dat"),Path(r"Z:\Droplets\20260210\Scan4_ScanFiles\20260210141321_ScanFile.dat")]
+averagedScan3Data = average_scans(load_time_scans(scan3_files))
+averagedScan4Data = average_scans(load_time_scans(scan4_files))
+fig, (ax1, ax2) = plt.subplots(2, 1)
+plot_averaged_scan(ax1, averagedScan3Data, PlotColor.GREEN)
+plot_averaged_scan(ax2, averagedScan4Data, PlotColor.RED)
 #plot_GaussianFit(ax, averagedScanData)
-fig.suptitle('OCS Jet', fontsize=12)
-ax.legend(loc="upper left")
+#fig.suptitle('OCS Jet', fontsize=12)
+ax1.legend(' OCS Jet',loc="upper left")
+ax2.legend(' OCS Droplets',loc="upper left")
+ax1.set_xlim(-300,300)
+ax2.set_xlim(-300,300)
 fig.tight_layout()
 #fig.savefig(fig_folder_path,format='png')
 plt.show()

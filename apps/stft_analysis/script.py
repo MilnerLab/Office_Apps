@@ -54,11 +54,12 @@ plot_Spectrogram(ax[0,1], spectrogram2)
 plot_Spectrogram(ax[0,2], spectrogram4) """
 
 fig_path = Path(r"C:\Users\camp06\OneDrive - UBC\Documents\droplets_manuscript\test\20260219_jet_avg.png")
-folder_path = Path(r"Z:\Droplets\20260221\Scan1_ScanFiles")
+file_paths = [Path(r"Z:\Droplets\20260227\Scan1_ScanFiles\20260227145137_ScanFile.dat"),Path(r"Z:\Droplets\20260227\Scan1_ScanFiles\20260227151207_ScanFile.dat"),
+    Path(r"Z:\Droplets\20260227\Scan1_ScanFiles\20260227153448_ScanFile.dat"),Path(r"Z:\Droplets\20260227\Scan1_ScanFiles\20260227160304_ScanFile.dat")]
 #file_paths_avg = DatFinder(folder_path).find_scanfiles()
 #scan_data_avg = load_time_scans(file_paths_avg)
 
-file_paths_avg = DatFinder().find_scanfiles()
+file_paths_avg = DatFinder(Path(r"Z:\Droplets\20260227\Scan1_ScanFiles")).find_scanfiles()
 scan_data_avg = load_time_scans(file_paths_avg)
 
 """ fig,(axs) = plt.subplots(2,3,figsize=(16,8))
@@ -84,8 +85,9 @@ plot_averaged_scan(ax1,data=averaged_data)
 spectrogram = StftAnalysis(resampled_scans,config).calculate_averaged_spectrogram()
 plot_Spectrogram(ax2,spectrogram)
 plot_nyquist_frequency(ax2,scan_data_avg[0])
-ax2.set_xlim(-200,200)
-fig.suptitle('OCS Droplets', fontsize=12)
+ax1.set_xlim(-250,250)
+ax2.set_xlim(-250,250)
+fig.suptitle('CS2 Droplets', fontsize=12)
 fig.tight_layout()
 #fig.savefig(fig_path,format='png')
 plt.show()
