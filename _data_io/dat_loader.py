@@ -59,50 +59,48 @@ def load_time_scans(paths: list[Path]) -> list[C2TScanData]:
     return scanDatas
 
 
-def load_ion_data(scans_paths: list[list[Path]], configs: list[IonDataAnalysisConfig]) -> list[RawScanData]:
-    if len(scans_paths) != len(configs):
-        raise ValueError("No distinct assignment possible.")
-
+def load_ion_data(scans_paths: list[list[Path]]) -> list[RawScanData]:
     raw_scans: list[RawScanData] = []
 
     for i in range(len(scans_paths)):
-        # Collect data per delay in chunks to avoid repeated np.concatenate inside the loop
-        x_chunks_by_delay: dict[Time, list[np.ndarray]] = {}
-        y_chunks_by_delay: dict[Time, list[np.ndarray]] = {}
-        run_id_by_delay: dict[Time, int] = {}
+        # Collect data per stage_position (Length) in chunks
+        x_chunks_by_pos: dict[Length, list[np.ndarray]] = {}
+        y_chunks_by_pos: dict[Length, list[np.ndarray]] = {}
+        run_id_by_pos: dict[Length, int] = {}
 
         t0 = time.perf_counter()
 
         for path in sorted(scans_paths[i]):
-            run_id, delay = extract_infos_from_name(path, configs[i].delay_center)
+            run_id, stage_position = extract_infos_from_name(path)
 
-            # Load columns (1,2) => returned array shape (N,2)
             arr = np.loadtxt(path, usecols=(1, 2), ndmin=2, dtype=np.float64)
             xs = arr[:, 0]
             ys = arr[:, 1]
 
-            if delay not in x_chunks_by_delay:
-                x_chunks_by_delay[delay] = []
-                y_chunks_by_delay[delay] = []
-                run_id_by_delay[delay] = run_id  # keep first run_id (same behavior as before)
+            if stage_position not in x_chunks_by_pos:
+                x_chunks_by_pos[stage_position] = []
+                y_chunks_by_pos[stage_position] = []
+                run_id_by_pos[stage_position] = run_id  # keep first run_id
 
-            x_chunks_by_delay[delay].append(xs)
-            y_chunks_by_delay[delay].append(ys)
+            x_chunks_by_pos[stage_position].append(xs)
+            y_chunks_by_pos[stage_position].append(ys)
 
         t1 = time.perf_counter()
         print("loadtxt:", t1 - t0)
 
-        # Build IonData list
+        # Build IonData list in sorted stage_position order.
+        # If Length is not orderable, replace the sorted(...) with a key function (see below).
         output: list[IonData] = []
-        for delay, x_chunks in x_chunks_by_delay.items():
-            xs = np.concatenate(x_chunks) if x_chunks else np.empty((0,), dtype=np.float64)
-            ys = np.concatenate(y_chunks_by_delay[delay]) if y_chunks_by_delay[delay] else np.empty((0,), dtype=np.float64)
+        for stage_position in sorted(x_chunks_by_pos.keys()):
+            xs = np.concatenate(x_chunks_by_pos[stage_position])
+            ys = np.concatenate(y_chunks_by_pos[stage_position])
 
             pts = Points(xs, ys)
-            output.append(IonData(run_id_by_delay[delay], delay, pts))
 
-        output.sort(key=lambda d: d.delay)
-        raw_scans.append(RawScanData(output, configs[i]))
+            # IonData.delay now effectively holds a Length (stage_position).
+            output.append(IonData(run_id_by_pos[stage_position], stage_position, pts))
+
+        raw_scans.append(RawScanData(run_id=output[0].id, ion_datas=output))
 
     return raw_scans
 
@@ -121,7 +119,7 @@ def load_xcorr_means(file_path:Path,pos_tzero:Length) -> LoadableScan:
 ###########
 
 
-def extract_infos_from_name(path: Path, delay_center: Length) -> tuple[int, Time]:
+def extract_infos_from_name(path: Path) -> tuple[int, Length]:
     stem = Path(path).stem
     time_part, stage_part = stem.split("DLY_", 1)
     
@@ -129,10 +127,7 @@ def extract_infos_from_name(path: Path, delay_center: Length) -> tuple[int, Time
     stage_part = stage_part[:-2]
     stage_part = stage_part.replace("p", ".")
 
-    delay = calculate_time_delay(Length(float(stage_part), Prefix.MILLI), delay_center)
-
-    return int(time_part), delay
-
+    return int(time_part), Length(float(stage_part), Prefix.MILLI)
 
 def calculate_time_delay(stage_position: Length, delay_center: Length) -> Time:
     delta = (stage_position - delay_center) * 2

@@ -8,7 +8,7 @@ from _data_io.dat_loader import load_ion_data, load_time_scans
 from _domain.models import ScanDataBase
 #from _domain.plotting import plot_GaussianFit
 from apps.c2t_calculation.domain.config import IonDataAnalysisConfig
-from apps.c2t_calculation.domain.pipeline import run_pipeline
+from apps.c2t_calculation.domain.analysis import run_pipeline
 from apps.scan_averaging.domain.averaging import average_scans
 from apps.scan_averaging.domain.models import AveragedScansData
 from apps.scan_averaging.domain.plotting import plot_averaged_scan
