@@ -1,11 +1,12 @@
 
 import csv
 from dataclasses import dataclass
+import math
 from pathlib import Path
 
 
 from apps.c2t_calculation.domain.config import IonDataAnalysisConfig
-from base_core.math.models import Point, Range
+from base_core.math.models import Point, Range, Points
 from base_core.quantities.models import Time
 import numpy as np
 
@@ -55,50 +56,54 @@ class C2TScanData(LoadableScan):
 class IonData:
     run_id: int
     delay: Time
-    points: list[Point]
+    points: Points
     c2t: Measurement | None = None
 
-    def calculate_avg_c2t(self):
-        x0 = [point.x for point in self.points]
-        y0 = [point.y for point in self.points]
-
-        N = int(x0.__len__())
-        if N == 0:
+    def calculate_avg_c2t(self) -> None:
+        n = len(self.points)
+        if n == 0:
             raise ValueError("No ions in data.")
 
-        theta = np.arctan2(y0, x0)     # Angle to horizontal line through (0,0)
+        theta = np.arctan2(self.points.y, self.points.x)
         c2 = np.cos(theta) ** 2
+
         mean = float(np.mean(c2))
-        std  = float(np.std(c2, ddof=1)) if N > 1 else np.nan
-        sem  = float(std / np.sqrt(N)) if (N > 1 and np.isfinite(std)) else np.nan
+        if n > 1:
+            std = float(np.std(c2, ddof=1))
+            sem = float(std / math.sqrt(n)) if np.isfinite(std) else np.nan
+        else:
+            std = np.nan
+            sem = np.nan
+
         self.c2t = Measurement(mean, sem)
-        
+
     def get_2D_histogram(
         self,
         xy_range: Range[float] = Range(0.0, 400.0),
         num_bins: int = 400,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        if not self.points:
+        if len(self.points) == 0:
             raise ValueError("IonData.points is empty.")
 
-        xs = np.array([p.x for p in self.points], dtype=float)
-        ys = np.array([p.y for p in self.points], dtype=float)
+        r = ((float(xy_range.min), float(xy_range.max)),
+             (float(xy_range.min), float(xy_range.max)))
 
-        r = ((xy_range.min, xy_range.max), (xy_range.min, xy_range.max))
-        H, x_edges, y_edges = np.histogram2d(xs, ys, bins=num_bins, range=r)
+        H, x_edges, y_edges = np.histogram2d(self.points.x, self.points.y, bins=num_bins, range=r)
         return H, x_edges, y_edges
    
 
 @dataclass
 class RawScanData:
     ion_datas: list[IonData]
-    config: IonDataAnalysisConfig 
+    config: IonDataAnalysisConfig
 
-    def apply_config(self):
+    def apply_config(self) -> None:
         for d in self.ion_datas:
-            for point in d.points:
-                point.subtract(self.config.center)
-                point.affine_transform(self.config.transform_parameter)
-                point.rotate(self.config.angle)
-            d.points = [p for p in d.points if self.config.analysis_zone.is_in_range(p.distance_from_center())]
+            pts = d.points
+            pts.subtract(self.config.center)
+            pts.affine_transform(self.config.transform_parameter)
+            pts.rotate(self.config.angle)
+
+            # keep only points inside analysis radius range
+            d.points = pts.filter_by_distance_range(self.config.analysis_zone)
         
