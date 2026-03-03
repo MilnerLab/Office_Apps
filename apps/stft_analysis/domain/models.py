@@ -8,10 +8,10 @@ from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Frequency, Time
 import numpy as np
 
-from _domain.models import  LoadableScan
+from _domain.models import  ScanDataBase
 
 @dataclass(frozen=True)
-class ResampledScan(LoadableScan):
+class ResampledScan(ScanDataBase):
     scan_range: Range[Time] = None
     
     def detrend(self) -> tuple[list[float], list[float]]:

@@ -8,14 +8,14 @@ from typing import List
 
 import numpy as np
 
-from _domain.models import LoadableScan, Measurement
+from _domain.models import Measurement, ScanDataBase
 from apps.scan_averaging.domain.models import AveragedScansData
 
 
 from typing import List
 import numpy as np
 
-def average_scans(scans: List[LoadableScan], *, key_digits: int = 12) -> AveragedScansData:
+def average_scans(scans: List[ScanDataBase], *, key_digits: int = 12) -> AveragedScansData:
     """
     Average scans with possibly different x-axes.
 
@@ -87,5 +87,6 @@ def average_scans(scans: List[LoadableScan], *, key_digits: int = 12) -> Average
     return AveragedScansData(
         delays=x_union.copy(),
         measured_values=avg_c2t,
-        file_names=[s.file_path for s in scans],
+        run_ids=[s.run_id for s in scans],
+        run_id=None
     )

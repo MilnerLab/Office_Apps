@@ -5,11 +5,11 @@ import math
 from pathlib import Path
 
 
+from _data_io.dat_loader import calculate_time_delay
+from apps.c2t_calculation.domain.analysis import avg_c2t
 from apps.c2t_calculation.domain.config import IonDataAnalysisConfig
 from base_core.math.models import Point, Range, Points
-from base_core.quantities.models import Time
-import numpy as np
-
+from base_core.quantities.models import Length, Time
 
 
 @dataclass(frozen=True)
@@ -21,7 +21,8 @@ class Measurement:
 class ScanDataBase:
     delays: list[Time]
     measured_values: list[Measurement]
-    
+    run_id:int
+
     def to_csv(self, path: str | Path) -> None:
         if path == None:
             print('No path specified, did not save data.')
@@ -44,66 +45,57 @@ class ScanDataBase:
             del self.delays[:start]
             del self.measured_values[:start]
 
-@dataclass(frozen=True)
-class LoadableScan(ScanDataBase):
-    file_path: Path = None
-    
-@dataclass(frozen=True)
-class C2TScanData(LoadableScan):
-    ions_per_frame: list[float] | None = None
-
 @dataclass
 class IonData:
-    run_id: int
-    delay: Time
+    id: int
+    ions_per_frame: float
+    stage_position: Length
     points: Points
-    c2t: Measurement | None = None
-
-    def calculate_avg_c2t(self) -> None:
-        n = len(self.points)
-        if n == 0:
-            raise ValueError("No ions in data.")
-
-        theta = np.arctan2(self.points.y, self.points.x)
-        c2 = np.cos(theta) ** 2
-
-        mean = float(np.mean(c2))
-        if n > 1:
-            std = float(np.std(c2, ddof=1))
-            sem = float(std / math.sqrt(n)) if np.isfinite(std) else np.nan
-        else:
-            std = np.nan
-            sem = np.nan
-
-        self.c2t = Measurement(mean, sem)
-
-    def get_2D_histogram(
-        self,
-        xy_range: Range[float] = Range(0.0, 400.0),
-        num_bins: int = 400,
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        if len(self.points) == 0:
-            raise ValueError("IonData.points is empty.")
-
-        r = ((float(xy_range.min), float(xy_range.max)),
-             (float(xy_range.min), float(xy_range.max)))
-
-        H, x_edges, y_edges = np.histogram2d(self.points.x, self.points.y, bins=num_bins, range=r)
-        return H, x_edges, y_edges
-   
 
 @dataclass
 class RawScanData:
+    run_id: int
     ion_datas: list[IonData]
+    
+    def add_ion_data(self, ion_data: IonData) -> None:
+        if ion_data.id != self.run_id:
+            raise ValueError('IonData does not belonge to this run.')
+    
+        self.ion_datas.append(ion_data)
+            
+@dataclass(frozen=True)
+class C2TScanData(ScanDataBase):
     config: IonDataAnalysisConfig
+    ions_per_frame: list[float] | None = None
 
-    def apply_config(self) -> None:
-        for d in self.ion_datas:
-            pts = d.points
-            pts.subtract(self.config.center)
-            pts.affine_transform(self.config.transform_parameter)
-            pts.rotate(self.config.angle)
+    @classmethod
+    def from_raw(
+        cls,
+        raw: RawScanData,
+        config: IonDataAnalysisConfig,
+    ) -> "C2TScanData":
+        delays: list[Time] = []
+        c2t: list[Measurement] = []
+        ions: list[float] = []
 
-            # keep only points inside analysis radius range
-            d.points = pts.filter_by_distance_range(self.config.analysis_zone)
-        
+        for d in raw.ion_datas:
+            # --- copy raw points so we do NOT mutate RawScanData ---
+            pts = Points(d.points.x.copy(), d.points.y.copy())
+
+            # --- use existing Points methods ---
+            pts.subtract(config.center)
+            pts.affine_transform(config.transform_parameter)
+            pts.rotate(config.angle)  # rotation around origin (already centered)
+            pts = pts.filter_by_distance_range(config.analysis_zone)
+
+            delays.append(calculate_time_delay(d.stage_position, config.delay_center))
+            c2t.append(avg_c2t(pts))
+            ions.append(d.ions_per_frame)
+
+
+        return cls(
+            delays=delays,
+            measured_values=c2t,
+            config=config,
+            run_id=raw.run_id,
+            ions_per_frame = ions)
