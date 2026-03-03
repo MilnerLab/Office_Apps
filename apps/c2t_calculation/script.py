@@ -15,15 +15,15 @@ from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Length
 POSZEROSHIFT = 0 #millimetres :)
 
-folder_path = Path(r"C:\git\milnerlab-python\Office_Apps\_temp\20260223\Scan1_-600ps")
+folder_path = Path(r"/mnt/valeryshare/Droplets/20260302/Scan6")
 file_paths = DatFinder(folder_path,is_full_path=True).find_datafiles()
 
 config = IonDataAnalysisConfig(
     delay_center= Length(94.5-POSZEROSHIFT, Prefix.MILLI),
-    center=Point(174, 206),
+    center=Point(175, 208),
     angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](60, 120),
-    transform_parameter=0.74)
+    analysis_zone= Range[int](30, 50),
+    transform_parameter=0.905)
 
 
 label = "Center = (" + str(config.center.x) + ", " + str(config.center.y) + "), Angle = " + str(round(config.angle.Deg,1)) + "\n"\

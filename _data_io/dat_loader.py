@@ -1,7 +1,7 @@
 # io/dat_loader.py
 from pathlib import Path
 from apps.c2t_calculation.domain.config import IonDataAnalysisConfig
-from base_core.math.models import Point
+from base_core.math.models import Points
 from base_core.quantities.constants import SPEED_OF_LIGHT
 from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Length, Time
@@ -60,35 +60,48 @@ def load_time_scans(paths: list[Path]) -> list[C2TScanData]:
 
 
 def load_ion_data(scans_paths: list[list[Path]], configs: list[IonDataAnalysisConfig]) -> list[RawScanData]:
-    
     if len(scans_paths) != len(configs):
         raise ValueError("No distinct assignment possible.")
-    
+
     raw_scans: list[RawScanData] = []
-    
+
     for i in range(len(scans_paths)):
-        output: list[IonData] = []
-        idx_by_delay: dict[Time, int] = {}  
-        
+        # Collect data per delay in chunks to avoid repeated np.concatenate inside the loop
+        x_chunks_by_delay: dict[Time, list[np.ndarray]] = {}
+        y_chunks_by_delay: dict[Time, list[np.ndarray]] = {}
+        run_id_by_delay: dict[Time, int] = {}
+
         t0 = time.perf_counter()
-        
+
         for path in sorted(scans_paths[i]):
-            run_id, delay = extract_infos_from_name(path,configs[i].delay_center)
+            run_id, delay = extract_infos_from_name(path, configs[i].delay_center)
 
-            arr = np.loadtxt(path, usecols=(1, 2), ndmin=2)
-            points = [Point(x, y) for x, y in arr]
+            # Load columns (1,2) => returned array shape (N,2)
+            arr = np.loadtxt(path, usecols=(1, 2), ndmin=2, dtype=np.float64)
+            xs = arr[:, 0]
+            ys = arr[:, 1]
 
-            if delay in idx_by_delay:
-                output[idx_by_delay[delay]].points.extend(points)
-            else:
-                idx_by_delay[delay] = len(output)
-                output.append(IonData(run_id, delay, points))
-        
+            if delay not in x_chunks_by_delay:
+                x_chunks_by_delay[delay] = []
+                y_chunks_by_delay[delay] = []
+                run_id_by_delay[delay] = run_id  # keep first run_id (same behavior as before)
+
+            x_chunks_by_delay[delay].append(xs)
+            y_chunks_by_delay[delay].append(ys)
+
         t1 = time.perf_counter()
         print("loadtxt:", t1 - t0)
-        
-        output.sort(key=lambda x: x.delay)
-        
+
+        # Build IonData list
+        output: list[IonData] = []
+        for delay, x_chunks in x_chunks_by_delay.items():
+            xs = np.concatenate(x_chunks) if x_chunks else np.empty((0,), dtype=np.float64)
+            ys = np.concatenate(y_chunks_by_delay[delay]) if y_chunks_by_delay[delay] else np.empty((0,), dtype=np.float64)
+
+            pts = Points(xs, ys)
+            output.append(IonData(run_id_by_delay[delay], delay, pts))
+
+        output.sort(key=lambda d: d.delay)
         raw_scans.append(RawScanData(output, configs[i]))
 
     return raw_scans

@@ -23,8 +23,8 @@ def plot_ions_square(
     hist_size: str = "25%",   # z.B. "20%" oder "1.2in"
     pad: float = 0.08,
 ) -> tuple[Axes, Axes]:
-    xs = np.array([p.x for p in ion_data.points], dtype=float)
-    ys = np.array([p.y for p in ion_data.points], dtype=float)
+    xs = ion_data.points.x
+    ys = ion_data.points.y
 
     ax.scatter(xs, ys, color=color, marker=".", s=5, label=label, alpha=0.2)
     ax.set_aspect("equal", adjustable="box")
