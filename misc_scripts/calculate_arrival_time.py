@@ -5,7 +5,7 @@ import numpy as np
 # (note that the constants are calculated using values which can change when changing the VMI voltages or the laser setup)
 ###############
 
-mq = 14
+mq = 28
 
 ###############
 # Formular: t(m/q) = t_0 + const * sqrt(m/q)
@@ -18,8 +18,8 @@ mq = 14
 t_sulfur = 3747.0
 mq_sulfur = 32.0
 
-t_iodine = 5310.0
-mq_iodine = 127.0
+t_iodine = 3240
+mq_iodine = 14
 np.sqrt
 
 
