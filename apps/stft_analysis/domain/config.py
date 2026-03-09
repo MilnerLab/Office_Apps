@@ -1,10 +1,11 @@
 # domain/config.py
 from dataclasses import dataclass
 
+from base_core.lab_specifics.base_models import ScanDataBase
 from base_core.quantities.models import Time
 import numpy as np
 
-from _domain.models import C2TScanData, ScanDataBase
+
 
 @dataclass
 class StftAnalysisConfig:
