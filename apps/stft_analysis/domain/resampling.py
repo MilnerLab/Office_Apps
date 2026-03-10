@@ -22,7 +22,7 @@ def resample_scan(raw: ScanDataBase, axis: list[Time]) -> ResampledScan:
     return ResampledScan(
         delays=axis.copy(),
         measured_values=new_c2t,
-        file_path=raw.file_path,
+        run_id=raw.run_id,
         scan_range=Range(min(resample_axis), max(resample_axis))
     )
 

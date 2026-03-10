@@ -88,7 +88,7 @@ class StftAnalysis:
             delay=delay,
             frequency=frequency,
             power=power,
-            file_path=resampled_scan.file_path,
+            run_id=resampled_scan.run_id,
         )
 
     def calculate_averaged_spectrogram(self) -> AggregateSpectrogram:
@@ -127,11 +127,11 @@ class StftAnalysis:
 
         delay_times: list[Time] = [Time(t) for t in global_time]
         freq_objs: list[Frequency] = [Frequency(f) for f in base_freq]
-        file_paths: list[Path] = [scan.file_path for scan in self.scans]
+        run_ids: list[int] = [scan.run_id for scan in self.scans]
 
         return AggregateSpectrogram(
             delay=delay_times,
             frequency=freq_objs,
             power=avg_power.tolist(),
-            file_paths=file_paths,
+            run_ids=run_ids,
         )

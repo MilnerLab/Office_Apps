@@ -1,10 +1,10 @@
 from matplotlib.axes import Axes
 from base_core.fitting.functions import fit_gaussian
 from base_core.fitting.models import GaussianFitResult
+from base_core.lab_specifics.base_models import ScanDataBase
 from base_core.plotting.enums import PlotColor
 from base_core.quantities.enums import Prefix
 import numpy as np
-from _domain.models import ScanDataBase
 
 
 def plot_ScanData(ax: Axes, data: ScanDataBase, label:str, color: PlotColor = None, ecolor: PlotColor = None,marker = 'o') -> None:

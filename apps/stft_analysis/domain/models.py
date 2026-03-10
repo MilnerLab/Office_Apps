@@ -2,13 +2,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from base_core.fitting.functions import fit_gaussian
 from base_core.framework import di
+from base_core.lab_specifics.base_models import ScanDataBase
 from base_core.math.functions import gaussian
 from base_core.math.models import Range
 from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Frequency, Time
 import numpy as np
 
-from _domain.models import  ScanDataBase
+
 
 @dataclass(frozen=True)
 class ResampledScan(ScanDataBase):
@@ -70,8 +71,8 @@ class SpectrogramBase:
     
 @dataclass(frozen=True)
 class SpectrogramResult(SpectrogramBase):
-    file_path: Path
+    run_id: int
 
 @dataclass(frozen=True)
 class AggregateSpectrogram(SpectrogramBase):
-    file_paths: list[Path]
+    run_ids: list[int]

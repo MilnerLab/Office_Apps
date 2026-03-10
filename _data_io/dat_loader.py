@@ -1,6 +1,7 @@
 # io/dat_loader.py
 from pathlib import Path
-from apps.c2t_calculation.domain.config import IonDataAnalysisConfig
+from base_core.framework.services import runnable_service_base
+from base_core.lab_specifics.base_models import C2TScanData, IonData, Measurement, RawScanData, ScanDataBase, calculate_time_delay
 from base_core.math.models import Points
 from base_core.quantities.constants import SPEED_OF_LIGHT
 from base_core.quantities.enums import Prefix
@@ -9,7 +10,6 @@ import numpy as np
 import pandas as pd
 import time
 
-from _domain.models import LoadableScan, Measurement, IonData, C2TScanData, RawScanData, ScanDataBase
 
 
 
@@ -98,13 +98,13 @@ def load_ion_data(scans_paths: list[list[Path]]) -> list[RawScanData]:
             pts = Points(xs, ys)
 
             # IonData.delay now effectively holds a Length (stage_position).
-            output.append(IonData(run_id_by_pos[stage_position], stage_position, pts))
+            output.append(IonData(id=run_id_by_pos[stage_position], stage_position=stage_position, ions_per_frame=0, points=pts))
 
         raw_scans.append(RawScanData(run_id=output[0].id, ion_datas=output))
 
     return raw_scans
 
-def load_xcorr_means(file_path:Path,pos_tzero:Length) -> LoadableScan:
+def load_xcorr_means(file_path:Path,pos_tzero:Length) -> ScanDataBase:
     ScopeData = np.array(pd.read_csv(file_path,header=None,sep='\t',lineterminator='\n',dtype=float))
     delay = [calculate_time_delay(Length(d,Prefix.MILLI),pos_tzero) for d in ScopeData[:,0]]
     signal = np.average(ScopeData[:,1:-1],axis=1)
@@ -112,7 +112,7 @@ def load_xcorr_means(file_path:Path,pos_tzero:Length) -> LoadableScan:
 
     values = [Measurement(signal[i], error[i]) for i in range(len(signal))]
     
-    return LoadableScan(file_path=file_path,delays = delay, measured_values = values)
+    return ScanDataBase(run_id=0,delays = delay, measured_values = values)
 
 ###########
 #  Helper functions
@@ -129,7 +129,3 @@ def extract_infos_from_name(path: Path) -> tuple[int, Length]:
 
     return int(time_part), Length(float(stage_part), Prefix.MILLI)
 
-def calculate_time_delay(stage_position: Length, delay_center: Length) -> Time:
-    delta = (stage_position - delay_center) * 2
-
-    return Time(delta / SPEED_OF_LIGHT)
