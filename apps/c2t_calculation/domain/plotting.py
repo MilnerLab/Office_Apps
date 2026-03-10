@@ -1,8 +1,8 @@
 from matplotlib.axes import Axes
 import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from _domain.models import IonData, C2TScanData
 from _domain.plotting import plot_ScanData
+from base_core.lab_specifics.base_models import C2TScanData, IonData
 
 
 

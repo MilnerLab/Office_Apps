@@ -1,11 +1,11 @@
 from matplotlib.axes import Axes
+from base_core.lab_specifics.base_models import ScanDataBase
 from base_core.math.models import Range
 from base_core.plotting.enums import PlotColor, PlotColorMap
 from base_core.quantities.enums import Prefix
 import numpy as np
 
 from apps.stft_analysis.domain.models import SpectrogramBase
-from _domain.models import ScanDataBase
 from base_core.quantities.models import Frequency
 
 

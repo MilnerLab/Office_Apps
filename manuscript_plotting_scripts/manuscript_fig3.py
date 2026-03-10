@@ -5,14 +5,12 @@ from pathlib import Path
 
 from _data_io.dat_finder import DatFinder
 from _data_io.dat_loader import load_ion_data, load_time_scans
-from _domain.models import ScanDataBase
 #from _domain.plotting import plot_GaussianFit
-from apps.c2t_calculation.domain.config import IonDataAnalysisConfig
 from apps.c2t_calculation.domain.analysis import run_pipeline
 from apps.scan_averaging.domain.averaging import average_scans
-from apps.scan_averaging.domain.models import AveragedScansData
 from apps.scan_averaging.domain.plotting import plot_averaged_scan
 from apps.single_scan.domain.plotting import plot_single_scan
+from base_core.lab_specifics.base_models import IonDataAnalysisConfig
 from base_core.math.enums import AngleUnit
 from base_core.math.models import Angle, Point, Range
 from base_core.plotting.enums import PlotColor

@@ -6,16 +6,16 @@ from _data_io.dat_finder import DatFinder
 from _data_io.dat_loader import load_ion_data
 from _data_io.dat_saver import create_save_path_for_calc_ScanFile
 from _domain.plotting import plot_GaussianFit
-from apps.c2t_calculation.domain.config import IonDataAnalysisConfig
 from apps.c2t_calculation.domain.analysis import run_pipeline
 from apps.scan_averaging.domain.averaging import average_scans
-from apps.scan_averaging.domain.models import AveragedScansData
 from apps.scan_averaging.domain.plotting import plot_averaged_scan
 from apps.stft_analysis.domain.config import StftAnalysisConfig
 from apps.stft_analysis.domain.models import AggregateSpectrogram
 from apps.stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
 from apps.stft_analysis.domain.resampling import resample_scan, resample_scans
 from apps.stft_analysis.domain.stft_calculation import StftAnalysis
+from base_core.lab_specifics.averaging.models import AveragedScansData
+from base_core.lab_specifics.base_models import IonDataAnalysisConfig
 from base_core.math.enums import AngleUnit
 from base_core.math.models import Angle, Point, Range
 from base_core.plotting.enums import PlotColor

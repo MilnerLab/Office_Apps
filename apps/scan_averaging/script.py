@@ -5,10 +5,8 @@ from _data_io.dat_finder import DatFinder
 from _data_io.dat_loader import load_time_scans
 from _data_io.dat_loader import load_time_scan
 from apps.single_scan.domain.plotting import plot_single_scan
-from _domain.models import ScanDataBase
 from _domain.plotting import plot_GaussianFit
 from apps.scan_averaging.domain.averaging import average_scans
-from apps.scan_averaging.domain.models import AveragedScansData
 from apps.scan_averaging.domain.plotting import plot_averaged_scan
 from base_core.plotting.enums import PlotColor
 from base_core.quantities.enums import Prefix

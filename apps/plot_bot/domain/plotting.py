@@ -4,6 +4,7 @@ from pathlib import Path
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
+from base_core.lab_specifics.base_models import C2TScanData
 from base_core.plotting.enums import PlotColor
 from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Time
@@ -11,7 +12,6 @@ import numpy as np
 
 from _data_io.dat_finder import DatFinder
 from _data_io.dat_loader import load_time_scans
-from _domain.models import C2TScanData
 from apps.scan_averaging.domain.averaging import average_scans
 from apps.scan_averaging.domain.plotting import plot_averaged_scan
 from apps.single_scan.domain.plotting import plot_single_scan

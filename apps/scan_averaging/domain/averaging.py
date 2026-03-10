@@ -1,4 +1,6 @@
 from typing import List
+from base_core.lab_specifics.averaging.models import AveragedScansData
+from base_core.lab_specifics.base_models import Measurement, ScanDataBase
 from base_core.quantities.models import Time
 import numpy as np
 
@@ -7,9 +9,6 @@ import numpy as np
 from typing import List
 
 import numpy as np
-
-from _domain.models import Measurement, ScanDataBase
-from apps.scan_averaging.domain.models import AveragedScansData
 
 
 from typing import List
