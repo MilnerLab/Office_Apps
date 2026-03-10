@@ -1,13 +1,7 @@
-import copy
-from curses import raw
+
 from pathlib import Path
 import matplotlib.pyplot as plt
-import datetime
-import re
-from _data_io.dat_finder import DatFinder
-from _data_io.dat_saver import create_save_path_for_calc_ScanFile
 from _data_io.dat_loader import load_ion_data
-from apps.c2t_calculation.domain.plotting import plot_calculated_scan, plot_ions_square
 
 from base_core.lab_specifics.base_models import IonDataAnalysisConfig, RawScanData
 from base_core.math.enums import AngleUnit
