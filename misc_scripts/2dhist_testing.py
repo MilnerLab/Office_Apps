@@ -1,4 +1,3 @@
-import copy
 from pathlib import Path
 import matplotlib.pyplot as plt
 import datetime
@@ -28,34 +27,31 @@ config = IonDataAnalysisConfig(
     analysis_zone= Range[int](0, 50),
     transform_parameter=0.73)
 
-raw_scans = load_ion_data([[file_path]], [config])
+raw_scans = load_ion_data([[file_path]])
 #x_range = Range(config.center.x - 50, config.center.x + 50)
 #y_range = Range(config.center.y - 50, config.center.y + 50)
-<<<<<<< HEAD
+
 ions = raw_scans[0]
-ions_config = copy.deepcopy(raw_scans[0])
-ions_config.apply_config()
+#ions_config = copy.deepcopy(raw_scans[0])
+#ions_config.apply_config()
 original_center = Point(177,203)
 
-hist = Histogram2D.compute_histogram(ions.ion_datas[0].points,center=original_center,x_bins=25,y_bins=25)
-hist_config = Histogram2D.compute_histogram(ions_config.ion_datas[0].points,center=config.center,x_bins=25,y_bins=25)
 
-fig, ax = plt.subplots(2,2,figsize=(8,8))
-histogram_plotting.plot_histogram2d(ax[0,0],hist)
-histogram_plotting.plot_contour(ax[0,0],hist)
-plot_ions_square(ax[0,1],ions.ion_datas[0])
-histogram_plotting.plot_histogram2d(ax[1,0],hist_config)
-histogram_plotting.plot_contour(ax[1,0],hist_config)
-plot_ions_square(ax[1,1],ions_config.ion_datas[0])
-=======
+
+
+
 raw_scan: RawScanData = raw_scans[0]
 ion_data = raw_scan.ion_datas[0]
 points = ion_data.points
 points_after_config = ion_data.get_points_after_config(config)
 
-hist = Histogram2D.compute_histogram(points,center=config.center,x_bins=50,y_bins=50)
-fig, ax = plt.subplots()
-histogram_plotting.plot_histogram2d(ax,hist)
-histogram_plotting.plot_contour(ax,hist)
->>>>>>> 892830477b88b4f6e76a19cced86a518f7780b6b
+hist = Histogram2D.compute_histogram(points,center=original_center,x_bins=50,y_bins=50)
+hist_config = Histogram2D.compute_histogram(points_after_config,center=config.center,x_bins=50,y_bins=50)
+fig, ax = plt.subplots(2,2,figsize=(8,8))
+histogram_plotting.plot_histogram2d(ax[0,0],hist)
+histogram_plotting.plot_contour(ax[0,0],hist)
+plot_ions_square(ax[0,1],points)
+histogram_plotting.plot_histogram2d(ax[1,0],hist_config)
+histogram_plotting.plot_contour(ax[1,0],hist_config)
+plot_ions_square(ax[1,1],points_after_config)
 plt.show()

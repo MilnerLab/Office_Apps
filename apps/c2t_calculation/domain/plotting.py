@@ -2,7 +2,7 @@ from matplotlib.axes import Axes
 import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from _domain.plotting import plot_ScanData
-from base_core.lab_specifics.base_models import C2TScanData, IonData
+from base_core.lab_specifics.base_models import C2TScanData, Points
 
 
 
@@ -15,7 +15,7 @@ def plot_calculated_scan(ax: Axes, data: C2TScanData,label:str = '') -> None:
 
 def plot_ions_square(
     ax: Axes,
-    ion_data: IonData,
+    points: Points,
     *,
     color: str = "red",
     label: str | None = None,
@@ -23,8 +23,8 @@ def plot_ions_square(
     hist_size: str = "25%",   # z.B. "20%" oder "1.2in"
     pad: float = 0.08,
 ) -> tuple[Axes, Axes]:
-    xs = ion_data.points.x
-    ys = ion_data.points.y
+    xs = points.x
+    ys = points.y
 
     ax.scatter(xs, ys, color=color, marker=".", s=5, label=label, alpha=0.2)
     ax.set_aspect("equal", adjustable="box")
