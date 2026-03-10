@@ -1,4 +1,5 @@
 import copy
+from curses import raw
 from pathlib import Path
 import matplotlib.pyplot as plt
 import datetime
@@ -10,6 +11,7 @@ from apps.c2t_calculation.domain.config import IonDataAnalysisConfig
 from apps.c2t_calculation.domain.pipeline import run_pipeline
 from apps.c2t_calculation.domain.plotting import plot_calculated_scan, plot_ions_square
 
+from base_core.lab_specifics.base_models import RawScanData
 from base_core.math.enums import AngleUnit
 from base_core.math.models import Angle, Point, Range, Histogram2D
 from base_core.quantities.enums import Prefix
@@ -32,10 +34,12 @@ config = IonDataAnalysisConfig(
 raw_scans = load_ion_data([[file_path]], [config])
 #x_range = Range(config.center.x - 50, config.center.x + 50)
 #y_range = Range(config.center.y - 50, config.center.y + 50)
-ions = raw_scans[0]
-ions.apply_config()
+raw_scan: RawScanData = raw_scans[0]
+ion_data = raw_scan.ion_datas[0]
+points = ion_data.points
+points_after_config = ion_data.get_points_after_config(config)
 
-hist = Histogram2D.compute_histogram(ions.ion_datas[0].points,center=config.center,x_bins=50,y_bins=50)
+hist = Histogram2D.compute_histogram(points,center=config.center,x_bins=50,y_bins=50)
 fig, ax = plt.subplots()
 histogram_plotting.plot_histogram2d(ax,hist)
 histogram_plotting.plot_contour(ax,hist)
