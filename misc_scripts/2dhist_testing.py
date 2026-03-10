@@ -29,7 +29,7 @@ config = IonDataAnalysisConfig(
     analysis_zone= Range[int](0, 25),
     transform_parameter=0.73)
 
-raw_scans = load_ion_data([[file_path]], [config])
+raw_scans = load_ion_data([[file_path]])
 #x_range = Range(config.center.x - 50, config.center.x + 50)
 #y_range = Range(config.center.y - 50, config.center.y + 50)
 raw_scan: RawScanData = raw_scans[0]
