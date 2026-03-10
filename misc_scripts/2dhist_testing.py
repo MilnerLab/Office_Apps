@@ -26,17 +26,25 @@ config = IonDataAnalysisConfig(
     delay_center= Length(94.5-POSZEROSHIFT, Prefix.MILLI),
     center=Point(177, 203),
     angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](0, 25),
+    analysis_zone= Range[int](0, 50),
     transform_parameter=0.73)
 
 raw_scans = load_ion_data([[file_path]], [config])
 #x_range = Range(config.center.x - 50, config.center.x + 50)
 #y_range = Range(config.center.y - 50, config.center.y + 50)
 ions = raw_scans[0]
-ions.apply_config()
+ions_config = copy.deepcopy(raw_scans[0])
+ions_config.apply_config()
+original_center = Point(177,203)
 
-hist = Histogram2D.compute_histogram(ions.ion_datas[0].points,center=config.center,x_bins=50,y_bins=50)
-fig, ax = plt.subplots()
-histogram_plotting.plot_histogram2d(ax,hist)
-histogram_plotting.plot_contour(ax,hist)
+hist = Histogram2D.compute_histogram(ions.ion_datas[0].points,center=original_center,x_bins=25,y_bins=25)
+hist_config = Histogram2D.compute_histogram(ions_config.ion_datas[0].points,center=config.center,x_bins=25,y_bins=25)
+
+fig, ax = plt.subplots(2,2,figsize=(8,8))
+histogram_plotting.plot_histogram2d(ax[0,0],hist)
+histogram_plotting.plot_contour(ax[0,0],hist)
+plot_ions_square(ax[0,1],ions.ion_datas[0])
+histogram_plotting.plot_histogram2d(ax[1,0],hist_config)
+histogram_plotting.plot_contour(ax[1,0],hist_config)
+plot_ions_square(ax[1,1],ions_config.ion_datas[0])
 plt.show()
