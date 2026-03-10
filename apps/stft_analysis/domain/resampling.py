@@ -1,13 +1,13 @@
 # domain/resampling.py
+from base_core.lab_specifics.base_models import Measurement, ScanDataBase
 from base_core.math.models import Range
 from base_core.quantities.models import Time
 import numpy as np
 from scipy.interpolate import CubicSpline, make_interp_spline
 
 from apps.stft_analysis.domain.models import ResampledScan
-from _domain.models import LoadableScan, Measurement, C2TScanData, ScanDataBase
 
-def resample_scan(raw: LoadableScan, axis: list[Time]) -> ResampledScan:
+def resample_scan(raw: ScanDataBase, axis: list[Time]) -> ResampledScan:
     x = raw.delays
     y = [c.value for c in raw.measured_values]
 
@@ -26,7 +26,7 @@ def resample_scan(raw: LoadableScan, axis: list[Time]) -> ResampledScan:
         scan_range=Range(min(resample_axis), max(resample_axis))
     )
 
-def resample_scans(scans: list[LoadableScan], axis: list[Time]) -> list[ResampledScan]:
+def resample_scans(scans: list[ScanDataBase], axis: list[Time]) -> list[ResampledScan]:
     
     resampled_scans: list[ResampledScan] = []
     

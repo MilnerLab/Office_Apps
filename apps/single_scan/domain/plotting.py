@@ -1,10 +1,10 @@
 from xml.dom import ValidationErr
 from matplotlib.axes import Axes
+from base_core.lab_specifics.base_models import C2TScanData
 from base_core.plotting.enums import PlotColor
 from base_core.quantities.enums import Prefix
 import numpy as np
 
-from _domain.models import C2TScanData
 from _domain.plotting import plot_ScanData
 
 

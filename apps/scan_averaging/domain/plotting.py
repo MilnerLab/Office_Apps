@@ -1,7 +1,7 @@
 from matplotlib.axes import Axes
 
 from _domain.plotting import plot_ScanData
-from apps.scan_averaging.domain.models import AveragedScansData
+from base_core.lab_specifics.averaging.models import AveragedScansData
 from base_core.plotting.enums import PlotColor
 
 

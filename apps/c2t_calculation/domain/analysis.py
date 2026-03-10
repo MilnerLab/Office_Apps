@@ -3,8 +3,7 @@ import math
 from pathlib import Path
 
 import numpy as np
-from apps.c2t_calculation.domain.config import IonDataAnalysisConfig
-from _domain.models import Measurement, IonData, C2TScanData, RawScanData
+from base_core.lab_specifics.base_models import C2TScanData, IonDataAnalysisConfig, Measurement, RawScanData
 from base_core.math.models import Points, Range
 from base_core.quantities.models import Time
 
