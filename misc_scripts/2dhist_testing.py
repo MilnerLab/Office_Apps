@@ -1,7 +1,8 @@
 from pathlib import Path
-
+import traceback
 import matplotlib.pyplot as plt
-from matplotlib.widgets import Button, TextBox
+from matplotlib.widgets import Button, TextBox, CheckButtons
+from matplotlib import collections, contour, artist
 
 from _data_io.dat_loader import load_ion_data
 from base_core.lab_specifics.base_models import IonDataAnalysisConfig, RawScanData
@@ -13,9 +14,10 @@ from base_core.quantities.models import Length
 
 
 BINS = 100
-MIN_COUNT = 1000
+MIN_COUNT = 10
 POSZEROSHIFT = 0.0
-
+contours_toggle = [True]
+hist_toggle = [True]
 
 def add_labeled_textbox(
     fig: plt.Figure,
@@ -30,9 +32,22 @@ def add_labeled_textbox(
     ax_box = fig.add_axes((x, y, width, height))
     return TextBox(ax_box, "", initial=initial)
 
+def add_labeled_checkbox(
+    fig: plt.Figure,
+    x: float,
+    y: float,
+    width: float,
+    height: float,
+    label: list[str],
+    toggle: bool,
+) -> CheckButtons:
+    ax_cb = fig.add_axes((x,y,width,height))
+    ax_cb.set_frame_on(False)
+    return CheckButtons(ax_cb,label,actives=toggle)
+
 
 def main() -> None:
-    file_path = Path(r"/mnt/valeryshare/Droplets/20260312/Scan1/20260312111952DLY___4p5000mm.dat")
+    file_path = Path(r"Z:/Droplets/20260312/Scan1/20260312111952DLY___4p5000mm.dat")
     # file_path = DatFinder().find_most_recent_scanfile()
 
     raw_scans = load_ion_data([[file_path]])
@@ -40,7 +55,8 @@ def main() -> None:
     ion_data = raw_scan.ion_datas[0]
 
     points_before = ion_data.points
-
+    
+    
     # ------------------------------------------------------------------
     # Figure layout
     # ------------------------------------------------------------------
@@ -61,8 +77,31 @@ def main() -> None:
     y_angle = 0.50
     y_range = 0.39
     y_transform = 0.28
-    y_button = 0.17
     y_info = 0.08
+
+    #Upper check buttons
+    y_up = 0.9
+    
+    
+    cb_contours = add_labeled_checkbox(
+        fig,
+        x_mid,
+        y_up,
+        small_w,
+        box_h,
+        ["Contours"],
+        contours_toggle,
+    )
+    
+    cb_hist = add_labeled_checkbox(
+        fig,
+        x_mid + small_w + gap,
+        y_up,
+        small_w,
+        box_h,
+        ["2DHistogram"],
+        hist_toggle,
+    )
 
     tb_delay = add_labeled_textbox(
         fig,
@@ -155,36 +194,57 @@ def main() -> None:
             transform_parameter=float(tb_transform.text),
         )
 
-    def draw_hist(ax, points, title: str) -> None:
+    def draw_hist(ax, hist: Histogram2D, title: str) -> collections.QuadMesh:
         ax.clear()
-
-        hist = Histogram2D.compute_histogram(points, x_bins=BINS, y_bins=BINS)
-        plot_histogram2d(ax, hist)
-        # plot_contour(ax, hist, min_count=MIN_COUNT)
-
         ax.set_title(title)
         ax.set_xlabel("x")
         ax.set_ylabel("y")
         ax.set_aspect("equal")
         ax.set_box_aspect(1)
+        return plot_histogram2d(ax, hist)
 
-    def on_refresh(_event) -> None:
+    def draw_contours(ax, hist: Histogram2D) -> contour.QuadContourSet:
+        return plot_contour(ax, hist, MIN_COUNT)
+    
+    def on_refresh(_event):
+        global hist_artist, contour_artist
         try:
             config = build_config()
             points_after = ion_data.get_points_after_config(config)
-
-            draw_hist(ax_left, points_before, "points_before")
-            draw_hist(ax_right, points_after, "points_after")
-
+            hist_before = Histogram2D.compute_histogram(points_before,BINS,BINS)
+            hist_after = Histogram2D.compute_histogram(points_after,BINS,BINS)
+            draw_hist(ax_left, hist_before, "points_before")
+            draw_contours(ax_left,hist_before)
             c2t = ion_data.avg_c2t(points_after)
-            c2t_text.set_text(f"c2t: {c2t.value:.6f} ± {c2t.error:.6f}")
+            c2t_text.set_text(f"c2t: {c2t.value:.3f} ± {c2t.error:.2f}")
             error_text.set_text("")
+            hist_artist = draw_hist(ax_right, hist_after, "After coordinate transformation")
+            contour_artist = draw_contours(ax_right,hist_after)
 
         except Exception as exc:
             error_text.set_text(f"Error: {exc}")
+            
 
         fig.canvas.draw_idle()
 
+    def on_toggle_contours(_event):
+        try:
+            visible = contour_artist.get_visible()
+            #for c in contour_artist:
+                #c.set_visible(not visible)
+            contour_artist.set_visible(not visible)
+        except Exception as exc:
+            error_text.set_text(f"Error: {exc}")      
+        
+        fig.canvas.draw_idle()  
+    def on_toggle_hist(_event):
+        try:
+            visible = hist_artist.get_visible()
+            hist_artist.set_visible(not visible)
+        except Exception as exc:
+            error_text.set_text(f"Error: {exc}")   
+            
+        fig.canvas.draw_idle()
     # ------------------------------------------------------------------
     # Widget connections
     # ------------------------------------------------------------------
@@ -199,7 +259,8 @@ def main() -> None:
         tb_transform,
     ):
         tb.on_submit(on_refresh)
-
+    cb_contours.on_clicked(on_toggle_contours)
+    cb_hist.on_clicked(on_toggle_hist)
     on_refresh(None)
     plt.show()
 
