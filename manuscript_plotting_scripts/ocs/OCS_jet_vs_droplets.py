@@ -73,7 +73,7 @@ PlotTitle = r"OCS - STFT with 180 ps blackman window. Same centrifuge for each s
 #JET EXPERIMENT#--------------------------------------------------------------------------------------------------
 # GA=0, DA = 16.3mm
 
-configs_1: list[IonDataAnalysisConfig] = []
+'''configs_1: list[IonDataAnalysisConfig] = []
 folders_1: list[Path] = []
 
 folders_1.append(Path(r"20260210\Scan3")) 
@@ -82,26 +82,31 @@ configs_1.append(IonDataAnalysisConfig(
     center=Point(203, 202),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](30, 90),
-    transform_parameter= 0.78))
+    transform_parameter= 0.78))'''
 
 # GA=26, DA = 15.2mm
-# configs_1: list[IonDataAnalysisConfig] = []
-# folders_1: list[Path] = []
+configs_1: list[IonDataAnalysisConfig] = []
+folders_1: list[Path] = []
 
-# folders_1.append(Path(r"20260222\Scan2")) 
-# configs_1.append(IonDataAnalysisConfig(
-#     delay_center= Length(94.5-POSZEROSHIFT, Prefix.MILLI),
-#     center=Point(202, 204),
-#     angle= Angle(12, AngleUnit.DEG),
-#     analysis_zone= Range[int](30, 90),
-#     transform_parameter= 0.73))
-#folders_1.append(Path(r"20260223\Scan2_Jet")) 
-
+folders_1.append(Path(r"20260222\Scan2")) 
+configs_1.append(IonDataAnalysisConfig(
+    delay_center= Length(94.5-POSZEROSHIFT, Prefix.MILLI),
+center=Point(202, 204),
+    angle= Angle(12, AngleUnit.DEG),
+     analysis_zone= Range[int](30, 90),
+     transform_parameter= 0.73))
+folders_1.append(Path(r"20260223\Scan2_Jet")) 
+configs_1.append(IonDataAnalysisConfig(
+    delay_center= Length(94.5-POSZEROSHIFT, Prefix.MILLI),
+center=Point(202, 204),
+    angle= Angle(12, AngleUnit.DEG),
+     analysis_zone= Range[int](30, 90),
+     transform_parameter= 0.73))
 
 #DROPLETS EXPERIMENT#--------------------------------------------------------------------------------------------------
 # GA=0, DA = 16.6mm
 
-configs_2: list[IonDataAnalysisConfig] = []
+'''configs_2: list[IonDataAnalysisConfig] = []
 folders_2: list[Path] = []
 
 folders_2.append(Path(r"20260210\Scan4")) 
@@ -110,22 +115,22 @@ configs_2.append(IonDataAnalysisConfig(
     center=Point(175, 205),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
-    transform_parameter= 0.75))
+    transform_parameter= 0.75))'''
 
 # GA=26mm, DA = 15.2mm
 #as of 2026/02/24, the interpolation was causing a weird line in the spectrogram, so this was plotted with the first two points deleted from the data folder. 
-# configs_2: list[IonDataAnalysisConfig] = []
-# folders_2: list[Path] = []
+configs_2: list[IonDataAnalysisConfig] = []
+folders_2: list[Path] = []
 
-# folders_2.append(Path(r"20260222\Scan3")) 
-# configs_2.append(IonDataAnalysisConfig(
-#     delay_center= Length(94.5-POSZEROSHIFT, Prefix.MILLI),
-#     center=Point(174, 206),
-#     angle= Angle(12, AngleUnit.DEG),
-#     analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
-#     transform_parameter= 0.74))
-#folders_2.append(Path(r"20260223\Scan1")) 
-#configs_2.append(configs_2[0])
+folders_2.append(Path(r"20260222\Scan3")) 
+configs_2.append(IonDataAnalysisConfig(
+    delay_center= Length(94.5-POSZEROSHIFT, Prefix.MILLI),
+     center=Point(174, 206),
+     angle= Angle(12, AngleUnit.DEG),
+     analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
+     transform_parameter= 0.74))
+folders_2.append(Path(r"20260223\Scan1")) 
+configs_2.append(configs_2[0])
 #--------------------------------------------------------------------------------------------------
 #Update the matplotlib settings
 mpl.rcParams.update({

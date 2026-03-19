@@ -50,10 +50,14 @@ for molecule in molecules:
 
     plt.plot(2*freqs_hz / 1e9, sigmas, label=molecule.formula)
 
-plt.xlabel("2 * Centrifuge frequency (GHz)")
-plt.ylabel("Spinnability")
-plt.title("Spinnability vs centrifuge frequency")
+plt.xlabel("2 * Centrifuge frequency (GHz)", fontsize=14)
+plt.ylabel("Spinnability", fontsize=14)
+plt.title("Spinnability vs centrifuge frequency", fontsize=16)
+
+plt.xticks(fontsize=12)
+plt.yticks(fontsize=12)
+
 plt.grid(True, alpha=0.3)
-plt.legend()
+plt.legend(fontsize=12)
 plt.tight_layout()
 plt.show()
