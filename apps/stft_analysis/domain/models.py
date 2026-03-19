@@ -35,7 +35,7 @@ class ResampledScan(ScanDataBase):
         return ((y - g).tolist(), g.tolist())
 
 
-    def detrend_moving_average(self, window: int = 10) -> list[float]:
+    def detrend_moving_average(self, window: int = 10) -> tuple[list[float], list[float]]:
         y = np.asarray([c.value for c in self.measured_values], dtype=float)
 
         mask = np.isfinite(y).astype(float)
@@ -59,7 +59,7 @@ class ResampledScan(ScanDataBase):
         den = np.convolve(mp,  kernel, mode="valid")
 
         baseline = np.divide(num, den, out=np.full_like(num, np.nan), where=den > 0)
-        return (y - baseline).tolist()
+        return ((y - baseline).tolist(), baseline.tolist())
         
 
 @dataclass(frozen=True)

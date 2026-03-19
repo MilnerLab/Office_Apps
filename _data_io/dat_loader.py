@@ -1,7 +1,9 @@
 # io/dat_loader.py
 from pathlib import Path
+
+from astropy import conf
 from base_core.framework.services import runnable_service_base
-from base_core.lab_specifics.base_models import C2TScanData, IonData, Measurement, RawScanData, ScanDataBase, calculate_time_delay
+from base_core.lab_specifics.base_models import C2TScanData, IonData, IonDataAnalysisConfig, Measurement, RawScanData, ScanDataBase, calculate_time_delay
 from base_core.math.models import Points
 from base_core.quantities.constants import SPEED_OF_LIGHT
 from base_core.quantities.enums import Prefix
@@ -13,7 +15,7 @@ import time
 
 
 
-def load_time_scan(path: Path) -> C2TScanData:
+def load_time_scan(path: Path, config: IonDataAnalysisConfig) -> C2TScanData:
 
     delays: list[Time] = []
     c2ts: list[Measurement] = []
@@ -44,17 +46,15 @@ def load_time_scan(path: Path) -> C2TScanData:
     if not delays:
         raise ValueError("No valid data lines (>= 4 numeric columns) found in file.")
 
-    #file_name = path
-
-    return C2TScanData(delays=delays, measured_values=c2ts)
+    return C2TScanData(delays=delays, measured_values=c2ts, run_id=None, ions_per_frame=ions, config=config)
 
 
-def load_time_scans(paths: list[Path]) -> list[C2TScanData]:
+def load_time_scans(paths: list[Path], config: IonDataAnalysisConfig) -> list[C2TScanData]:
     
     scanDatas: list[C2TScanData] = []
     
     for path in paths:
-        scanDatas.append(load_time_scan(path=path))
+        scanDatas.append(load_time_scan(path=path, config=config))
 
     return scanDatas
 

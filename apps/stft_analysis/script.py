@@ -5,8 +5,7 @@ import numpy as np
 from yaml import scan
 from matplotlib.widgets import Button
 
-from apps.c2t_calculation.domain.analysis import run_pipeline
-from apps.c2t_calculation.domain.plotting import plot_calculated_scan
+from _domain.plotting import plot_GaussianFit
 from apps.stft_analysis.domain.config import StftAnalysisConfig
 from apps.stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
 from apps.stft_analysis.domain.resampling import resample_scans
@@ -14,15 +13,14 @@ from apps.stft_analysis.domain.stft_calculation import StftAnalysis
 from _data_io.dat_finder import DatFinder
 from _data_io.dat_loader import load_ion_data
 from apps.scan_averaging.domain.averaging import average_scans
-#from apps.scan_averaging.domain.models import AveragedScansData
 from apps.scan_averaging.domain.plotting import plot_averaged_scan
 from apps.single_scan.domain.plotting import plot_single_scan
 from base_core.lab_specifics.base_models import IonDataAnalysisConfig
+from base_core.math.enums import AngleUnit
+from base_core.math.models import Angle, Point, Range
 from base_core.plotting.enums import PlotColor
 from base_core.quantities.enums import Prefix
-from base_core.quantities.models import Length
-from base_core.math.models import Point, Angle, Range
-from base_core.math.enums import AngleUnit
+from base_core.quantities.models import Length, Time
 
 """ folder_path1 = Path(r"Z:\Droplets\20260211\Scan1_ScanFiles")
 folder_path2 = Path(r"Z:\Droplets\20260211\Scan2_ScanFiles")
@@ -60,6 +58,21 @@ plot_Spectrogram(ax[0,0], spectrogram1)
 plot_Spectrogram(ax[0,1], spectrogram2)
 plot_Spectrogram(ax[0,2], spectrogram4) """
 
+fig_path = Path(r"C:\Users\camp06\OneDrive - UBC\Documents\droplets_manuscript\test\20260219_jet_avg.png")
+file_paths = [Path(r"Z:\Droplets\20260227\Scan1_ScanFiles\20260227145137_ScanFile.dat"),Path(r"Z:\Droplets\20260227\Scan1_ScanFiles\20260227151207_ScanFile.dat"),
+    Path(r"Z:\Droplets\20260227\Scan1_ScanFiles\20260227153448_ScanFile.dat"),Path(r"Z:\Droplets\20260227\Scan1_ScanFiles\20260227160304_ScanFile.dat")]
+#file_paths_avg = DatFinder(folder_path).find_scanfiles()
+#scan_data_avg = load_time_scans(file_paths_avg)
+config = IonDataAnalysisConfig(
+    delay_center= Length(93.3, Prefix.MILLI),
+    center=Point(199, 197),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= Range[int](40, 90),
+    transform_parameter=0.76)
+
+file_paths_avg = DatFinder().find_scanfiles()
+scan_data_avg = load_time_scans(file_paths_avg, config)
+
 """ fig,(axs) = plt.subplots(2,3,figsize=(16,8))
 i = 0
 for scan in scan_data_avg:
@@ -72,51 +85,24 @@ fig.tight_layout()
 fig.savefig(fig_path,format='png')
 plt.show() """
 
-def main() -> None:
-    fig_path_root = Path(r"C:\Users\camp06\OneDrive - UBC\Documents")
-    folder_path = Path(r"Z:\Droplets\20260323\Scan1")
-    
-    
-    
+config = StftAnalysisConfig(scan_data_avg, Time(180, Prefix.PICO))
+resampled_scans = resample_scans(scan_data_avg,config.axis)
+averaged_data = average_scans(scan_data_avg)
+resampled_scan = resample_scans([averaged_data],config.axis)
+_, baseline = resampled_scan[0].detrend_moving_average()
 
-    config = IonDataAnalysisConfig(
-        delay_center= Length(93.3, Prefix.MILLI),
-        center=Point(175, 202),
-        angle= Angle(12, AngleUnit.DEG),
-        analysis_zone= Range[int](60, 90),
-        transform_parameter=0.76)
 
-    fig,(ax1,ax2) = plt.subplots(2,1,figsize=(8,5))
-    ax1.set_xlim(-300,300)
-    ax2.set_xlim(-300,300)
-    fig.suptitle('CS2 Droplets', fontsize=12)
-    
-    button_ax = fig.add_axes((0.8, 0.05, 0.15, 0.075))
-    refresh_button = Button(button_ax, "Refresh")
+fig,(ax1,ax2) = plt.subplots(2,1,figsize=(8,5))
 
-    def on_refresh(event):
-            file_paths_avg = DatFinder(folder_path,is_full_path=True).find_datafiles()
-            raw_scans = load_ion_data(file_paths_avg)
-            num_scans = raw_scans[0].number_of_scans
-            c2t_data = run_pipeline(raw_scans,config)
-            #scan_avg = average_scans(c2t_data)
-            stft_config = StftAnalysisConfig(c2t_data)
-            resampled_scans = resample_scans(c2t_data,stft_config.axis)
-            
-            ax1.clear()
-            ax2.clear()
-            ax1.grid(visible=True,which='major',alpha=0.5)
-            ax2.grid(visible=True,which='major',alpha=0.5)
-            plot_calculated_scan(ax1,data=c2t_data[0],number_of_scans=num_scans)
-            spectrogram = StftAnalysis(resampled_scans,stft_config).calculate_averaged_spectrogram()
-            plot_Spectrogram(ax2,spectrogram)
-            plot_nyquist_frequency(ax2,c2t_data[0])
-            fig.canvas.draw_idle()
-
-    refresh_button.on_clicked(on_refresh)
-    
-    #fig.savefig(fig_path,format='png')
-    plt.show()
-
-if __name__ == "__main__":
-    main()
+plot_averaged_scan(ax1,data=averaged_data)
+x = [time.value(Prefix.PICO) for time in resampled_scan[0].delays]
+ax1.plot(x, baseline)
+spectrogram = StftAnalysis(resampled_scans,config).calculate_averaged_spectrogram()
+plot_Spectrogram(ax2,spectrogram)
+plot_nyquist_frequency(ax2,scan_data_avg[0])
+ax1.set_xlim(-250,250)
+ax2.set_xlim(-250,250)
+fig.suptitle('CS2 Jet - window 180ps', fontsize=12)
+fig.tight_layout()
+#fig.savefig(fig_path,format='png')
+plt.show()
