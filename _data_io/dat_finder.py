@@ -61,23 +61,35 @@ def _ensure_cached(folder: Path) -> Path:
     dest = _cache_dest_for(folder)
     if dest is None:
         return folder
-
-    if dest.exists():
-        return dest
-
+    
     if not folder.exists():
         raise FileNotFoundError(f"Source folder does not exist: {folder}")
-
-    dest.parent.mkdir(parents=True, exist_ok=True)
-
-    if folder.is_dir():
-        shutil.copytree(folder, dest, dirs_exist_ok=True)
+    
+    if folder.is_dir(): 
+        if dest.exists():
+            for path in folder.rglob(ION_FILE_PATTERN):
+                rel = path.relative_to(folder)
+                target = dest / rel
+                if not target.exists():
+                    
+                    #target.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(path,target)
+                    # compare modification time + size
+                    
+                    """ if (
+                        path.stat().st_mtime > dest.stat().st_mtime
+                        or path.stat().st_size != dest.stat().st_size
+                    ):
+                        shutil.copy2(path, dest) """
+        #dest.parent.mkdir(parents=True, exist_ok=True)
+        else:
+            shutil.copytree(folder, dest, dirs_exist_ok=True)
     else:
         shutil.copy2(folder, dest)
 
     return dest
 
-
+            
 def convert_to_system_path(paths: list[Path]) -> list[Path]:
     """
     Normalize incoming folder paths.
@@ -172,3 +184,6 @@ class DatFinder:
             scans_paths.append(all_files)
 
         return scans_paths
+    
+
+        

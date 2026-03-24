@@ -12,7 +12,7 @@ def plot_ScanData(ax: Axes, data: ScanDataBase, label:str, color: PlotColor = No
     y = np.array([c.value for c in data.measured_values])
     error = np.array([c.error for c in data.measured_values])
 
-
+  
     ax.errorbar(
         x,
         y,
@@ -20,22 +20,24 @@ def plot_ScanData(ax: Axes, data: ScanDataBase, label:str, color: PlotColor = No
         ecolor=ecolor,
         color=color,
         marker = marker,
+        markersize = 4,
         label = label,
     )
-    
-
+    ax.legend(loc='upper left')
     ax.set_xlabel("Probe Delay (ps)")
     ax.set_ylabel(r"$\langle \cos^2 \theta_\mathrm{2D} \rangle$")
     
 def plot_GaussianFit(ax: Axes, data: ScanDataBase) -> None:
-    gauss = fit_gaussian(data.delays, [c2t.value for c2t in data.measured_values])
+    x1 = [t.value(Prefix.PICO) for t in data.delays]
+    y1 = [c2t.value for c2t in data.measured_values]
+    gauss = fit_gaussian(x1, y1)
     
     resampling_const = len(data.delays) * 100
     
-    y = [y for y in gauss.get_curve(np.linspace(data.delays[0], data.delays[-1], resampling_const))]
-    x = np.linspace(data.delays[0].value(Prefix.PICO), data.delays[-1].value(Prefix.PICO), resampling_const)
+    y = [y for y in gauss.get_curve(np.linspace(x1[0], x1[-1], resampling_const))]
+    x = np.linspace(x1[0], x1[-1], resampling_const)
     
     ax.plot(x, y)
-    ax.text(0.95,0.95, f"Center = {gauss.center:.2E} ± {gauss.center_err:.2E} ps", transform=ax.transAxes, ha='right', va='top', fontsize=10)
+    ax.text(0.95,0.95, f"Center = {gauss.center:.2f} ± {gauss.center_err:.2f} ps", transform=ax.transAxes, ha='right', va='top', fontsize=10)
     #print("center = ",gauss.center, " error = ", gauss.center_err)
    

@@ -17,7 +17,7 @@ def load_time_scan(path: Path) -> C2TScanData:
 
     delays: list[Time] = []
     c2ts: list[Measurement] = []
-    ions: list[float] = []
+    #ions: list[float] = []
 
     with open(path, "r", encoding="utf-8", errors="ignore") as f:
         for line in f:
@@ -39,14 +39,14 @@ def load_time_scan(path: Path) -> C2TScanData:
 
             delays.append(delay)
             c2ts.append(c2t)
-            ions.append(ion_count)
+            #ions.append(ion_count)
 
     if not delays:
         raise ValueError("No valid data lines (>= 4 numeric columns) found in file.")
 
-    file_name = path
+    #file_name = path
 
-    return C2TScanData(delays=delays, measured_values=c2ts, file_path=file_name, ions_per_frame=ions)
+    return C2TScanData(delays=delays, measured_values=c2ts)
 
 
 def load_time_scans(paths: list[Path]) -> list[C2TScanData]:
@@ -67,7 +67,7 @@ def load_ion_data(scans_paths: list[list[Path]]) -> list[RawScanData]:
         x_chunks_by_pos: dict[Length, list[np.ndarray]] = {}
         y_chunks_by_pos: dict[Length, list[np.ndarray]] = {}
         run_id_by_pos: dict[Length, int] = {}
-
+        count = 1
         t0 = time.perf_counter()
 
         for path in sorted(scans_paths[i]):
@@ -81,6 +81,9 @@ def load_ion_data(scans_paths: list[list[Path]]) -> list[RawScanData]:
                 x_chunks_by_pos[stage_position] = []
                 y_chunks_by_pos[stage_position] = []
                 run_id_by_pos[stage_position] = run_id  # keep first run_id
+            elif stage_position == next(reversed(run_id_by_pos.keys())): 
+                count += 1 #for counting number of scans
+                
 
             x_chunks_by_pos[stage_position].append(xs)
             y_chunks_by_pos[stage_position].append(ys)
@@ -100,7 +103,7 @@ def load_ion_data(scans_paths: list[list[Path]]) -> list[RawScanData]:
             # IonData.delay now effectively holds a Length (stage_position).
             output.append(IonData(id=run_id_by_pos[stage_position], stage_position=stage_position, ions_per_frame=0, points=pts))
 
-        raw_scans.append(RawScanData(run_id=output[0].id, ion_datas=output))
+        raw_scans.append(RawScanData(run_id=output[0].id, ion_datas=output,number_of_scans = count))
 
     return raw_scans
 

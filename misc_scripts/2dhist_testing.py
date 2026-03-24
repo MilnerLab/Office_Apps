@@ -3,7 +3,7 @@ import traceback
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Button, TextBox, CheckButtons
 from matplotlib import collections, contour, artist
-
+from _data_io.dat_finder import DatFinder
 from _data_io.dat_loader import load_ion_data
 from base_core.lab_specifics.base_models import IonDataAnalysisConfig, RawScanData
 from base_core.math.enums import AngleUnit
@@ -13,7 +13,7 @@ from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Length
 
 
-BINS = 100
+BINS = 50
 MIN_COUNT = 10
 POSZEROSHIFT = 0.0
 contours_toggle = [True]
@@ -47,10 +47,10 @@ def add_labeled_checkbox(
 
 
 def main() -> None:
-    file_path = Path(r"Z:/Droplets/20260312/Scan1/20260312111952DLY___4p5000mm.dat")
-    # file_path = DatFinder().find_most_recent_scanfile()
+    folder_path = Path(r"Z:\Droplets\20260323\Probe Only\Probe2")
+    file_paths = DatFinder(folder_path,is_full_path=True).find_datafiles()
 
-    raw_scans = load_ion_data([[file_path]])
+    raw_scans = load_ion_data(file_paths)
     raw_scan: RawScanData = raw_scans[0]
     ion_data = raw_scan.ion_datas[0]
 
@@ -103,6 +103,16 @@ def main() -> None:
         hist_toggle,
     )
 
+    tb_bins = add_labeled_textbox(
+        fig,
+        x_mid,
+        y_delay+0.1,
+        small_w,
+        box_h,
+        "Bins",
+        f"{BINS}",
+    )
+    
     tb_delay = add_labeled_textbox(
         fig,
         x_mid,
@@ -120,7 +130,7 @@ def main() -> None:
         small_w,
         box_h,
         "center x",
-        "171",
+        "175",
     )
     tb_center_y = add_labeled_textbox(
         fig,
@@ -129,7 +139,7 @@ def main() -> None:
         small_w,
         box_h,
         "center y",
-        "208",
+        "205",
     )
 
     tb_angle = add_labeled_textbox(
@@ -168,7 +178,7 @@ def main() -> None:
         full_w,
         box_h,
         "transform",
-        "0.75",
+        "0.76",
     )
 
     info_ax = fig.add_axes((x_mid - 0.005, y_info, full_w + 0.03, 0.07))
@@ -204,19 +214,21 @@ def main() -> None:
         return plot_histogram2d(ax, hist)
 
     def draw_contours(ax, hist: Histogram2D) -> contour.QuadContourSet:
-        return plot_contour(ax, hist, MIN_COUNT)
+        return plot_contour(ax, hist)
     
     def on_refresh(_event):
         global hist_artist, contour_artist
         try:
             config = build_config()
             points_after = ion_data.get_points_after_config(config)
-            hist_before = Histogram2D.compute_histogram(points_before,BINS,BINS)
-            hist_after = Histogram2D.compute_histogram(points_after,BINS,BINS)
+            
+            bins = int(tb_bins.text)
+            hist_before = Histogram2D.compute_histogram(points_before,bins,bins)
+            hist_after = Histogram2D.compute_histogram(points_after,bins,bins)
             draw_hist(ax_left, hist_before, "points_before")
             draw_contours(ax_left,hist_before)
             c2t = ion_data.avg_c2t(points_after)
-            c2t_text.set_text(f"c2t: {c2t.value:.3f} ± {c2t.error:.2f}")
+            c2t_text.set_text(f"c2t: {c2t.value:.5f} ± {c2t.error:.4f}")
             error_text.set_text("")
             hist_artist = draw_hist(ax_right, hist_after, "After coordinate transformation")
             contour_artist = draw_contours(ax_right,hist_after)
@@ -250,6 +262,7 @@ def main() -> None:
     # ------------------------------------------------------------------
 
     for tb in (
+        tb_bins,
         tb_delay,
         tb_center_x,
         tb_center_y,

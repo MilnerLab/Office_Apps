@@ -12,6 +12,9 @@ def run_pipeline(
     raw_datas: list[RawScanData],
     configs: list[IonDataAnalysisConfig]
 ) -> list[C2TScanData]:
+    
+    if not isinstance(configs,list):
+        configs = [configs]*len(raw_datas)
     if len(raw_datas) != len(configs):
         raise ValueError("No distinct assignment possible.")
 

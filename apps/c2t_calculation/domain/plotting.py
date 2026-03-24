@@ -6,11 +6,10 @@ from base_core.lab_specifics.base_models import C2TScanData, Points
 
 
 
-def plot_calculated_scan(ax: Axes, data: C2TScanData,label:str = '') -> None:
-    if data.file_path is not None:
-        label = f"{data.file_path.stem}"
-    else:
-        label = "Calculated Scan"
+def plot_calculated_scan(ax: Axes, data: C2TScanData,label:str = '',*,number_of_scans: int = 1) -> None:
+    #if data.file_path is not None:
+        #label = f"{data.file_path.stem}"
+    label =  f"{number_of_scans} scans" 
     plot_ScanData(ax, data, label)
 
 def plot_ions_square(
