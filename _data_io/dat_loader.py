@@ -46,7 +46,7 @@ def load_time_scan(path: Path, config: IonDataAnalysisConfig) -> C2TScanData:
     if not delays:
         raise ValueError("No valid data lines (>= 4 numeric columns) found in file.")
 
-    return C2TScanData(delays=delays, measured_values=c2ts, run_id=None, ions_per_frame=ions, config=config)
+    return C2TScanData(delays=delays, measured_values=c2ts, run_id=None, ions_per_frame=None, config=config)
 
 
 def load_time_scans(paths: list[Path], config: IonDataAnalysisConfig) -> list[C2TScanData]:
