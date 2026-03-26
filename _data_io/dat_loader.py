@@ -19,7 +19,7 @@ def load_time_scan(path: Path, config: IonDataAnalysisConfig) -> C2TScanData:
 
     delays: list[Time] = []
     c2ts: list[Measurement] = []
-    #ions: list[float] = []
+    ions: list[float] = []
 
     with open(path, "r", encoding="utf-8", errors="ignore") as f:
         for line in f:
@@ -41,12 +41,12 @@ def load_time_scan(path: Path, config: IonDataAnalysisConfig) -> C2TScanData:
 
             delays.append(delay)
             c2ts.append(c2t)
-            #ions.append(ion_count)
+            ions.append(ion_count)
 
     if not delays:
         raise ValueError("No valid data lines (>= 4 numeric columns) found in file.")
 
-    return C2TScanData(delays=delays, measured_values=c2ts, run_id=None, ions_per_frame=None, config=config)
+    return C2TScanData(delays=delays, measured_values=c2ts, run_id=None, ions_per_frame=ions, config=config)
 
 
 def load_time_scans(paths: list[Path], config: IonDataAnalysisConfig) -> list[C2TScanData]:
