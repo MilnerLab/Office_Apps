@@ -5,7 +5,7 @@ import numpy as np
 # (note that the constants are calculated using values which can change when changing the VMI voltages or the laser setup)
 ###############
 
-mq = 28
+mq = 127
 
 ###############
 # Formular: t(m/q) = t_0 + const * sqrt(m/q)
@@ -15,17 +15,31 @@ mq = 28
 # time center of MCP and mass/charge values for VMI 6.04/3.99
 ###############
 
-t_sulfur = 3747.0
-mq_sulfur = 32.0
+'''# S+
+t_1 = 3747.0
+mq_1 = 32.0
 
-t_iodine = 3240
-mq_iodine = 14
-np.sqrt
+# N+
+t_2 = 3240
+mq_2 = 14'''
+
+#-------------------------------------------------------
+
+###############
+# time center of MCP and mass/charge values for VMI 3.0/1.95
+###############
+
+# CS2+
+t_1 = 5565
+mq_1 = 76
+
+# S+
+t_2 = 4400
+mq_2 = 32
 
 
-
-const = (t_sulfur - t_iodine) / ( np.sqrt(mq_sulfur) - np.sqrt(mq_iodine))
-t_0 = t_sulfur - const * np.sqrt(mq_sulfur)
+const = (t_1 - t_2) / ( np.sqrt(mq_1) - np.sqrt(mq_2))
+t_0 = t_1 - const * np.sqrt(mq_1)
 
 calc_t = t_0 + const * np.sqrt(mq)
 
