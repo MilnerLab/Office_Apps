@@ -3,7 +3,7 @@ import math
 from pathlib import Path
 
 import numpy as np
-from base_core.lab_specifics.base_models import C2TScanData, IonDataAnalysisConfig, Measurement, RawScanData
+from base_core.lab_specifics.base_models import C2TScanData, IonDataAnalysisConfig, Measurement, RawScanData, IonData
 from base_core.math.models import Points, Range
 from base_core.quantities.models import Time
 
@@ -22,5 +22,9 @@ def run_pipeline(
         C2TScanData.from_raw(raw, cfg)
         for raw, cfg in zip(raw_datas, configs, strict=True)
     ]
-
-
+""" 
+  def get_points(raw_datas) -> "Points":
+      out = []
+      for raw in raw_datas:
+          for d in raw.ion_datas:
+             pts = d.points """

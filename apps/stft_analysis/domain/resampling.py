@@ -27,7 +27,8 @@ def resample_scan(raw: ScanDataBase, axis: list[Time]) -> ResampledScan:
     )
 
 def resample_scans(scans: list[ScanDataBase], axis: list[Time]) -> list[ResampledScan]:
-    
+    if not isinstance(scans, list):
+        scans = [scans]
     resampled_scans: list[ResampledScan] = []
     
     for scan in scans:

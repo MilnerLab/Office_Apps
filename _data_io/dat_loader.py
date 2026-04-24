@@ -106,6 +106,14 @@ def load_ion_data(scans_paths: list[list[Path]]) -> list[RawScanData]:
         raw_scans.append(RawScanData(run_id=output[0].id, ion_datas=output,number_of_scans = count))
 
     return raw_scans
+"""
+def load_points(scans_paths:list[list[Path]]): -> Points:
+    for i in range(len(scans_paths)):
+        for path in sorted(scans_paths[i]):
+            arr = np.loadtxt(path, usecols=(1, 2), ndmin=2, dtype=np.float64)
+            xs = arr[:, 0]
+            ys = arr[:, 1]
+"""            
 
 def load_xcorr_means(file_path:Path,pos_tzero:Length) -> ScanDataBase:
     ScopeData = np.array(pd.read_csv(file_path,header=None,sep='\t',lineterminator='\n',dtype=float))

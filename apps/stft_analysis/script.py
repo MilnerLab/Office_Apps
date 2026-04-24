@@ -13,7 +13,7 @@ from apps.stft_analysis.domain.resampling import resample_scans
 from apps.stft_analysis.domain.stft_calculation import StftAnalysis
 from _data_io.dat_finder import DatFinder
 from _data_io.dat_loader import load_ion_data
-from apps.scan_averaging.domain.averaging import average_scans
+from apps.scan_averaging.domain import averaging
 #from apps.scan_averaging.domain.models import AveragedScansData
 from apps.scan_averaging.domain.plotting import plot_averaged_scan
 from apps.single_scan.domain.plotting import plot_single_scan
@@ -72,19 +72,20 @@ fig.tight_layout()
 fig.savefig(fig_path,format='png')
 plt.show() """
 
+DROPLETRADIUSMIN = 40
 def main() -> None:
-    fig_path_root = Path(r"C:\Users\camp06\OneDrive - UBC\Documents")
-    folder_path = Path(r"Z:\Droplets\20260402\Scan4")
+    path_root = Path(r"C:\Users\camp06\OneDrive - UBC\Documents\droplets_manuscript\paper_data")
+    folder_path = [Path(r"Z:\Droplets\20260331\Scan1")]
     
     
     
 
     config = IonDataAnalysisConfig(
-        delay_center= Length(93.3, Prefix.MILLI),
-        center=Point(186, 205),
-        angle= Angle(12, AngleUnit.DEG),
-        analysis_zone= Range[int](40, 110),
-        transform_parameter=0.81)
+    delay_center= Length(93.3, Prefix.MILLI),
+    center=Point(186, 205),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= Range[int](DROPLETRADIUSMIN, 90),
+    transform_parameter= 0.81)
 
     fig,(ax1,ax2) = plt.subplots(2,1,figsize=(8,5))
     
@@ -93,9 +94,7 @@ def main() -> None:
     button_ax = fig.add_axes((0.8, 0.05, 0.15, 0.075))
     refresh_button = Button(button_ax, "Refresh")
     
-    ax1.set_xlim(-400,200)
-    ax2.set_xlim(-400,200)
-    ax2.set_ylim(0,30)
+    
     
     ax1.grid(visible=True,which='major',alpha=0.5)
     ax2.grid(visible=True,which='major',alpha=0.5)
@@ -104,13 +103,20 @@ def main() -> None:
     raw_scans = load_ion_data(file_paths_avg)
     num_scans = raw_scans[0].number_of_scans
     c2t_data = run_pipeline(raw_scans,config)
+    #c2t_data = averaging.average_scans(c2t_datas)
+    c2t_data[0].to_csv(path_root / "dib_single_arm_horizontal.csv")
     #scan_avg = average_scans(c2t_data)
-    stft_config = StftAnalysisConfig(c2t_data)
-    resampled_scans = resample_scans(c2t_data,stft_config.axis)
+    #stft_config = StftAnalysisConfig(c2t_data)
+    #resampled_scans = resample_scans(c2t_data,stft_config.axis)
     
     plot_calculated_scan(ax1,data=c2t_data[0],number_of_scans=num_scans)
-    spectrogram = StftAnalysis(resampled_scans,stft_config).calculate_averaged_spectrogram()
-    plot_Spectrogram(ax2,spectrogram)
+    #spectrogram = StftAnalysis(resampled_scans,stft_config).calculate_averaged_spectrogram()
+    #plot_Spectrogram(ax2,spectrogram)
+    
+    #ax1.set_xlim(-400,200)
+    #ax2.set_xlim(-400,200)
+    #ax2.set_ylim(0,30)
+    ax2.set_ylim(0,120)
     #plot_nyquist_frequency(ax2,c2t_data[0])    
 
     def on_refresh(event):
@@ -124,14 +130,15 @@ def main() -> None:
             
             ax1.clear()
             ax2.clear()
-            ax1.set_xlim(-400,200)
-            ax2.set_xlim(-400,200)
-            ax2.set_ylim(0,30)
+            
             ax1.grid(visible=True,which='major',alpha=0.5)
             ax2.grid(visible=True,which='major',alpha=0.5)
-            plot_calculated_scan(ax1,data=c2t_data[0],number_of_scans=num_scans)
+            plot_calculated_scan(ax1,data=c2t_data,number_of_scans=num_scans)
             spectrogram = StftAnalysis(resampled_scans,stft_config).calculate_averaged_spectrogram()
             plot_Spectrogram(ax2,spectrogram)
+            ax1.set_xlim(-400,200)
+            ax2.set_xlim(-400,200)
+            ax2.set_ylim(0,120)
             #plot_nyquist_frequency(ax2,c2t_data[0])
             fig.canvas.draw_idle()
 

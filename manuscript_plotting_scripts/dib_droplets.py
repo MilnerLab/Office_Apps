@@ -27,8 +27,9 @@ from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Length, Time
 
 DROPLETRADIUSMIN = 40
+JETMINRADIUS = 50
 
-STFTWINDOWSIZE = Time(180,Prefix.PICO)  
+STFTWINDOWSIZE = Time(200,Prefix.PICO)  
 EARLIEST_DELAY_PS = -250
 LATEST_DELAY_PS = -EARLIEST_DELAY_PS
 POSZEROSHIFT = 0 #millimetres :)
@@ -52,78 +53,52 @@ def calculating(folders: list[Path], configs: list[IonDataAnalysisConfig]) -> tu
 #--------------------------------------------------------------------------------------------------
 
 #Path to save figure in
-fig_filedir = r"Z:\Droplets\plots" 
-fig_filename = fig_filedir + r"\CS2_jet_vs_DIB_droplets_TEMP.png" #Name the file to save here
 
-#Path to save processed data in
-savedata_filedir = r"Z:\Droplets\exportdata" 
-savedata_filename_1 = savedata_filedir + r"\CS2_usCFG_vsDIB_gas.csv" #Name the file to save here
-savedata_filename_2 = savedata_filedir + r"\DIB_usCFG_droplets.csv" #Name the file to save here
+ #Name the file to save here
+fig_root = Path(r"C:\Users\camp06\OneDrive - UBC\Documents\droplets_manuscript\paper_data")
+fig_filename1 = fig_root / "dib_cs2jet_slow.png"
+fig_filename2 = fig_root / "dib_cs2jet_fast.png"
+fig_filename3 = fig_root / "dib_horizontal.png"
 
 
-#--------------------------------------------------------------------------------------------------
-#--------------------------------------------------------------------------------------------------
-#------------------------ FAST EXPERIMENT BELOW HERE
-PlotTitle = r"STFT with 180 ps blackman window. Same ``fast'' centrifuge for each scan." "\n" "20260328 Scan1 and 20260401 Scan3" #GA = 0mm
-
-#JET EXPERIMENT
-configs_1: list[IonDataAnalysisConfig] = []
-folders_1: list[Path] = []
-
-folders_1.append(Path(r"20260328\Scan1"))  
-configs_1.append(IonDataAnalysisConfig(
-    delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
-    center=Point(210, 194),
-    angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](40, 120),
-    transform_parameter= 0.77))
-
-#DROPLETS
-configs_2: list[IonDataAnalysisConfig] = []
-folders_2: list[Path] = []
-folders_2.append(Path(r"20260401\Scan3"))  #DIB in droplets
-configs_2.append(IonDataAnalysisConfig(
+#Slow cfg droplets
+configs1: list[IonDataAnalysisConfig] = []
+folders_1 = [Path(r"Z:\Droplets\20260402\Scan4"),Path(r"Z:\Droplets\20260402\Scan5")] 
+configs1.append(IonDataAnalysisConfig(
     delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
     center=Point(186, 205),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](DROPLETRADIUSMIN, 90),
     transform_parameter= 0.81))
 
-#--------------------------------------------------------------------------------------------------
-#--------------------------------------------------------------------------------------------------
-#------------------------ SLOW EXPERIMENT BELOW HERE
-PlotTitle = r"STFT with 180 ps blackman window. Same ``slow'' centrifuge for each scan." "\n" "20260402 Scan1 and 20260402 Scan2" #GA = 0mm
+configs2 = [configs1[0],configs1[0]]
+#Fast cfg
+folders_2 = [Path(r"Z:\Droplets\20260401\Scan3")]
 
-#JET EXPERIMENT
-configs_1: list[IonDataAnalysisConfig] = []
-folders_1: list[Path] = []
+#Single arm horizontal
+folders_3 = [Path(r"Z:\Droplets\20260331\Scan1")]
 
-folders_1.append(Path(r"20260402\Scan1"))  
-configs_1.append(IonDataAnalysisConfig(
+#Jet CS2 slow cfg
+folders_4 = [Path(r"Z:\Droplets\20260402\Scan1")]
+configs3 = [IonDataAnalysisConfig(
     delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
     center=Point(210, 194),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](40, 120),
-    transform_parameter= 0.77))
+    transform_parameter= 0.77)] #same config as jet cs2 fast cfg
 
-#DROPLETS
-configs_2: list[IonDataAnalysisConfig] = []
-folders_2: list[Path] = []
-folders_2.append(Path(r"20260402\Scan2"))  #DIB in droplets
-configs_2.append(IonDataAnalysisConfig(
-    delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
-    center=Point(186, 205),
-    angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](DROPLETRADIUSMIN, 90),
-    transform_parameter= 0.81))
+#Jet CS2 fast cfg
+folders_5 = [Path(r"Z:\Droplets\20260328\Scan1")]
+
+plot_title1 = r"Same slow centrifuge in each scan. STFT Blackman window size: " + f"{STFTWINDOWSIZE.value(Prefix.PICO):.0f}" + " ps" #GA = 0mm
+plot_title3 = r"Alignment of DIB in droplets with horizontally polarized pulse"
+plot_title2 = r"Same fast centrifuge in each scan. STFT Blackman window size: " + f"{STFTWINDOWSIZE.value(Prefix.PICO):.0f}" + " ps" 
 
 #--------------------------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------------------------
 #Update the matplotlib settings
 mpl.rcParams.update({
-#copied from physrev.mplstyle file
-    #"axes.prop_cycle": "(cycler('color', ['5d81b4', 'e09b24', '8eb031', 'eb6235', '8678b2', 'c46e1a', '5c9dc7', 'ffbf00', 'a5609c']) + cycler('ls', ['-', '--', '-.', (0, (1,0.85)), (0, (3, 1, 1, 1, 1, 1)), (0, (3, 1, 1, 1)), (0, (5, 1)), ':', (4, (10, 3))]))",  
   
     # --- Axes ---
     "axes.titlesize": "medium",
@@ -216,43 +191,92 @@ mpl.rcParams.update({
 
 
 #Pipeline 
-plottable_scan_1, plottable_spectrogram_1 = calculating(folders_1, configs_1)
-plottable_scan_2, plottable_spectrogram_2 = calculating(folders_2, configs_2)
+plottable_scan_1, plottable_spectrogram_1 = calculating(folders_1, configs2)
+plottable_scan_2, plottable_spectrogram_2 = calculating(folders_2, configs1)
+plottable_scan_3, plottable_spectrogram_3 = calculating(folders_4, configs3)
+plottable_scan_4, plottable_spectrogram_4 = calculating(folders_5, configs3) #same config as jet cs2 slow cfg
+
+#C2t for single arm horizontal
+scans_paths = DatFinder(folders_3).find_datafiles() 
+raw_datas = load_ion_data(scans_paths)
+single_arm = run_pipeline(raw_datas, configs1)
+single_arm_avg = average_scans(single_arm)
+
 
 #Main figure
-mainfig, (axs) = plt.subplots(
+fig1, (axs) = plt.subplots(
             nrows=2,
             ncols=2,
-            figsize=(10, 8),
+            figsize=(12, 8),
             sharex=True,             
         )
 
 #Plot first experiment in top row
 a = axs[0,0]
-plot_averaged_scan(a, plottable_scan_1, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d', label = "CS$_2$ in 120 PSI Jet")
+plot_averaged_scan(a, plottable_scan_1, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d', label = "DIB in droplets 20260402 Scan4 and Scan5")
 a.grid(color='grey',linewidth=0.3)
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 a.legend(loc="lower center")
 a = axs[0,1]
 plot_Spectrogram(a, plottable_spectrogram_1,shading="auto")
 a.set_ylim([0,120])
-#plot_nyquist_frequency(a, plottable_scan_1)
+plot_nyquist_frequency(a, plottable_scan_1)
 
 #Plot second experiment in bottom row
 a = axs[1,0]
-plot_averaged_scan(a, plottable_scan_2, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d',label="DIB in 40 bar / 13 K Droplets")
+plot_averaged_scan(a, plottable_scan_3, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d',label="CS2 jet 20260402 Scan1")
 a.grid(color='grey',linewidth=0.3)
+a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 a.legend()
 a = axs[1,1]
+plot_Spectrogram(a, plottable_spectrogram_3,shading="auto")
+a.set_ylim([0,120])
+plot_nyquist_frequency(a, plottable_scan_3)
+fig1.suptitle(plot_title1,fontsize=USEFONTSIZE,color='black')
+
+
+fig1.savefig(fig_filename1,format='png')
+
+fig2, (axs) = plt.subplots(
+    nrows=2,
+    ncols=2,
+    figsize=(12,8),
+    sharex=True,
+)
+
+#Plot first experiment in top row
+a = axs[0,0]
+plot_averaged_scan(a, plottable_scan_2, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d', label = "DIB in droplets 20260401 Scan3")
+a.grid(color='grey',linewidth=0.3)
+a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
+a.legend(loc="lower center")
+a = axs[0,1]
 plot_Spectrogram(a, plottable_spectrogram_2,shading="auto")
 a.set_ylim([0,120])
 plot_nyquist_frequency(a, plottable_scan_2)
-mainfig.suptitle(PlotTitle,fontsize=USEFONTSIZE,color='black')
 
-#Save scans
-plottable_scan_1.to_csv(savedata_filename_1)
-plottable_scan_2.to_csv(savedata_filename_2)
+#Plot second experiment in bottom row
+a = axs[1,0]
+plot_averaged_scan(a, plottable_scan_4, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d',label="CS2 jet 20260328 Scan1")
+a.grid(color='grey',linewidth=0.3)
+a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
+a.legend()
+a = axs[1,1]
+plot_Spectrogram(a, plottable_spectrogram_4,shading="auto")
+a.set_ylim([0,120])
+plot_nyquist_frequency(a, plottable_scan_4)
+fig2.suptitle(plot_title2,fontsize=USEFONTSIZE,color='black')
 
-mainfig.savefig(fig_filename,format='png')
+
+fig2.savefig(fig_filename2,format='png')
+
+fig3, ax = plt.subplots(figsize=(12,5))
+ax.grid(color='grey',linewidth=0.3)
+plot_averaged_scan(ax, single_arm_avg, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d',label="20260331 Scan1")
+fig3.suptitle(plot_title3,fontsize=USEFONTSIZE,color='black')
+fig3.savefig(fig_filename3,format='png')
+
+plottable_scan_3.to_csv(fig_root / "cs2jet_slow.csv")
+plottable_scan_4.to_csv(fig_root / "cs2jet_fast.csv")
+
 plt.show()
-print('Done!')

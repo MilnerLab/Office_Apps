@@ -5,12 +5,21 @@ from matplotlib.widgets import Button, TextBox, CheckButtons
 from matplotlib import collections, contour, artist
 from _data_io.dat_finder import DatFinder
 from _data_io.dat_loader import load_ion_data
-from base_core.lab_specifics.base_models import IonDataAnalysisConfig, RawScanData
+from _domain.plotting import plot_ScanData
+from apps.scan_averaging.domain import averaging
+from base_core.lab_specifics.base_models import IonData, IonDataAnalysisConfig, RawScanData
 from base_core.math.enums import AngleUnit
 from base_core.math.models import Angle, Histogram2D, Point, Range
 from base_core.plotting.histogram_plotting import plot_contour, plot_histogram2d
 from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Length
+from apps.c2t_calculation.domain.analysis import run_pipeline
+from apps.c2t_calculation.domain.plotting import plot_calculated_scan
+from apps.stft_analysis.domain.config import StftAnalysisConfig
+from apps.stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
+from apps.stft_analysis.domain.resampling import resample_scans
+from apps.stft_analysis.domain.stft_calculation import StftAnalysis
+
 
 
 BINS = 50
@@ -51,9 +60,11 @@ def main() -> None:
     file_paths = DatFinder(folder_path,is_full_path=True).find_datafiles()
 
     raw_scans = load_ion_data(file_paths)
-    raw_scan: RawScanData = raw_scans[0]
-    ion_data = raw_scan.ion_datas[0]
-
+    ion_data: IonData
+    for raw in raw_scans:
+        for d in raw.ion_datas:
+            ion_data.points.append_points(d.points)
+        
     points_before = ion_data.points
     
     
@@ -119,8 +130,8 @@ def main() -> None:
         y_delay,
         full_w,
         box_h,
-        "delay [mm]",
-        str(94.5 - POSZEROSHIFT),
+        "File path",
+        folder_path,
     )
 
     tb_center_x = add_labeled_textbox(
@@ -204,6 +215,12 @@ def main() -> None:
             transform_parameter=float(tb_transform.text),
         )
 
+    def plot_c2t(ax, raw_scans: list[RawScanData], config: IonDataAnalysisConfig) -> None:
+        c2t_data = run_pipeline(raw_scans,config)
+        c2t_avg = averaging.average_scans(c2t_data)
+        plot_ScanData(ax,c2t_avg)
+        
+    
     def draw_hist(ax, hist: Histogram2D, title: str) -> collections.QuadMesh:
         ax.clear()
         ax.set_title(title)
@@ -215,6 +232,7 @@ def main() -> None:
 
     def draw_contours(ax, hist: Histogram2D) -> contour.QuadContourSet:
         return plot_contour(ax, hist)
+    
     
     def on_refresh(_event):
         global hist_artist, contour_artist
@@ -272,6 +290,7 @@ def main() -> None:
         tb_transform,
     ):
         tb.on_submit(on_refresh)
+        
     cb_contours.on_clicked(on_toggle_contours)
     cb_hist.on_clicked(on_toggle_hist)
     on_refresh(None)

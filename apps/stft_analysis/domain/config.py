@@ -15,6 +15,8 @@ class StftAnalysisConfig:
     
     def __init__(self, scan_data: list[ScanDataBase], stft_window_size: Time | None = None) -> None:
         self.axis = []
+        if not isinstance(scan_data, list):
+            scan_data = [scan_data]
         self.set_from_data(scan_data)
         
         if stft_window_size is not None:
