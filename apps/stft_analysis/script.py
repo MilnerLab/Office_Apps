@@ -21,19 +21,19 @@ from apps.single_scan.domain.plotting import plot_single_scan
 from base_core.lab_specifics.base_models import IonDataAnalysisConfig
 from base_core.plotting.enums import PlotColor
 from base_core.quantities.enums import Prefix
-from base_core.quantities.models import Length
+from base_core.quantities.models import Length, Time
 from base_core.math.models import Point, Angle, Range
 from base_core.math.enums import AngleUnit
 
-folder_path = Path(r"/mnt/valeryshare/Droplets/20260408/Scan1")
+folder_path = Path(r"/mnt/valeryshare/Droplets/20260417/Scan6")
 file_paths = DatFinder(folder_path,is_full_path=True).find_datafiles()
 
 config = IonDataAnalysisConfig(
     delay_center= Length(93.3, Prefix.MILLI),
-    center=Point(217, 194),
+    center=Point(209, 180),
     angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](50, 110),
-    transform_parameter=0.75)
+    analysis_zone= Range[int](40, 110),
+    transform_parameter=0.78)
 
 raw_scans = load_ion_data(file_paths)
 calculated_Scan = run_pipeline(raw_scans, [config])
@@ -53,8 +53,6 @@ ax1.plot(x, baseline)
 spectrogram = StftAnalysis(resampled_scans,config).calculate_averaged_spectrogram()
 plot_Spectrogram(ax2,spectrogram)
 plot_nyquist_frequency(ax2,calculated_Scan[0])
-ax1.set_xlim(-250,250)
-ax2.set_xlim(-250,250)
 fig.suptitle('CS2 Jet - window 180ps', fontsize=12)
 fig.tight_layout()
 #fig.savefig(fig_path,format='png')

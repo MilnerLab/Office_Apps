@@ -56,7 +56,7 @@ def add_labeled_checkbox(
 
 
 def main() -> None:
-    folder_path = Path(r"/mnt/valeryshare/Droplets/20260407/Scan1")
+    folder_path = Path(r"/mnt/valeryshare/Droplets/20260417/Scan5")
     file_paths = DatFinder(folder_path,is_full_path=True).find_datafiles()
 
     raw_scans = load_ion_data(file_paths)
@@ -141,7 +141,7 @@ def main() -> None:
         small_w,
         box_h,
         "center x",
-        "175",
+        "99",
     )
     tb_center_y = add_labeled_textbox(
         fig,
@@ -150,7 +150,7 @@ def main() -> None:
         small_w,
         box_h,
         "center y",
-        "205",
+        "106",
     )
 
     tb_angle = add_labeled_textbox(
@@ -170,7 +170,7 @@ def main() -> None:
         small_w,
         box_h,
         "range min",
-        "60",
+        "20",
     )
     tb_range_max = add_labeled_textbox(
         fig,
@@ -179,7 +179,7 @@ def main() -> None:
         small_w,
         box_h,
         "range max",
-        "120",
+        "50",
     )
 
     tb_transform = add_labeled_textbox(
@@ -189,7 +189,7 @@ def main() -> None:
         full_w,
         box_h,
         "transform",
-        "0.76",
+        "0.95",
     )
 
     info_ax = fig.add_axes((x_mid - 0.005, y_info, full_w + 0.03, 0.07))

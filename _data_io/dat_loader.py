@@ -76,9 +76,9 @@ def load_ion_data(scans_paths: list[list[Path]]) -> list[RawScanData]:
 
             arr = np.loadtxt(path, usecols=(0, 1, 2), ndmin=2, dtype=np.float64)
 
-            local_frames = arr[:, 2].astype(np.int64)
-            xs = arr[:, 0]
-            ys = arr[:, 1]
+            local_frames = arr[:, 0].astype(np.int64)
+            xs = arr[:, 1]
+            ys = arr[:, 2]
 
             if stage_position not in x_chunks_by_pos:
                 x_chunks_by_pos[stage_position] = []
