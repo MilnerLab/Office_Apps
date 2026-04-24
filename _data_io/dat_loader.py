@@ -4,7 +4,7 @@ from pathlib import Path
 from astropy import conf
 from base_core.framework.services import runnable_service_base
 from base_core.lab_specifics.base_models import C2TScanData, IonData, IonDataAnalysisConfig, Measurement, RawScanData, ScanDataBase, calculate_time_delay
-from base_core.math.models import Points
+from base_core.math.models import MarkedPoints, Points
 from base_core.quantities.constants import SPEED_OF_LIGHT
 from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Length, Time
@@ -62,48 +62,67 @@ def load_time_scans(paths: list[Path], config: IonDataAnalysisConfig) -> list[C2
 def load_ion_data(scans_paths: list[list[Path]]) -> list[RawScanData]:
     raw_scans: list[RawScanData] = []
 
-    for i in range(len(scans_paths)):
-        # Collect data per stage_position (Length) in chunks
+    for scan_group in scans_paths:
         x_chunks_by_pos: dict[Length, list[np.ndarray]] = {}
         y_chunks_by_pos: dict[Length, list[np.ndarray]] = {}
+        frame_chunks_by_pos: dict[Length, list[np.ndarray]] = {}
         run_id_by_pos: dict[Length, int] = {}
-        count = 1
-        t0 = time.perf_counter()
+        next_frame_offset_by_pos: dict[Length, int] = {}
 
-        for path in sorted(scans_paths[i]):
+        number_of_scans = 0
+
+        for path in sorted(scan_group):
             run_id, stage_position = extract_infos_from_name(path)
 
-            arr = np.loadtxt(path, usecols=(1, 2), ndmin=2, dtype=np.float64)
+            arr = np.loadtxt(path, usecols=(0, 1, 2), ndmin=2, dtype=np.float64)
+
+            local_frames = arr[:, 2].astype(np.int64)
             xs = arr[:, 0]
             ys = arr[:, 1]
 
             if stage_position not in x_chunks_by_pos:
                 x_chunks_by_pos[stage_position] = []
                 y_chunks_by_pos[stage_position] = []
-                run_id_by_pos[stage_position] = run_id  # keep first run_id
-            elif stage_position == next(reversed(run_id_by_pos.keys())): 
-                count += 1 #for counting number of scans
-                
+                frame_chunks_by_pos[stage_position] = []
+                run_id_by_pos[stage_position] = run_id
+                next_frame_offset_by_pos[stage_position] = 0
+
+            offset = next_frame_offset_by_pos[stage_position]
+            frames = local_frames + offset
 
             x_chunks_by_pos[stage_position].append(xs)
             y_chunks_by_pos[stage_position].append(ys)
+            frame_chunks_by_pos[stage_position].append(frames)
 
-        t1 = time.perf_counter()
-        print("loadtxt:", t1 - t0)
+            if frames.size > 0:
+                next_frame_offset_by_pos[stage_position] = int(frames.max()) + 1
 
-        # Build IonData list in sorted stage_position order.
-        # If Length is not orderable, replace the sorted(...) with a key function (see below).
+            number_of_scans += 1
+
         output: list[IonData] = []
         for stage_position in sorted(x_chunks_by_pos.keys()):
             xs = np.concatenate(x_chunks_by_pos[stage_position])
             ys = np.concatenate(y_chunks_by_pos[stage_position])
+            frames = np.concatenate(frame_chunks_by_pos[stage_position])
 
-            pts = Points(xs, ys)
+            hits = MarkedPoints(xs, ys, frames)
 
-            # IonData.delay now effectively holds a Length (stage_position).
-            output.append(IonData(id=run_id_by_pos[stage_position], stage_position=stage_position, ions_per_frame=0, points=pts))
+            output.append(
+                IonData(
+                    id=run_id_by_pos[stage_position],
+                    stage_position=stage_position,
+                    ions_per_frame=hits.avg_points_per_marker(),
+                    points=hits,
+                )
+            )
 
-        raw_scans.append(RawScanData(run_id=output[0].id, ion_datas=output,number_of_scans = count))
+        raw_scans.append(
+            RawScanData(
+                run_id=output[0].id,
+                ion_datas=output,
+                number_of_scans=number_of_scans,
+            )
+        )
 
     return raw_scans
 """
