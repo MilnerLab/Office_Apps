@@ -88,14 +88,19 @@ def load_ion_data(scans_paths: list[list[Path]]) -> list[RawScanData]:
                 next_frame_offset_by_pos[stage_position] = 0
 
             offset = next_frame_offset_by_pos[stage_position]
-            frames = local_frames + offset
+
+            if local_frames.size > 0:
+                local_frames = local_frames - local_frames.min()
+                frames = local_frames + offset
+
+                n_local_frames = int(local_frames.max()) + 1
+                next_frame_offset_by_pos[stage_position] += n_local_frames
+            else:
+                frames = local_frames
 
             x_chunks_by_pos[stage_position].append(xs)
             y_chunks_by_pos[stage_position].append(ys)
             frame_chunks_by_pos[stage_position].append(frames)
-
-            if frames.size > 0:
-                next_frame_offset_by_pos[stage_position] = int(frames.max()) + 1
 
             number_of_scans += 1
 
