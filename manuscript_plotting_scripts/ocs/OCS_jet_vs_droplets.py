@@ -29,7 +29,7 @@ from base_core.quantities.models import Length, Time
 DROPLETRADIUSMIN = 60
 
 STFTWINDOWSIZE = Time(180,Prefix.PICO)  
-EARLIEST_DELAY_PS = -550
+EARLIEST_DELAY_PS = -250
 LATEST_DELAY_PS = -EARLIEST_DELAY_PS
 POSZEROSHIFT = 0 #millimetres :)
 
@@ -62,10 +62,12 @@ savedata_filename_2 = savedata_filedir + r"\OCS_usCFG_droplets.csv" #Name the fi
 
 
 #Plot on top
-
+PlotTitle = ''
 #PlotTitle = r"OCS - same centrifuge, same day, GA=0mm." "\n" "20260210 Scans 3 and 4" #GA = 0mm
 
-PlotTitle = r"OCS - STFT with 180 ps blackman window. Same centrifuge for each scan." "\n" "20260210 Scans 3 and 4" #GA = 0mm
+#PlotTitle = r"OCS - STFT with 180 ps blackman window. Same centrifuge for each scan." "\n" "20260210 Scans 3 and 4" #GA = 0mm
+
+#PlotTitle = r"OCS - STFT with 180 ps blackman window. Same centrifuge for each scan." "\n" "20260424 Scans 1 and 2" #GA = 0mm
 
 #PlotTitle = r"OCS - STFT with 180 ps blackman window. Same centrifuge for each scan." "\n" "20260222 Scans 2 and 3" #GA = 26mm
 
@@ -97,7 +99,22 @@ configs_1.append(IonDataAnalysisConfig(
 #     transform_parameter= 0.73))
 #folders_1.append(Path(r"20260223\Scan2_Jet")) 
 
+#APRIL REPEAT
+# GA=0, DA = 15.5mm
 
+configs_1: list[IonDataAnalysisConfig] = []
+folders_1: list[Path] = []
+
+folders_1.append(Path(r"20260424\Scan1")) 
+configs_1.append(IonDataAnalysisConfig(
+    delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(230, 192),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= Range[int](30, 110),
+    transform_parameter=0.78))
+
+#--------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
 #DROPLETS EXPERIMENT#--------------------------------------------------------------------------------------------------
 # GA=0, DA = 16.6mm
 
@@ -126,6 +143,21 @@ configs_2.append(IonDataAnalysisConfig(
 #     transform_parameter= 0.74))
 #folders_2.append(Path(r"20260223\Scan1")) 
 #configs_2.append(configs_2[0])
+
+#APRIL REPEATs
+# GA=0, DA = 15.5mm
+
+configs_2: list[IonDataAnalysisConfig] = []
+folders_2: list[Path] = []
+
+folders_2.append(Path(r"20260424\Scan2")) 
+configs_2.append(IonDataAnalysisConfig(
+    delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(205, 194),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= Range[int](DROPLETRADIUSMIN, 110),
+    transform_parameter=0.78))
+
 #--------------------------------------------------------------------------------------------------
 #Update the matplotlib settings
 mpl.rcParams.update({
@@ -252,7 +284,7 @@ plot_averaged_scan(a, plottable_scan_2, PlotColor.BLUE,ecolor=PlotColor.RED,mark
 a.grid(color='grey',linewidth=0.3)
 a.legend()
 a = axs[1,1]
-plot_Spectrogram(a, plottable_spectrogram_2,shading="auto")
+plot_Spectrogram(a, plottable_spectrogram_2,shading="auto",v_range=Range(0,0.6))
 a.set_ylim([0,120])
 plot_nyquist_frequency(a, plottable_scan_2)
 mainfig.suptitle(PlotTitle,fontsize=USEFONTSIZE,color='black')
