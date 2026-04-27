@@ -253,6 +253,6 @@ mainfig.suptitle(PlotTitle,fontsize=USEFONTSIZE,color='black')
 plottable_scan_1.to_csv(savedata_filename_1)
 plottable_scan_2.to_csv(savedata_filename_2)
 
-mainfig.savefig(fig_filename,format='png')
+#mainfig.savefig(fig_filename,format='png')
 plt.show()
 print('Done!')

@@ -223,6 +223,6 @@ a.set_ylim([0,120])
 plot_nyquist_frequency(a, plottable_scan_2)
 mainfig.suptitle(PlotTitle,fontsize=USEFONTSIZE,color='black')
 
-mainfig.savefig(fig_filename,format='png')
+#mainfig.savefig(fig_filename,format='png')
 plt.show()
 print('Done!')
