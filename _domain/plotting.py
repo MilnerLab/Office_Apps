@@ -7,7 +7,7 @@ from base_core.quantities.enums import Prefix
 import numpy as np
 
 
-def plot_ScanData(ax: Axes, data: ScanDataBase, label:str, color: PlotColor = None, ecolor: PlotColor = None,marker = 'o') -> None:
+def plot_ScanData(ax: Axes, data: ScanDataBase, label:str, color: PlotColor = None, ecolor: PlotColor = None,marker = 'o', markersize = 4) -> None:
     x = [time.value(Prefix.PICO) for time in data.delays]
     y = np.array([c.value for c in data.measured_values])
     error = np.array([c.error for c in data.measured_values])
@@ -20,7 +20,7 @@ def plot_ScanData(ax: Axes, data: ScanDataBase, label:str, color: PlotColor = No
         ecolor=ecolor,
         color=color,
         marker = marker,
-        markersize = 4,
+        markersize = markersize,
         label = label,
     )
     ax.legend(loc='upper left')

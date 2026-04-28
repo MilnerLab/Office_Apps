@@ -29,7 +29,7 @@ from base_core.quantities.models import Length, Time
 DROPLETRADIUSMIN = 60
 
 STFTWINDOWSIZE = Time(180,Prefix.PICO)  
-EARLIEST_DELAY_PS = -550
+EARLIEST_DELAY_PS = -350
 LATEST_DELAY_PS = -EARLIEST_DELAY_PS
 POSZEROSHIFT = 0 #millimetres :)
 
@@ -64,7 +64,9 @@ savedata_filename_2 = savedata_filedir + r"\CS2_usCFG_droplets.csv" #Name the fi
 #Plot on top
 
 
-PlotTitle = r"CS$_2$ - STFT with 180 ps blackman window. Same centrifuge for each scan." "\n" "202512 10th + 12th + 13th" #GA = 0mm
+PlotTitle = r"CS$_2$ - STFT with 180 ps blackman window. Same centrifuge for each scan." "\n" "202512 10th + 12th + 13th"
+
+PlotTitle = r"CS$_2$ in droplets for both - very different centrifuges"
 
 
 #JET EXPERIMENT
@@ -123,6 +125,23 @@ configs_2.append(IonDataAnalysisConfig(
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
     transform_parameter= 0.79))
+
+
+#FORCE DROPLETS COMPARISON
+folders_1 = folders_2
+configs_1 = configs_2
+#APRIL CENTRIFUGE REVERSED
+# GA=0, DA = 16.43mm (slower acceleration than GA=26mm data)
+configs_2: list[IonDataAnalysisConfig] = []
+folders_2: list[Path] = []
+
+folders_2.append(Path(r"20260427\Scan3")) 
+configs_2.append(IonDataAnalysisConfig(
+    delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(205, 194),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
+    transform_parameter=0.78))
 
 #--------------------------------------------------------------------------------------------------
 #Update the matplotlib settings

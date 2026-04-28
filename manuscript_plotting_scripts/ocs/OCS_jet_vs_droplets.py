@@ -165,7 +165,7 @@ folders_1 = folders_2
 configs_1 = configs_2
 
 #APRIL CENTRIFUGE REVERSED
-# GA=0, DA = 16.3mm
+# GA=0, DA = 16.43mm
 configs_2: list[IonDataAnalysisConfig] = []
 folders_2: list[Path] = []
 

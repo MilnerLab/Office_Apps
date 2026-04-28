@@ -1,0 +1,86 @@
+
+### Axes
+#axes.titlesize : large
+#axes.labelsize : 9
+#axes.formatter.use_mathtext : True
+#axes.linewidth : 0.5
+
+### Grid lines
+#grid.linewidth : 0.5
+#grid.linestyle : dashed
+#grid.color : 'xkcd:light gray'
+
+### Lines
+lines.linewidth : 0.5
+lines.markersize :5
+#hatch.linewidth: 0.25
+#patch.antialiased   : True
+
+### Ticks
+xtick.top: True
+xtick.bottom: True
+#xtick.major.size: 3.0
+#xtick.minor.size: 1.5
+#xtick.major.width: 0.5
+#xtick.minor.width: 0.5
+#xtick.direction: in
+#xtick.minor.visible: True
+#xtick.major.top: True
+#xtick.major.bottom: True
+#xtick.minor.top: True
+#xtick.minor.bottom: True
+#xtick.major.pad: 5.0
+#xtick.minor.pad: 5.0
+#ytick.labelsize: 9
+
+#ytick.left: True
+#ytick.right: True
+#ytick.major.size: 3.0
+#ytick.minor.size: 1.5
+#ytick.major.width: 0.5
+#ytick.minor.width: 0.5
+#ytick.direction: in
+#ytick.minor.visible: True
+#ytick.major.left: True
+#ytick.major.right: True
+#ytick.minor.left: True
+#ytick.minor.right: True
+#ytick.major.pad: 5.0
+#ytick.minor.pad: 5.0
+#xtick.labelsize: 9
+
+### Legend
+#legend.frameon: True
+#legend.fontsize: 10
+#legend.handlelength: 1.375
+#legend.labelspacing: 0.4
+#legend.columnspacing: 1
+#legend.facecolor: 'white'
+#legend.edgecolor: 'white'
+#legend.framealpha: 1
+#legend.title_fontsize: 10
+
+### Figure size
+#figure.figsize: 8, 4
+#figure.subplot.left: 0.125
+#figure.subplot.bottom: 0.175
+#figure.subplot.top: 0.95
+#figure.subplot.right: 0.95
+#figure.autolayout : False
+
+### Fonts (computer modern)
+text.usetex: True
+mathtext.fontset: cm
+font.family: serif
+font.serif: cmr10
+### Fonts (times)
+# text.usetex:False
+# mathtext.fontset: stix
+# font.family: serif
+# font.serif: Times New Roman
+# font.weight: regular
+
+### Saving figures
+path.simplify : True
+savefig.bbox : tight
+savefig.pad_inches : 0.05

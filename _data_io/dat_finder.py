@@ -56,9 +56,10 @@ def _cache_dest_for(folder: Path) -> Path | None:
 def _ensure_cached(folder: Path) -> Path:
     """
     If `folder` is under MOST_RECENT_FOLDER and not yet in _temp, copy it there.
-    Returns the path that should be used (cached or original).
+    Returns the path that should be used (cached or original).`
     """
     dest = _cache_dest_for(folder)
+    print(dest)
     if dest is None:
         return folder
     
