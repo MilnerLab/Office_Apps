@@ -60,10 +60,10 @@ def main() -> None:
     file_paths = DatFinder(folder_path,is_full_path=True).find_datafiles()
 
     raw_scans = load_ion_data(file_paths)
-    ion_data: IonData
-    for raw in raw_scans:
-        for d in raw.ion_datas:
-            ion_data.points.append_points(d.points)
+    
+    #Choose what scan you want to analyze by changing the index here:
+    raw_scan: RawScanData = raw_scans[0]
+    ion_data = raw_scan.ion_datas[0]
         
     points_before = ion_data.points
     
