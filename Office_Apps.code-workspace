@@ -27,7 +27,9 @@
   "python.analysis.packageIndexDepths": [
 
   { "name": "base_core", "depth": 5, "includeAllSymbols": true },
-]
+],
+"git-blame.config.inlineBlame.hoverMessage.activeLine": false,
+"git-blame.config.showBlameInline": false
 }
 
 }

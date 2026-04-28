@@ -20,7 +20,7 @@ def plot_ScanData(ax: Axes, data: ScanDataBase, label:str, color: PlotColor = No
         ecolor=ecolor,
         color=color,
         marker = marker,
-        markersize = 4,
+        markersize = 1.0,
         label = label,
     )
     ax.legend(loc='upper left')
