@@ -135,7 +135,15 @@ configs_1 = configs_2
 configs_2: list[IonDataAnalysisConfig] = []
 folders_2: list[Path] = []
 
-folders_2.append(Path(r"20260427\Scan3")) 
+#folders_2.append(Path(r"20260427\Scan3"))  
+# configs_2.append(IonDataAnalysisConfig(
+#     delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
+#     center=Point(205, 194),
+#     angle= Angle(12, AngleUnit.DEG),
+#     analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
+#     transform_parameter=0.78))
+
+folders_2.append(Path(r"20260428\Scan1")) 
 configs_2.append(IonDataAnalysisConfig(
     delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
     center=Point(205, 194),
@@ -254,18 +262,18 @@ mainfig, (axs) = plt.subplots(
 
 #Plot first experiment in top row
 a = axs[0,0]
-plot_averaged_scan(a, plottable_scan_1, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d', label = "120 PSI Jet")
+plot_averaged_scan(a, plottable_scan_1, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d', label = "December")
 a.grid(color='grey',linewidth=0.3)
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 a.legend(loc="lower center")
 a = axs[0,1]
 plot_Spectrogram(a, plottable_spectrogram_1,shading="auto")
 a.set_ylim([0,120])
-#plot_nyquist_frequency(a, plottable_scan_1)
+plot_nyquist_frequency(a, plottable_scan_1)
 
 #Plot second experiment in bottom row
 a = axs[1,0]
-plot_averaged_scan(a, plottable_scan_2, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d',label="30 bar / 16 K Droplets")
+plot_averaged_scan(a, plottable_scan_2, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d',label="April")
 a.grid(color='grey',linewidth=0.3)
 a.legend()
 a = axs[1,1]
