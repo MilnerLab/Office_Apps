@@ -156,9 +156,14 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         centrifuge_resolution = (12, 120)
         sphere_resolution = (10, 5)
         droplet_resolution = (24, 12)
+        
+        centrifuge_resolution = (24, 240)
+        sphere_resolution = (24, 12)
+        droplet_resolution = (48, 24)
 
         detector_center = molecule_center + np.array([0.0, 0.0, -2.25])
         detector_size = 3.15
+        
 
         # ============================================================
         # Camera
@@ -173,6 +178,22 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         if hasattr(camera, "light_source"):
             camera.light_source.move_to(3 * OUT + 4 * LEFT + 5 * UP)
 
+        
+        def rotate_point_around_z(
+            point: np.ndarray,
+            angle: float,
+            center: np.ndarray,
+        ) -> np.ndarray:
+            p = point - center
+
+            rot = np.array([
+                [np.cos(angle), -np.sin(angle), 0.0],
+                [np.sin(angle), np.cos(angle), 0.0],
+                [0.0, 0.0, 1.0],
+            ])
+
+            return center + rot @ p
+        
         # ============================================================
         # Pulse-frame mapping
         # ============================================================
@@ -360,21 +381,32 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         )
 
         theta_2d = 35 * DEGREES
+
+        # grüne Linie: oberer linker Quadrant
+        theta_line = PI - theta_2d
         line_length = detector_size * 0.45
 
         angle_line = Line(
             detector_center + np.array([0.0, 0.0, z_offset + 0.004]),
             detector_center
-            + line_length * np.array([np.cos(theta_2d), np.sin(theta_2d), 0.0])
+            + line_length
+            * np.array([
+                np.cos(theta_line),
+                np.sin(theta_line),
+                0.0,
+            ])
             + np.array([0.0, 0.0, z_offset + 0.004]),
             color=GREEN,
             stroke_width=4,
         )
 
+       # kleiner Winkel zwischen linker schwarzer Achse und grüner Linie
+        arc_radius = 0.62
+
         theta_arc = Arc(
-            radius=0.48,
-            start_angle=0.0,
-            angle=theta_2d,
+            radius=arc_radius,
+            start_angle=PI,
+            angle=-theta_2d,
             color=BLACK,
             stroke_width=4,
         )
@@ -382,20 +414,38 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
             detector_center + np.array([0.0, 0.0, z_offset + 0.006])
         )
 
-        theta_label = MathTex(
-            r"\theta_{2D}",
-            font_size=28,
-            color=BLACK,
-        )
-        theta_label.move_to(
+        # Label schwebt über dem kleinen Winkel
+        arc_mid_angle = PI - theta_2d / 2
+
+        label_anchor = (
             detector_center
-            + 0.72
+            + arc_radius * 0.7
             * np.array([
-                np.cos(theta_2d / 2),
-                np.sin(theta_2d / 2),
+                np.cos(arc_mid_angle),
+                np.sin(arc_mid_angle),
                 0.0,
             ])
-            + np.array([0.0, 0.0, z_offset + 0.01])
+        )
+
+        lable_line = Line(
+            label_anchor,
+            label_anchor + np.array([0.0, 0.0, 0.2]),
+            color=GRAY,
+            stroke_width=2,
+        )
+
+        # Weil lable_line später mit detector_group rotiert wird,
+        # muss die Label-Position genauso rotiert werden.
+        theta_label_pos = rotate_point_around_z(
+            label_anchor + np.array([0.0, 0.0, 0.40]),
+            90 * DEGREES,
+            detector_center,
+        )
+
+        theta_label = MathTex(
+            r"\theta_{2D}",
+            font_size=36,
+            color=BLACK,
         )
 
         detector_group = Group(
@@ -405,7 +455,7 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
             vertical_line,
             angle_line,
             theta_arc,
-            theta_label,
+            lable_line,
         )
 
         detector_group.rotate(
@@ -413,6 +463,10 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
             axis=OUT,
             about_point=detector_center,
         )
+        
+        theta_label.move_to(theta_label_pos)
+        self.add(detector_group)
+        self.add_fixed_orientation_mobjects(theta_label)
 
         # ============================================================
         # Helium droplet
@@ -532,39 +586,96 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
                 Manim y-direction = lab x
                 Manim z-direction = lab z
             """
-            axis_thickness = 0.025
+            axis_thickness = 0.035
+            cone_radius = 0.1
+            cone_height = 0.22
+
+            def make_arrow_tip(
+                tip_position: np.ndarray,
+                direction: np.ndarray,
+                color: ManimColor | str,
+            ) -> Cone:
+                direction = direction / np.linalg.norm(direction)
+
+                cone = Cone(
+                    base_radius=cone_radius,
+                    height=cone_height,
+                    direction=direction,
+                    resolution=(24, 8),
+                )
+
+                cone.set_fill(color, opacity=1.0)
+                cone.set_stroke(color, width=0, opacity=0.0)
+                cone.set_shade_in_3d(False)
+
+                # tatsächliche Spitze des Kegels finden:
+                # Das ist der Punkt mit maximaler Projektion auf die Achsenrichtung.
+                points = cone.get_all_points()
+                projections = points @ direction
+                current_tip = points[np.argmax(projections)]
+
+                # Kegel so verschieben, dass seine Spitze exakt am Achsenende sitzt.
+                cone.shift(tip_position - current_tip)
+
+                return cone
+
+            x_dir = np.array([0.0, -1.0, 0.0])
+            y_dir = np.array([1.0, 0.0, 0.0])
+            z_dir = np.array([0.0, 0.0, 1.0])
+
+            x_end = origin + length * x_dir 
+            y_end = origin + length * y_dir
+            z_end = origin + length * z_dir
+            x_line_end = x_end - cone_height * x_dir
+            y_line_end = y_end - cone_height * y_dir
+            z_line_end = z_end - cone_height * z_dir
 
             x_axis = Line3D(
                 start=origin,
-                end=origin + np.array([0.0, -length, 0.0]),
+                end=x_line_end,
                 color=WHITE,
                 thickness=axis_thickness,
             )
 
             y_axis = Line3D(
                 start=origin,
-                end=origin + np.array([length, 0.0, 0.0]),
+                end=y_line_end,
                 color=PURPLE,
                 thickness=axis_thickness,
             )
 
             z_axis = Line3D(
                 start=origin,
-                end=origin + np.array([0.0, 0.0, length]),
+                end=z_line_end,
                 color=WHITE,
                 thickness=axis_thickness,
             )
+            x_axis.set_shade_in_3d(False)
+            y_axis.set_shade_in_3d(False)
+            z_axis.set_shade_in_3d(False)
+            
+            x_tip = make_arrow_tip(x_end, x_dir, WHITE)
+            y_tip = make_arrow_tip(y_end, y_dir, PURPLE)
+            z_tip = make_arrow_tip(z_end, z_dir, WHITE)
 
-            x_label = MathTex("x", font_size=32, color=WHITE)
-            x_label.move_to(origin + np.array([0.0, length + label_shift, 0.0]))
+            x_label = MathTex("x", font_size=40, color=WHITE)
+            x_label.move_to(origin + (length + label_shift + cone_height) * x_dir)
 
-            y_label = MathTex("y", font_size=32, color=PURPLE)
-            y_label.move_to(origin + np.array([length + label_shift, 0.0, 0.0]))
+            y_label = MathTex("y", font_size=40, color=PURPLE)
+            y_label.move_to(origin + (length + label_shift + cone_height) * y_dir)
 
-            z_label = MathTex("z", font_size=32, color=WHITE)
-            z_label.move_to(origin + np.array([0.0, 0.0, length + label_shift]))
+            z_label = MathTex("z", font_size=40, color=WHITE)
+            z_label.move_to(origin + (length + label_shift + cone_height) * z_dir)
 
-            axes = VGroup(x_axis, y_axis, z_axis)
+            axes = VGroup(
+                x_axis,
+                y_axis,
+                z_axis,
+                x_tip,
+                y_tip,
+                z_tip,
+            )
+
             labels = (x_label, y_label, z_label)
 
             return axes, labels
@@ -581,22 +692,11 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
 
         self.add_fixed_orientation_mobjects(he_label)
 
-        capture_label = MathTex(
-            r"A_{\mathrm{mol}}/A_0 > p_{\mathrm{capture}}"
-            r"\quad\Rightarrow\quad"
-            r"\mathrm{molecule\ follows}\ \vec{E}",
-            font_size=24,
-            color=GRAY_B,
-        )
-        capture_label.to_corner(DL)
-        self.add_fixed_in_frame_mobjects(capture_label)
-
         # ============================================================
         # Add objects
         # ============================================================
 
         self.add(pulse)
-        self.add(detector_group)
         self.add(droplet)
         self.add(rotation_circle)
         self.add(molecule_obj)
@@ -609,7 +709,7 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
 
         self.play(
             t.animate.set_value(t_max),
-            run_time=12,
+            run_time=10,
             rate_func=linear,
         )
 
