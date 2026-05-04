@@ -3,6 +3,11 @@ from __future__ import annotations
 import numpy as np
 from manim import *
 import matplotlib.pyplot as plt
+from manim import config as global_config
+from pyparsing import White
+config = global_config.copy()
+config.background_color = WHITE
+config["background_color"] = WHITE
 
 from base_core.math.enums import AngleUnit, CartesianAxis
 from base_core.math.models import Points3D
@@ -129,7 +134,27 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         # ============================================================
         # Build physical model
         # ============================================================
-
+        self.camera.background_color = BLACK
+        
+        color_coordinate_system = WHITE
+        color_cfg = PURPLE
+        
+        color_HE = TEAL_A
+        color_atom1 = RED_C
+        color_atom2 = BLUE_C
+        color_bond = WHITE
+        color_ring = ORANGE
+        color_Efield = RED
+        
+        color_plot = WHITE
+        color_plotline = YELLOW
+        
+        color_detector = BLUE_E
+        color_detector_boarder = WHITE
+        color_angle_line = GREEN
+        color_angle = BLACK
+        
+        
         cfg = create_centrifuge_for_animation()
 
         z_R_extra = Length(0.65, Prefix.MILLI)
@@ -160,7 +185,6 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
 
         lab_axes_origin = np.array([pulse_start_x, 0.0, 0.0])
 
-        centrifuge_color = PURPLE
         ribbon_width = 1.35
         ribbon_opacity = 0.42
 
@@ -336,8 +360,8 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
                 resolution=centrifuge_resolution,
                 fill_opacity=ribbon_opacity,
                 checkerboard_colors=[
-                    ManimColor(centrifuge_color),
-                    ManimColor(centrifuge_color),
+                    ManimColor(color_cfg),
+                    ManimColor(color_cfg),
                 ],
             )
 
@@ -365,8 +389,8 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         # ============================================================
 
         detector_plate = Square(side_length=detector_size)
-        detector_plate.set_fill(BLUE_E, opacity=0.65)
-        detector_plate.set_stroke(BLUE_D, width=0)
+        detector_plate.set_fill(color_detector, opacity=0.65)
+        detector_plate.set_stroke(color_detector_boarder, width=2)
         detector_plate.move_to(detector_center)
 
         hist_cache = {
@@ -426,14 +450,14 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         reference_line = Line(
             detector_center + np.array([-detector_size * 0.48, 0.0, z_offset]),
             detector_center + np.array([detector_size * 0.48, 0.0, z_offset]),
-            color=BLACK,
+            color=color_angle,
             stroke_width=4,
         )
 
         vertical_line = Line(
             detector_center + np.array([0.0, -detector_size * 0.48, z_offset + 0.002]),
             detector_center + np.array([0.0, detector_size * 0.48, z_offset + 0.002]),
-            color=PURPLE,
+            color=color_cfg,
             stroke_width=2,
         )
 
@@ -453,7 +477,7 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
                 0.0,
             ])
             + np.array([0.0, 0.0, z_offset + 0.004]),
-            color=GREEN,
+            color=color_angle_line,
             stroke_width=4,
         )
 
@@ -464,7 +488,7 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
             radius=arc_radius,
             start_angle=PI,
             angle=-theta_2d,
-            color=BLACK,
+            color=color_angle,
             stroke_width=4,
         )
         theta_arc.move_arc_center_to(
@@ -487,7 +511,7 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         lable_line = Line(
             label_anchor,
             label_anchor + np.array([0.0, 0.0, 0.2]),
-            color=GRAY,
+            color=color_coordinate_system,
             stroke_width=2,
         )
 
@@ -502,7 +526,7 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         theta_label = MathTex(
             r"\theta_{2D}",
             font_size=36,
-            color=BLACK,
+            color=color_angle,
         )
 
         detector_group = Group(
@@ -558,21 +582,21 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         plot_x_axis = Line(
             plot_point_2d(plot_x_min, plot_y_min),
             plot_point_2d(plot_x_max, plot_y_min),
-            color=GRAY_A,
+            color=color_plot,
             stroke_width=2,
         )
 
         plot_y_axis = Line(
             plot_point_2d(plot_x_min, plot_y_min),
             plot_point_2d(plot_x_min, plot_y_max),
-            color=GRAY_A,
+            color=color_plot,
             stroke_width=2,
         )
 
         plot_baseline = DashedLine(
             plot_point_2d(plot_x_min, 0.5),
             plot_point_2d(plot_x_max, 0.5),
-            color=GRAY_B,
+            color=color_plot,
             stroke_width=1.5,
             dash_length=0.05,
         )
@@ -580,28 +604,28 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         plot_title = MathTex(
             r"\langle \cos^2\theta_{2D}\rangle",
             font_size=24 + lable_scaling,
-            color=GRAY_A,
+            color=color_plot,
         )
         plot_title.move_to(plot_origin + np.array([0, plot_height + 0.28, 0.0]))
 
         plot_x_label = MathTex(
             r"\mathrm{probe\ delay}",
             font_size=18 + lable_scaling,
-            color=GRAY_A,
+            color=color_plot,
         )
         plot_x_label.move_to(plot_origin + np.array([plot_width * 0.58, -0.22, 0.0]))
 
         plot_y05_label = MathTex(
             r"0.5",
             font_size=16 + lable_scaling,
-            color=GRAY_B,
+            color=color_plot,
         )
         plot_y05_label.move_to(plot_point_2d(plot_x_min, 0.5) + np.array([-0.22, 0.0, 0.0]))
 
         plot_y1_label = MathTex(
             r"1.0",
             font_size=16 + lable_scaling,
-            color=GRAY_B,
+            color=color_plot,
         )
         plot_y1_label.move_to(plot_point_2d(plot_x_min, 1.0) + np.array([-0.22, 0.0, 0.0]))
 
@@ -618,12 +642,12 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         self.add_fixed_in_frame_mobjects(plot_static)
 
         c2t_curve = VMobject()
-        c2t_curve.set_stroke(YELLOW, width=3)
+        c2t_curve.set_stroke(color_plotline, width=3)
 
         c2t_dot = Dot(
             point=plot_point_2d(t_min, 0.5),
             radius=0.035,
-            color=YELLOW,
+            color=color_plotline,
         )
 
         self.add_fixed_in_frame_mobjects(c2t_curve, c2t_dot)
@@ -641,7 +665,7 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
             ]
 
             mob.set_points_as_corners(points)
-            mob.set_stroke(YELLOW, width=3)
+            mob.set_stroke(color_plotline, width=3)
 
 
         def update_c2t_dot(mob: Dot) -> None:
@@ -697,17 +721,17 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
             bond = Line3D(
                 start=p1,
                 end=p2,
-                color=GRAY_A,
-                thickness=0.055,
+                color=color_bond,
+                thickness=0.04,
             )
 
             atom1 = Sphere(center=p1, radius=0.17, resolution=sphere_resolution)
-            atom1.set_fill(BLUE_C, opacity=1.0)
+            atom1.set_fill(color_atom2, opacity=1.0)
             atom1.set_style(stroke_width=0, stroke_opacity=0)
             atom1.set_shade_in_3d(True)
 
             atom2 = Sphere(center=p2, radius=0.17, resolution=sphere_resolution)
-            atom2.set_fill(BLUE_C, opacity=1.0)
+            atom2.set_fill(color_atom2, opacity=1.0)
             atom2.set_style(stroke_width=0, stroke_opacity=0)
             atom2.set_shade_in_3d(True)
 
@@ -716,7 +740,7 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
                 radius=0.14,
                 resolution=sphere_resolution,
             )
-            center_atom.set_fill(RED_C, opacity=1.0)
+            center_atom.set_fill(color_atom1, opacity=1.0)
             center_atom.set_style(stroke_width=0, stroke_opacity=0)
             center_atom.set_shade_in_3d(True)
 
@@ -740,8 +764,8 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
             return Line3D(
                 start=start,
                 end=end,
-                color=RED,
-                thickness=0.035,
+                color=color_Efield,
+                thickness=0.045,
             )
 
         e_vector = always_redraw(e_field_vector_at_molecule)
@@ -752,7 +776,7 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
 
         rotation_circle = Circle(
             radius=0.95,
-            color=ORANGE,
+            color=color_ring,
             stroke_width=4,
             stroke_opacity=0.75,
         )
@@ -822,38 +846,38 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
             x_axis = Line3D(
                 start=origin,
                 end=x_line_end,
-                color=GRAY_A,
+                color=color_coordinate_system,
                 thickness=axis_thickness,
             )
 
             y_axis = Line3D(
                 start=origin,
                 end=y_line_end,
-                color=PURPLE,
+                color=color_cfg,
                 thickness=axis_thickness,
             )
 
             z_axis = Line3D(
                 start=origin,
                 end=z_line_end,
-                color=GRAY_A,
+                color=color_coordinate_system,
                 thickness=axis_thickness,
             )
             x_axis.set_shade_in_3d(False)
             y_axis.set_shade_in_3d(False)
             z_axis.set_shade_in_3d(False)
             
-            x_tip = make_arrow_tip(x_end, x_dir, GRAY_A)
-            y_tip = make_arrow_tip(y_end, y_dir, PURPLE)
-            z_tip = make_arrow_tip(z_end, z_dir, GRAY_A)
+            x_tip = make_arrow_tip(x_end, x_dir, color_coordinate_system)
+            y_tip = make_arrow_tip(y_end, y_dir, color_cfg)
+            z_tip = make_arrow_tip(z_end, z_dir, color_coordinate_system)
 
-            x_label = MathTex("x", font_size=40, color=GRAY_A)
+            x_label = MathTex("x", font_size=40, color=color_coordinate_system)
             x_label.move_to(origin + (length + label_shift + cone_height) * x_dir)
 
-            y_label = MathTex("y", font_size=40, color=PURPLE)
+            y_label = MathTex("y", font_size=40, color=color_cfg)
             y_label.move_to(origin + (length + label_shift + cone_height) * y_dir)
 
-            z_label = MathTex("z", font_size=40, color=GRAY_A)
+            z_label = MathTex("z", font_size=40, color=color_coordinate_system)
             z_label.move_to(origin + (length + label_shift + cone_height) * z_dir)
 
             axes = VGroup(
@@ -876,7 +900,7 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         self.add(lab_axes)
         self.add_fixed_orientation_mobjects(*lab_axis_labels)
         
-        he_label = Text("He", font_size=36, color=TEAL_A)
+        he_label = Text("He", font_size=36, color=color_HE)
         he_label.move_to(droplet_center + np.array([-0.25, -0.75, 0.85]))
 
         self.add_fixed_orientation_mobjects(he_label)
@@ -898,7 +922,7 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
 
         self.play(
             t.animate.set_value(t_max),
-            run_time=10,
+            run_time=1,
             rate_func=linear,
         )
 
