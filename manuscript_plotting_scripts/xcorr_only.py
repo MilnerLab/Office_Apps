@@ -6,9 +6,7 @@ import matplotlib as mpl
 from _data_io.dat_finder import DatFinder
 from _data_io.dat_loader import load_ion_data, load_xcorr_means
 from _data_io.dat_saver import create_save_path_for_calc_ScanFile
-from _domain.models import C2TScanData, LoadableScan
 from _domain.plotting import plot_ScanData
-from apps.c2t_calculation.domain.config import IonDataAnalysisConfig
 from apps.c2t_calculation.domain.analysis import run_pipeline
 from apps.scan_averaging.domain.averaging import average_scans
 from apps.scan_averaging.domain.plotting import plot_averaged_scan
@@ -18,6 +16,8 @@ from apps.stft_analysis.domain.models import SpectrogramResult, AggregateSpectro
 from apps.stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
 from apps.stft_analysis.domain.resampling import resample_scan, resample_scans
 from apps.stft_analysis.domain.stft_calculation import StftAnalysis
+
+from base_core.lab_specifics.base_models import C2TScanData, IonDataAnalysisConfig
 from base_core.math.enums import AngleUnit
 from base_core.math.models import Angle, Point, Range
 from base_core.plotting.enums import PlotColor
@@ -45,19 +45,19 @@ def calculating(filepath: Path, zero_delay_position: float) -> tuple[C2TScanData
 
 
 #Path to save figure in
-fig_filedir = r"Z:\Droplets\plots" 
-fig_filename = fig_filedir + r"\\xcorr_temp.png" #Name the file to save here
+fig_filedir = r"C:\Users\camp06\OneDrive - UBC\Documents\droplets_manuscript\xcorr" 
+fig_filename = fig_filedir + r"\\faster_centralfreq_cfg.png" #Name the file to save here
 
 #Plot title on top
-PlotTitle = r"Cross-correlation Centrifuge comparison" 
+PlotTitle = r"Cross-correlation of CFG with a faster central frequency" 
 
 #FIRST EXPERIMENT
-# GA=26, DA = 16.3mm
-file_xcorr_1 = Path(r"Z:\Droplets\20260207\XCORR\CFG_16p3mm_26mm\20260207905AM_.csv")
+# Single arm, GA=0mm 
+file_xcorr_1 = Path(r"Z:\Droplets\20260504\Xcorr\GA_0\202605041054AM_.csv")
 zero_delay_position_1 = 170 + POSZEROSHIFT #mm
 #SECOND EXPERIMENT
-# GA=0, DA = 16.6mm
-file_xcorr_2 = Path(r"Z:\Droplets\20260207\XCORR\CFG_16p6mm_0mm\202602071250_.csv")
+# Faster CFG with GA=0, DA = 15.28mm
+file_xcorr_2 = Path(r"Z:\Droplets\20260504\Xcorr\Faster_CFG\202605041157AM_.csv")
 zero_delay_position_2 = 170 + POSZEROSHIFT #mm
 
 #GA=26, DA=16.0 mm
@@ -181,24 +181,24 @@ mainfig, (axs) = plt.subplots(
 
 #Plot first experiment in top row
 a = axs[0,0]
-plot_ScanData(a,xcdata_1,color = PlotColor.GRAY,label="CS2 Centrifuge (GA=26mm, DA=16.3mm)")
+plot_ScanData(a,xcdata_1,color = PlotColor.GRAY,label="Single arm, GA=0mm")
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 a.set_ylabel('Photodiode Signal (V)')
 a.legend(loc="upper right")
 
 #a.legend(loc="upper right")
-a = axs[0,1]
-plot_Spectrogram(a, plottable_spectrogram_1,colormap='viridis')
+#a = axs[0,1]
+#plot_Spectrogram(a, plottable_spectrogram_1,colormap='viridis')
 #plot_Spectrogram(a, plottable_spectrogram_3,colormap='magma')
-a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
-a.set_ylim([0,120])
+#a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
+#a.set_ylim([0,120])
 #a.set_ylim([0,120])
 #plot_nyquist_frequency(a, plottable_nyquist_1)
 
 
 #Plot second experiment in bottom row
 a = axs[1,0]
-plot_ScanData(a,xcdata_2,color = PlotColor.GRAY,label="OCS Centrifuge (GA=0mm, DA=16.6mm)")
+plot_ScanData(a,xcdata_2,color = PlotColor.GRAY,label="GA=0mm, DA=15.28mm)")
 a.set_ylabel('Photodiode Signal (V)')
 a.legend()
 a.legend(loc="upper right")
