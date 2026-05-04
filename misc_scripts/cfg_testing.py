@@ -28,8 +28,8 @@ def main() -> None:
     t_s = t_ps * 1e-12
 
     # Propagationslängen der beiden Arme
-    z_L = Length(0.0)
-    z_R = Length(0.12, Prefix.MILLI)
+    z_R = Length(0.65, Prefix.MILLI)
+    z_L = Length(0)
 
     # Momentane optische Kreisfrequenzen der beiden Arme in rad/s
     omega_R = centrifuge.right_arm.instantaneous_angular_frequency(
@@ -41,6 +41,18 @@ def main() -> None:
         t_s,
         float(z_L),
     )
+    
+    angle = centrifuge.polarization_angle(
+        t_s,
+        z_R=z_R,
+        z_L=z_L,
+    )
+
+    # lineare Polarisation: theta und theta + pi sind äquivalent
+    angle_wrapped = np.mod(angle, np.pi)
+
+    # optional für schönere Darstellung in Grad
+    angle_deg = np.rad2deg(angle_wrapped)
 
     # Umrechnung rad/s -> Hz -> THz
     f_R_thz = omega_R / (2.0 * np.pi) / 1e12
@@ -53,8 +65,8 @@ def main() -> None:
         z_L=z_L,
     ) / 1e9
 
-    fig, (ax0, ax1) = plt.subplots(
-        2,
+    fig, (ax0, ax1, ax2) = plt.subplots(
+        3,
         1,
         figsize=(7, 6),
         sharex=True,
@@ -75,6 +87,10 @@ def main() -> None:
     ax1.set_title("Optical centrifuge rotation frequency")
     ax1.grid(True)
 
+    ax2.plot(t_ps, angle_deg)
+    ax2.set_ylabel("polarization angle / deg")
+    ax2.set_title("Polarization axis angle")
+    ax2.grid(True)
     fig.tight_layout()
     plt.show()
 

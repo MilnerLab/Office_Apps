@@ -4,7 +4,7 @@ import numpy as np
 from manim import *
 import matplotlib.pyplot as plt
 
-from base_core.math.enums import CartesianAxis
+from base_core.math.enums import AngleUnit, CartesianAxis
 from base_core.math.models import Points3D
 from base_core.math.special_models import Histogram2D, SphericalHarmonicSuperposition
 from base_core.physics.optical_centrifuge import (
@@ -18,6 +18,7 @@ from base_core.physics.optical_centrifuge import (
     Time,
 )
 from base_core.quantities.enums import Prefix
+from base_core.math.models import Angle, AngleUnit
 from base_core.quantities.models import Length
 from base_core.quantities.specific_models import AngularChirp
 
@@ -30,6 +31,7 @@ from base_core.quantities.specific_models import AngularChirp
 def create_centrifuge_for_animation() -> OpticalCentrifuge:
     left_chirp = AngularChirp(BETA_0 + DELTA_BETA * 0.4)
     pulse_duration = Time(300, Prefix.PICO)
+    additional_phase = Angle(225, AngleUnit.DEG)
 
     right_arm = CircularChirpedPulse(
         1,
@@ -44,7 +46,7 @@ def create_centrifuge_for_animation() -> OpticalCentrifuge:
         1,
         CENTRAL_FREQUENCY,
         left_chirp,
-        PHASE_0,
+        Angle(PHASE_0 + additional_phase),
         pulse_duration,
         CircularHandedness.LEFT,
     )
@@ -52,23 +54,20 @@ def create_centrifuge_for_animation() -> OpticalCentrifuge:
     return OpticalCentrifuge(right_arm, left_arm)
 
 
-def make_y22_histogram_image(
-    n_points: int = 300_000,
-    bins: int = 350,
+def make_axis_aligned_histogram_image_and_c2t(
+    molecule_axis: np.ndarray,
+    n_points: int = 80_000,
+    bins: int = 220,
     cmap_name: str = "turbo",
-) -> np.ndarray:
+) -> tuple[np.ndarray, float]:
     rng = np.random.default_rng(1)
 
-    state = SphericalHarmonicSuperposition.from_mapping(
-        {(2, 2): 1.0},
-        normalize=True,
-    )
+    axis = np.asarray(molecule_axis, dtype=float)
+    axis /= np.linalg.norm(axis)
 
     cos_theta = rng.uniform(-1.0, 1.0, n_points)
     theta = np.arccos(cos_theta)
     phi = rng.uniform(0.0, 2.0 * np.pi, n_points)
-
-    rho = state.probability_density(theta, phi)
 
     points_3d = Points3D.from_spherical(
         r=1.0,
@@ -76,25 +75,40 @@ def make_y22_histogram_image(
         phi=phi,
     )
 
+    n = np.column_stack([
+        points_3d.x,
+        points_3d.y,
+        points_3d.z,
+    ])
+    n /= np.linalg.norm(n, axis=1, keepdims=True)
+
+    # Rotierte |Y_1^0|^2-artige Verteilung
+    rho = np.abs(n @ axis) ** 8
+
     projected = points_3d.project_to_plane(
         CartesianAxis.X | CartesianAxis.Z
     )
 
+    x = projected.x
+    y = projected.y
+
+    r2 = x**2 + y**2
+    valid = r2 > 1e-12
+
+    cos2_theta_2d = np.zeros_like(r2)
+    cos2_theta_2d[valid] = y[valid] ** 2 / r2[valid]
+
+    c2t = float(np.sum(rho[valid] * cos2_theta_2d[valid]) / np.sum(rho[valid]))
+
     matrix, x_edges, y_edges = np.histogram2d(
-        projected.x,
-        projected.y,
+        x,
+        y,
         bins=bins,
         range=[[-1.0, 1.0], [-1.0, 1.0]],
         weights=rho,
     )
 
-    hist = Histogram2D(
-        matrix=matrix,
-        x_edges=x_edges,
-        y_edges=y_edges,
-    )
-
-    data = hist.matrix.T.astype(float)
+    data = matrix.T.astype(float)
 
     if np.max(data) > 0:
         data /= np.max(data)
@@ -103,11 +117,9 @@ def make_y22_histogram_image(
 
     cmap = plt.get_cmap(cmap_name)
     rgba = cmap(data)
-
     rgba[..., 3] = np.clip(1.6 * data, 0.0, 1.0)
 
-    return (255 * rgba).astype(np.uint8)
-
+    return (255 * rgba).astype(np.uint8), c2t
 
 
 
@@ -132,7 +144,6 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         t = ValueTracker(t_min)
 
         seconds_per_manim_unit = 80e-12
-        capture_fraction = 0.05
 
         # ============================================================
         # Scene geometry
@@ -145,7 +156,7 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         molecule_length = 1.45
 
         pulse_start_x = -5.2
-        pulse_end_x = droplet_center[0] + 1.4
+        pulse_end_x = droplet_center[0] + 4
 
         lab_axes_origin = np.array([pulse_start_x, 0.0, 0.0])
 
@@ -156,10 +167,10 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         centrifuge_resolution = (12, 120)
         sphere_resolution = (10, 5)
         droplet_resolution = (24, 12)
-        
+        '''
         centrifuge_resolution = (24, 240)
         sphere_resolution = (24, 12)
-        droplet_resolution = (48, 24)
+        droplet_resolution = (48, 24)'''
 
         detector_center = molecule_center + np.array([0.0, 0.0, -2.25])
         detector_size = 3.15
@@ -266,9 +277,9 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
             return float(cfg.centrifuge_frequency(pulse_time, z_R_extra, z_L_extra))
 
         def molecule_direction(anim_time: float) -> np.ndarray:
-            if field_strength_at_molecule(anim_time) < capture_fraction:
-                return np.array([0.0, 1.0, 0.0])
-
+            if centrifuge_frequency_at_molecule(anim_time) > 0:
+                return np.array([0.0, 0.0, 1.0])
+            
             return field_direction_at_molecule(anim_time)
 
         # ============================================================
@@ -358,12 +369,58 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         detector_plate.set_stroke(BLUE_D, width=0)
         detector_plate.move_to(detector_center)
 
-        hist_image_array = make_y22_histogram_image()
+        hist_cache = {
+            "time": None,
+            "image_array": None,
+            "c2t": None,
+        }
+        c2t_history: list[tuple[float, float]] = []
+        last_history_time = {"value": None}
 
-        histogram_image = ImageMobject(hist_image_array)
-        histogram_image.height = detector_size * 0.94
-        histogram_image.move_to(detector_center + np.array([0.0, 0.0, 0.01]))
+        def get_histogram_frame_data() -> tuple[np.ndarray, float]:
+            current_time = round(t.get_value(), 4)
 
+            if hist_cache["time"] == current_time:
+                return hist_cache["image_array"], hist_cache["c2t"]
+
+            axis = molecule_direction(current_time)
+
+            axis_for_hist = np.array([
+                axis[0],
+                axis[2],
+                -axis[1],
+            ])
+
+            image_array, c2t = make_axis_aligned_histogram_image_and_c2t(
+                axis_for_hist,
+                n_points=30_000,
+                bins=160,
+            )
+            field_strength = field_strength_at_molecule(current_time)
+            field_strength = np.clip(field_strength, 0.0, 1.0)
+
+            c2t = 0.5 + field_strength * (c2t - 0.5)
+            
+            hist_cache["time"] = current_time
+            hist_cache["image_array"] = image_array
+            hist_cache["c2t"] = c2t
+
+            if last_history_time["value"] != current_time:
+                c2t_history.append((current_time, c2t))
+                last_history_time["value"] = current_time
+
+            return image_array, c2t
+
+        def make_histogram_mobject() -> ImageMobject:
+            image_array, _ = get_histogram_frame_data()
+
+            image = ImageMobject(image_array)
+            image.height = detector_size * 0.94
+            image.move_to(detector_center + np.array([0.0, 0.0, 0.01]))
+
+            return image
+        histogram_image = always_redraw(make_histogram_mobject)
+        
         z_offset = 0.04
 
         reference_line = Line(
@@ -469,6 +526,138 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         self.add_fixed_orientation_mobjects(theta_label)
 
         # ============================================================
+        # Live c2t plot as fixed 2D camera overlay
+        # ============================================================
+
+        plot_width = 3
+        plot_height = 1.0
+        lable_scaling = 6
+
+        plot_x_min = t_min
+        plot_x_max = t_max
+
+        plot_y_min = 0.45
+        plot_y_max = 1.00
+
+        # Screen position, not 3D world position
+        plot_origin = np.array([-4.5, -2.5, 0.0])
+
+        def plot_point_2d(x_value: float, y_value: float) -> np.ndarray:
+            x_frac = (x_value - plot_x_min) / (plot_x_max - plot_x_min)
+            y_frac = (y_value - plot_y_min) / (plot_y_max - plot_y_min)
+
+            x_frac = np.clip(x_frac, 0.0, 1.0)
+            y_frac = np.clip(y_frac, 0.0, 1.0)
+
+            return plot_origin + np.array([
+                plot_width * x_frac,
+                plot_height * y_frac,
+                0.0,
+            ])
+        
+        plot_x_axis = Line(
+            plot_point_2d(plot_x_min, plot_y_min),
+            plot_point_2d(plot_x_max, plot_y_min),
+            color=GRAY_A,
+            stroke_width=2,
+        )
+
+        plot_y_axis = Line(
+            plot_point_2d(plot_x_min, plot_y_min),
+            plot_point_2d(plot_x_min, plot_y_max),
+            color=GRAY_A,
+            stroke_width=2,
+        )
+
+        plot_baseline = DashedLine(
+            plot_point_2d(plot_x_min, 0.5),
+            plot_point_2d(plot_x_max, 0.5),
+            color=GRAY_B,
+            stroke_width=1.5,
+            dash_length=0.05,
+        )
+
+        plot_title = MathTex(
+            r"\langle \cos^2\theta_{2D}\rangle",
+            font_size=24 + lable_scaling,
+            color=GRAY_A,
+        )
+        plot_title.move_to(plot_origin + np.array([0, plot_height + 0.28, 0.0]))
+
+        plot_x_label = MathTex(
+            r"\mathrm{probe\ delay}",
+            font_size=18 + lable_scaling,
+            color=GRAY_A,
+        )
+        plot_x_label.move_to(plot_origin + np.array([plot_width * 0.58, -0.22, 0.0]))
+
+        plot_y05_label = MathTex(
+            r"0.5",
+            font_size=16 + lable_scaling,
+            color=GRAY_B,
+        )
+        plot_y05_label.move_to(plot_point_2d(plot_x_min, 0.5) + np.array([-0.22, 0.0, 0.0]))
+
+        plot_y1_label = MathTex(
+            r"1.0",
+            font_size=16 + lable_scaling,
+            color=GRAY_B,
+        )
+        plot_y1_label.move_to(plot_point_2d(plot_x_min, 1.0) + np.array([-0.22, 0.0, 0.0]))
+
+        plot_static = VGroup(
+            plot_x_axis,
+            plot_y_axis,
+            plot_baseline,
+            plot_title,
+            plot_x_label,
+            plot_y05_label,
+            plot_y1_label,
+        )
+
+        self.add_fixed_in_frame_mobjects(plot_static)
+
+        c2t_curve = VMobject()
+        c2t_curve.set_stroke(YELLOW, width=3)
+
+        c2t_dot = Dot(
+            point=plot_point_2d(t_min, 0.5),
+            radius=0.035,
+            color=YELLOW,
+        )
+
+        self.add_fixed_in_frame_mobjects(c2t_curve, c2t_dot)
+        
+        def update_c2t_curve(mob: VMobject) -> None:
+            get_histogram_frame_data()
+
+            if len(c2t_history) < 2:
+                mob.set_points([])
+                return
+
+            points = [
+                plot_point_2d(time_value, c2t_value)
+                for time_value, c2t_value in c2t_history
+            ]
+
+            mob.set_points_as_corners(points)
+            mob.set_stroke(YELLOW, width=3)
+
+
+        def update_c2t_dot(mob: Dot) -> None:
+            get_histogram_frame_data()
+
+            if len(c2t_history) == 0:
+                return
+
+            time_value, c2t_value = c2t_history[-1]
+            mob.move_to(plot_point_2d(time_value, c2t_value))
+
+
+        c2t_curve.add_updater(update_c2t_curve)
+        c2t_dot.add_updater(update_c2t_dot)
+        
+        # ============================================================
         # Helium droplet
         # ============================================================
 
@@ -508,7 +697,7 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
             bond = Line3D(
                 start=p1,
                 end=p2,
-                color=WHITE,
+                color=GRAY_A,
                 thickness=0.055,
             )
 
@@ -633,7 +822,7 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
             x_axis = Line3D(
                 start=origin,
                 end=x_line_end,
-                color=WHITE,
+                color=GRAY_A,
                 thickness=axis_thickness,
             )
 
@@ -647,24 +836,24 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
             z_axis = Line3D(
                 start=origin,
                 end=z_line_end,
-                color=WHITE,
+                color=GRAY_A,
                 thickness=axis_thickness,
             )
             x_axis.set_shade_in_3d(False)
             y_axis.set_shade_in_3d(False)
             z_axis.set_shade_in_3d(False)
             
-            x_tip = make_arrow_tip(x_end, x_dir, WHITE)
+            x_tip = make_arrow_tip(x_end, x_dir, GRAY_A)
             y_tip = make_arrow_tip(y_end, y_dir, PURPLE)
-            z_tip = make_arrow_tip(z_end, z_dir, WHITE)
+            z_tip = make_arrow_tip(z_end, z_dir, GRAY_A)
 
-            x_label = MathTex("x", font_size=40, color=WHITE)
+            x_label = MathTex("x", font_size=40, color=GRAY_A)
             x_label.move_to(origin + (length + label_shift + cone_height) * x_dir)
 
             y_label = MathTex("y", font_size=40, color=PURPLE)
             y_label.move_to(origin + (length + label_shift + cone_height) * y_dir)
 
-            z_label = MathTex("z", font_size=40, color=WHITE)
+            z_label = MathTex("z", font_size=40, color=GRAY_A)
             z_label.move_to(origin + (length + label_shift + cone_height) * z_dir)
 
             axes = VGroup(
