@@ -140,7 +140,7 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         color_cfg = PURPLE
         
         color_HE = TEAL_A
-        color_atom1 = RED_C
+        color_atom1 = GREY
         color_atom2 = BLUE_C
         color_bond = WHITE
         color_ring = ORANGE
@@ -191,10 +191,10 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         centrifuge_resolution = (12, 120)
         sphere_resolution = (10, 5)
         droplet_resolution = (24, 12)
-        '''
+        
         centrifuge_resolution = (24, 240)
         sphere_resolution = (24, 12)
-        droplet_resolution = (48, 24)'''
+        droplet_resolution = (48, 24)
 
         detector_center = molecule_center + np.array([0.0, 0.0, -2.25])
         detector_size = 3.15
@@ -714,15 +714,25 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         def molecule() -> VGroup:
             current_time = t.get_value()
             direction = molecule_direction(current_time)
+            direction = direction / np.linalg.norm(direction)
 
             p1 = molecule_center - 0.5 * molecule_length * direction
             p2 = molecule_center + 0.5 * molecule_length * direction
 
-            bond = Line3D(
+            center_radius = 0.14
+
+            bond1 = Line3D(
                 start=p1,
+                end=molecule_center - center_radius * direction,
+                color=color_bond,
+                thickness=0.02,
+            )
+
+            bond2 = Line3D(
+                start=molecule_center + center_radius * direction,
                 end=p2,
                 color=color_bond,
-                thickness=0.04,
+                thickness=0.02,
             )
 
             atom1 = Sphere(center=p1, radius=0.17, resolution=sphere_resolution)
@@ -737,14 +747,14 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
 
             center_atom = Sphere(
                 center=molecule_center,
-                radius=0.14,
+                radius=center_radius,
                 resolution=sphere_resolution,
             )
             center_atom.set_fill(color_atom1, opacity=1.0)
             center_atom.set_style(stroke_width=0, stroke_opacity=0)
             center_atom.set_shade_in_3d(True)
 
-            return VGroup(bond, atom1, atom2, center_atom)
+            return VGroup(bond1, bond2, atom1, atom2, center_atom)
 
         molecule_obj = always_redraw(molecule)
 
@@ -752,23 +762,80 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         # Local E-field vector
         # ============================================================
 
-        def e_field_vector_at_molecule() -> Line3D:
+        def e_field_vector_at_molecule() -> VGroup:
             current_time = t.get_value()
             amp = field_strength_at_molecule(current_time)
             direction = field_direction_at_molecule(current_time)
+            direction = direction / np.linalg.norm(direction)
 
-            length = 0.15 + 1.2 * amp
-            start = molecule_center - 0.5 * length * direction
-            end = molecule_center + 0.5 * length * direction
+            length = 0.15 + 0.7 * amp
 
-            return Line3D(
-                start=start,
-                end=end,
+            shaft_thickness = 0.045
+            cone_radius = 0.09
+            cone_height = 0.20
+
+            start_tip = molecule_center - 0.5 * length * direction
+            end_tip = molecule_center + 0.5 * length * direction
+
+            start_line = start_tip + cone_height * direction
+            end_line = end_tip - cone_height * direction
+
+            def make_arrow_tip(
+                tip_position: np.ndarray,
+                tip_direction: np.ndarray,
+            ) -> Cone:
+                tip_direction = tip_direction / np.linalg.norm(tip_direction)
+
+                cone = Cone(
+                    base_radius=cone_radius,
+                    height=cone_height,
+                    direction=tip_direction,
+                    resolution=(24, 8),
+                )
+
+                cone.set_fill(color_Efield, opacity=1.0)
+                cone.set_stroke(color_Efield, width=0, opacity=0.0)
+                cone.set_shade_in_3d(False)
+
+                points = cone.get_all_points()
+                projections = points @ tip_direction
+                current_tip = points[np.argmax(projections)]
+
+                cone.shift(tip_position - current_tip)
+
+                return cone
+
+            shaft = Line3D(
+                start=start_line,
+                end=end_line,
                 color=color_Efield,
-                thickness=0.045,
+                thickness=shaft_thickness,
+            )
+            shaft.set_shade_in_3d(False)
+
+            start_cone = make_arrow_tip(
+                tip_position=start_tip,
+                tip_direction=-direction,
             )
 
+            end_cone = make_arrow_tip(
+                tip_position=end_tip,
+                tip_direction=direction,
+            )
+
+            return VGroup(shaft, start_cone, end_cone)
+
+
         e_vector = always_redraw(e_field_vector_at_molecule)
+        
+        e_vector_label = MathTex(
+            r"\vec{E}_{\mathrm{CFG}}",
+            font_size=34,
+            color=color_Efield,
+        )
+        e_vector_label.move_to(molecule_center + np.array([0.0, 0.0, 1.7]))
+
+        self.add_fixed_orientation_mobjects(e_vector_label)
 
         # ============================================================
         # Rotation guide
@@ -915,14 +982,13 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         self.add(molecule_obj)
         self.add(e_vector)
         self.add(he_label)
-
         # ============================================================
         # Animate
         # ============================================================
 
         self.play(
             t.animate.set_value(t_max),
-            run_time=1,
+            run_time=13,
             rate_func=linear,
         )
 
