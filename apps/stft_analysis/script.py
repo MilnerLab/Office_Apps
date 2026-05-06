@@ -7,6 +7,7 @@ from matplotlib.widgets import Button
 
 from _domain.plotting import plot_GaussianFit
 from apps.c2t_calculation.domain.analysis import run_pipeline
+from apps.c2t_calculation.domain.plotting import plot_calculated_scan
 from apps.scan_averaging.domain import averaging
 from apps.stft_analysis.domain.config import StftAnalysisConfig
 from apps.stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
@@ -117,17 +118,29 @@ mpl.rcParams.update({
 
 })
 
+vmi_config: list[IonDataAnalysisConfig] = []
+# vmi_config.append(IonDataAnalysisConfig(
+#     delay_center= Length(93.3, Prefix.MILLI),
+#     center=Point(206, 194),
+#     angle= Angle(12, AngleUnit.DEG),
+#     analysis_zone= Range[int](60, 110),
+#     transform_parameter=0.78))
+folder_path: list[Path] = []
+#folder_path.append(Path(r"Z:\Droplets\20260504\Scan3"))
+#folder_path.append(Path(r"Z:\Droplets\20260505\Scan2"))
 
 def main() -> None:
-    folder_path = Path(r"Z:\Droplets\20260504\Scan3")
+    folder_path.append(Path(r"Z:\Droplets\20260505\Scan3"))
     
 
-    vmi_config = IonDataAnalysisConfig(
+    vmi_config.append(IonDataAnalysisConfig(
     delay_center= Length(93.3, Prefix.MILLI),
-    center=Point(206, 194),
+    center=Point(204, 196),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](60, 110),
-    transform_parameter=0.78)
+    transform_parameter=0.78))
+    #vmi_config.append(vmi_config[0])
+    
     fig,(ax1,ax2) = plt.subplots(2,1,figsize=(8,5))
     plt.subplots_adjust(bottom=0.2)  
     button_ax = fig.add_axes((0.8, 0.05, 0.15, 0.075))
@@ -136,7 +149,8 @@ def main() -> None:
     def on_refresh(event):
         file_paths = DatFinder(folder_path,is_full_path=True).find_datafiles()
         raw_scans = load_ion_data(file_paths)
-        calculated_Scan = run_pipeline(raw_scans, [vmi_config])
+        calculated_Scan = run_pipeline(raw_scans, vmi_config)   
+        
 
         stft_config = StftAnalysisConfig(calculated_Scan, Time(180, Prefix.PICO))
         resampled_scans = resample_scans(calculated_Scan,stft_config.axis)
@@ -146,13 +160,21 @@ def main() -> None:
 
         ax1.clear()
         ax2.clear()
-        plot_averaged_scan(ax1,data=averaged_data,ecolor=PlotColor.RED)
+        
+        if len(averaged_data.run_ids) > 1:
+            plot_averaged_scan(ax1,data=averaged_data,ecolor=PlotColor.RED)
+        else:
+            plot_calculated_scan(ax1,data=averaged_data)
+        
         #x = [time.value(Prefix.PICO) for time in resampled_scan[0].delays]
         #ax1.plot(x, baseline)
         ax1.grid(visible=True,which='major',alpha=1.0)
         spectrogram = StftAnalysis(resampled_scans,stft_config).calculate_averaged_spectrogram()
+        xrange = [-150,275]
+        ax1.set_xlim(xrange)
         plot_Spectrogram(ax2,spectrogram)
         plot_nyquist_frequency(ax2,calculated_Scan[0])
+        ax2.set_xlim(xrange)
         fig.suptitle('CS2 Droplets - window 180ps', fontsize=12)
         fig.canvas.draw_idle()
     

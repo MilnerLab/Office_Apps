@@ -102,7 +102,7 @@ def load_ion_data(scans_paths: list[list[Path]]) -> list[RawScanData]:
             y_chunks_by_pos[stage_position].append(ys)
             frame_chunks_by_pos[stage_position].append(frames)
 
-            number_of_scans += 1
+            
 
         output: list[IonData] = []
         for stage_position in sorted(x_chunks_by_pos.keys()):
