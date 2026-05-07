@@ -206,8 +206,14 @@ def make_axis_aligned_histogram_image_and_c2t(
     cos_theta = rng.uniform(-1.0, 1.0, n_points)
     theta = np.arccos(cos_theta)
     phi = rng.uniform(0.0, 2.0 * np.pi, n_points)
+    
+    r_mean = 0.8
+    r_std = 0.1   # ca. 95% der Werte liegen zwischen 0.6 und 1.0
 
-    points_3d = Points3D.from_spherical(r=1.0, theta=theta, phi=phi)
+    r = rng.normal(loc=r_mean, scale=r_std, size=n_points)
+    r = np.clip(r, 0.6, 1.0)
+
+    points_3d = Points3D.from_spherical(r=r, theta=theta, phi=phi)
     vectors = np.column_stack([points_3d.x, points_3d.y, points_3d.z])
     vectors /= np.linalg.norm(vectors, axis=1, keepdims=True)
 
@@ -247,13 +253,14 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
     def construct(self) -> None:
         
         # manim -s -r 7680,4320 misc_scripts/animation_optical_centrifuge_snapshot_ready.py PhysicalOpticalCentrifuge3D
-        mode = RenderMode(snapshot_only=True, snapshot_time= 1, high_detail=True)
+        #mode = RenderMode(snapshot_only=True, snapshot_time= 1, high_detail=True)
         
         # manim -p -r 3840,2160 --fps 60 misc_scripts/animation_optical_centrifuge_snapshot_ready.py PhysicalOpticalCentrifuge3D
-        #mode = RenderMode(snapshot_only=False, snapshot_time= 0, high_detail=True)
+        # manim -pql misc_scripts/animation_optical_centrifuge_snapshot_ready.py PhysicalOpticalCentrifuge3D
+        mode = RenderMode(snapshot_only=False, snapshot_time= 0, high_detail=True)
         
         layout = SceneLayout()
-        colors = SceneColors().light()
+        colors = SceneColors().dark()
         geometry = self._geometry_resolution(mode)
 
         self.camera.background_color = colors.background
