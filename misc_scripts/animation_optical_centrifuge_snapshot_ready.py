@@ -1,4 +1,5 @@
 from __future__ import annotations
+from PIL import Image
 
 import os
 from dataclasses import dataclass, field
@@ -95,8 +96,8 @@ class SceneColors:
     e_field: ManimColor = RED
     droplet: ManimColor = TEAL_E
     plot: ManimColor = DARKER_GREY
-    plot_line: ManimColor = GRAY_BROWN
-    detector: ManimColor = PURPLE_E
+    plot_line: ManimColor = RED
+    detector: ManimColor = GRAY_BROWN
     detector_border: ManimColor = GREY_BROWN
     angle_line: ManimColor = GRAY_BROWN
     angle: ManimColor = GRAY_D
@@ -242,10 +243,11 @@ def make_axis_aligned_histogram_image_and_c2t(
     data = matrix.T.astype(float)
     if np.max(data) > 0:
         data /= np.max(data)
-    data = np.sqrt(data)
+    data = data ** 0.45
+    data[data < 0.08] = 0.0
 
     rgba = plt.get_cmap(cmap_name)(data)
-    rgba[..., 3] = np.clip(1.6 * data, 0.0, 1.0)
+    rgba[..., 3] = np.clip(2.6 * data, 0.0, 1.0)
     return (255 * rgba).astype(np.uint8), c2t
 
 
@@ -253,18 +255,19 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
     def construct(self) -> None:
         
         # manim -s -r 7680,4320 misc_scripts/animation_optical_centrifuge_snapshot_ready.py PhysicalOpticalCentrifuge3D
-        #mode = RenderMode(snapshot_only=True, snapshot_time= 1, high_detail=True)
+        mode = RenderMode(snapshot_only=True, snapshot_time= 1, high_detail=True)
+        self.set_camera_orientation(phi=68 * DEGREES, theta=-55 * DEGREES, zoom=1.27, frame_center=np.array([0.55, -0.6, 0.0]))
         
         # manim -p -r 3840,2160 --fps 60 misc_scripts/animation_optical_centrifuge_snapshot_ready.py PhysicalOpticalCentrifuge3D
         # manim -pql misc_scripts/animation_optical_centrifuge_snapshot_ready.py PhysicalOpticalCentrifuge3D
-        mode = RenderMode(snapshot_only=False, snapshot_time= 0, high_detail=True)
+        #mode = RenderMode(snapshot_only=False, snapshot_time= 0, high_detail=True)
+        #self.set_camera_orientation(phi=68 * DEGREES, theta=-55 * DEGREES)
         
         layout = SceneLayout()
-        colors = SceneColors().dark()
+        colors = SceneColors().light()
         geometry = self._geometry_resolution(mode)
 
         self.camera.background_color = colors.background
-        self.set_camera_orientation(phi=68 * DEGREES, theta=-55 * DEGREES)
 
         camera = self.renderer.camera
         if hasattr(camera, "light_source"):
@@ -318,10 +321,11 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
 
     def _geometry_resolution(self, mode: RenderMode) -> dict[str, tuple[int, int]]:
         if mode.high_detail:
+            amp_factor = 5
             return {
                 "centrifuge": (24, 240),
-                "sphere": (24, 12),
-                "droplet": (48, 24),
+                "sphere": (24 * amp_factor, 12 * amp_factor),
+                "droplet": (48 * amp_factor, 24 * amp_factor),
             }
 
         return {
@@ -402,12 +406,12 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         }
 
     def _make_pulse(
-        self,
-        layout: SceneLayout,
-        colors: SceneColors,
-        geometry: dict[str, tuple[int, int]],
-        model: dict[str, object],
-        time_tracker: ValueTracker,
+    self,
+    layout: SceneLayout,
+    colors: SceneColors,
+    geometry: dict[str, tuple[int, int]],
+    model: dict[str, object],
+    time_tracker: ValueTracker,
     ) -> VGroup:
         pulse_time_from_xi = model["pulse_time_from_xi"]
         field_angle_from_pulse_time = model["field_angle_from_pulse_time"]
@@ -415,28 +419,65 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         field_direction_from_angle = model["field_direction_from_angle"]
         pulse_center_x = model["pulse_center_x"]
 
-        surface = Surface(
-            lambda u, xi: np.array(
+        def ribbon_point_local(u: float, xi: float) -> np.ndarray:
+            pulse_time = pulse_time_from_xi(xi)
+            amplitude = normalized_field_amplitude_from_pulse_time(pulse_time)
+            theta = field_angle_from_pulse_time(pulse_time)
+
+            return np.array(
                 [
                     xi,
-                    u
-                    * layout.ribbon_width
-                    * normalized_field_amplitude_from_pulse_time(pulse_time_from_xi(xi))
-                    * np.cos(field_angle_from_pulse_time(pulse_time_from_xi(xi))),
-                    u
-                    * layout.ribbon_width
-                    * normalized_field_amplitude_from_pulse_time(pulse_time_from_xi(xi))
-                    * np.sin(field_angle_from_pulse_time(pulse_time_from_xi(xi))),
+                    u * layout.ribbon_width * amplitude * np.cos(theta),
+                    u * layout.ribbon_width * amplitude * np.sin(theta),
                 ]
-            ),
+            )
+
+        surface = Surface(
+            lambda u, xi: ribbon_point_local(u, xi),
             u_range=[-0.5, 0.5],
             v_range=[layout.xi_min, layout.xi_max],
             resolution=geometry["centrifuge"],
             fill_opacity=layout.ribbon_opacity,
             checkerboard_colors=[ManimColor(colors.cfg), ManimColor(colors.cfg)],
         )
-        surface.set_style(stroke_width=0, stroke_opacity=0, fill_opacity=layout.ribbon_opacity)
+        surface.set_style(
+            stroke_width=0,
+            stroke_opacity=0,
+            fill_opacity=layout.ribbon_opacity,
+        )
         surface.set_shade_in_3d(True)
+
+        # ------------------------------------------------------------
+        # Trace: mark the centrifuge edge after it has passed the molecule
+        # ------------------------------------------------------------
+        def make_edge_trace(sign: float) -> VMobject:
+            current_time = time_tracker.get_value()
+            current_center_x = pulse_center_x(current_time)
+
+            xi_molecule = layout.molecule_center[0] - current_center_x
+
+            xi_start = np.clip(xi_molecule, layout.xi_min, layout.xi_max)
+            xi_end = layout.xi_max
+
+            if xi_start >= xi_end - 1e-3:
+                return VMobject()
+
+            trace = ParametricFunction(
+                lambda s: (
+                    ribbon_point_local(
+                        sign * 0.5,
+                        xi_start + s * (xi_end - xi_start),
+                    )
+                    + pulse_body_shift(current_time)
+                ),
+                t_range=[0.0, 1.0],
+                color=colors.plot_line,
+                stroke_width=1.0,
+            )
+            trace.set_shade_in_3d(False)
+            return trace
+
+        
 
         xi = layout.xi_max
         theta = field_angle_from_pulse_time(pulse_time_from_xi(xi))
@@ -451,21 +492,46 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         start_line = start_tip + cone_height * direction
         end_line = end_tip - cone_height * direction
 
-        shaft = Line3D(start=start_line, end=end_line, color=colors.e_field, thickness=0.045)
+        shaft = Line3D(
+            start=start_line,
+            end=end_line,
+            color=colors.e_field,
+            thickness=0.045,
+        )
         shaft.set_shade_in_3d(False)
+
         e_vector = VGroup(
             shaft,
             make_arrow_tip(start_tip, -direction, colors.e_field, radius=0.09, height=cone_height),
             make_arrow_tip(end_tip, direction, colors.e_field, radius=0.09, height=cone_height),
         )
 
-        pulse = VGroup(surface, e_vector)
+        pulse_body = VGroup(surface, e_vector)
 
-        def update_pulse(mob: Mobject) -> None:
+        # Important:
+        # move_to() shifts by target - pulse_body.get_center().
+        # The trace must use exactly the same shift, otherwise it will not sit on the surface edge.
+        pulse_body_local_center = pulse_body.get_center().copy()
+
+        def pulse_body_shift(current_time: float) -> np.ndarray:
+            target_center = np.array([pulse_center_x(current_time), 0.0, 0.0])
+            return target_center - pulse_body_local_center
+        
+        edge_trace_plus = always_redraw(lambda: make_edge_trace(+1.0))
+        edge_trace_minus = always_redraw(lambda: make_edge_trace(-1.0))
+
+        def update_pulse_body(mob: Mobject) -> None:
             current_time = time_tracker.get_value()
             mob.move_to(np.array([pulse_center_x(current_time), 0.0, 0.0]))
 
-        pulse.add_updater(update_pulse)
+        pulse_body.add_updater(update_pulse_body)
+
+        pulse = VGroup(
+            pulse_body,
+            edge_trace_plus,
+            edge_trace_minus,
+        )
+
         return pulse
 
     def _make_e_field_label(
@@ -497,8 +563,9 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         z_offset = 0.04
 
         detector_plate = Square(side_length=detector_size)
-        detector_plate.set_fill(colors.detector, opacity=0.65)
-        detector_plate.set_stroke(colors.detector_border, width=2)
+        detector_plate.set_fill(colors.detector, opacity=0.55)
+        detector_plate.set_stroke(colors.detector_border, width=2.5, opacity=0.9)
+        detector_plate.set_shade_in_3d(False)
         detector_plate.move_to(detector_center)
 
         def make_histogram_mobject() -> ImageMobject:
@@ -571,11 +638,11 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         return detector_group, theta_label
 
     def _make_c2t_plot(
-        self,
-        layout: SceneLayout,
-        colors: SceneColors,
-        histogram_provider: "HistogramProvider",
-        time_tracker: ValueTracker,
+    self,
+    layout: SceneLayout,
+    colors: SceneColors,
+    histogram_provider: "HistogramProvider",
+    time_tracker: ValueTracker,
     ) -> tuple[VGroup, VMobject, Dot]:
         plot_width = 2.7
         plot_height = 1.0
@@ -597,6 +664,36 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
                 ]
             )
 
+        # ------------------------------------------------------------
+        # Inset background / frame
+        # ------------------------------------------------------------
+        inset_left = plot_origin[0] - 0.72
+        inset_right = plot_origin[0] + plot_width + 0.22
+        inset_bottom = plot_origin[1] - 0.42
+        inset_top = plot_origin[1] + plot_height + 0.58
+
+        inset_width = inset_right - inset_left
+        inset_height = inset_top - inset_bottom
+        inset_center = np.array(
+            [
+                0.5 * (inset_left + inset_right),
+                0.5 * (inset_bottom + inset_top),
+                -0.02,
+            ]
+        )
+
+        inset_background = RoundedRectangle(
+            width=inset_width,
+            height=inset_height,
+            corner_radius=0.08,
+            stroke_color=colors.plot,
+            stroke_width=1.5,
+            fill_color=colors.plot,
+            fill_opacity=0.06,
+        )
+        inset_background.move_to(inset_center)
+        inset_background.set_z_index(-10)
+
         plot_x_axis = Line(
             plot_point_2d(plot_x_min, plot_y_min),
             plot_point_2d(plot_x_max, plot_y_min),
@@ -616,20 +713,37 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
             stroke_width=1.5,
             dash_length=0.05,
         )
+
         plot_title = MathTex(
             r"\langle \cos^2\theta_{\mathrm{2D}}\rangle",
             font_size=24 + label_scaling,
             color=colors.plot,
         )
         plot_title.move_to(plot_origin + np.array([0.0, plot_height + 0.28, 0.0]))
-        plot_x_label = MathTex(r"\mathrm{probe\ delay}", font_size=18 + label_scaling, color=colors.plot)
+
+        plot_x_label = MathTex(
+            r"\mathrm{probe\ delay}",
+            font_size=18 + label_scaling,
+            color=colors.plot,
+        )
         plot_x_label.move_to(plot_origin + np.array([plot_width * 0.58, -0.22, 0.0]))
-        plot_y05_label = MathTex(r"0.5", font_size=16 + label_scaling, color=colors.plot)
+
+        plot_y05_label = MathTex(
+            r"0.5",
+            font_size=16 + label_scaling,
+            color=colors.plot,
+        )
         plot_y05_label.move_to(plot_point_2d(plot_x_min, 0.5) + np.array([-0.22, 0.0, 0.0]))
-        plot_y1_label = MathTex(r"1.0", font_size=16 + label_scaling, color=colors.plot)
+
+        plot_y1_label = MathTex(
+            r"1.0",
+            font_size=16 + label_scaling,
+            color=colors.plot,
+        )
         plot_y1_label.move_to(plot_point_2d(plot_x_min, 1.0) + np.array([-0.22, 0.0, 0.0]))
 
         plot_static = VGroup(
+            inset_background,
             plot_x_axis,
             plot_y_axis,
             plot_baseline,
@@ -639,31 +753,54 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
             plot_y1_label,
         )
 
+        for mob in plot_static[1:]:
+            mob.set_z_index(0)
+
         curve = VMobject()
         curve.set_stroke(colors.plot_line, width=3)
-        dot = Dot(point=plot_point_2d(layout.t_min, 0.5), radius=0.035, color=colors.plot_line)
+        curve.set_z_index(2)
+
+        dot = Dot(
+            point=plot_point_2d(layout.t_min, 0.5),
+            radius=0.035,
+            color=colors.plot_line,
+        )
+        dot.set_z_index(3)
 
         def sampled_curve_points(current_time: float) -> list[np.ndarray]:
             current_time = float(np.clip(current_time, layout.t_min, layout.t_max))
             sample_times = np.linspace(layout.t_min, current_time, 80)
+
             if current_time > layout.t_min:
                 sample_times = np.unique(np.append(sample_times, current_time))
-            return [plot_point_2d(sample_time, histogram_provider.c2t_at_time(sample_time)) for sample_time in sample_times]
+
+            return [
+                plot_point_2d(sample_time, histogram_provider.c2t_at_time(sample_time))
+                for sample_time in sample_times
+            ]
 
         def update_curve(mob: VMobject) -> None:
             points = sampled_curve_points(time_tracker.get_value())
+
             if len(points) < 2:
                 mob.set_points([])
                 return
+
             mob.set_points_as_corners(points)
             mob.set_stroke(colors.plot_line, width=3)
 
         def update_dot(mob: Dot) -> None:
             current_time = float(time_tracker.get_value())
-            mob.move_to(plot_point_2d(current_time, histogram_provider.c2t_at_time(current_time)))
+            mob.move_to(
+                plot_point_2d(
+                    current_time,
+                    histogram_provider.c2t_at_time(current_time),
+                )
+            )
 
         curve.add_updater(update_curve)
         dot.add_updater(update_dot)
+
         return plot_static, curve, dot
 
     def _make_droplet(
@@ -676,9 +813,9 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         def blobby_radius(theta: float, phi: float, phase: float) -> float:
             return 1.8 * (
                 1.0
-                + 0.09 * np.sin(3 * theta + 1.2 * phase) * np.sin(2 * phi)
-                + 0.070 * np.cos(5 * theta - 0.8 * phase) * np.sin(phi) ** 2
-                + 0.06 * np.sin(4 * phi + 0.6 * phase)
+                + 0.1 * np.sin(3 * theta + 1.2 * phase) * np.sin(2 * phi)
+                + 0.08 * np.cos(5 * theta - 0.8 * phase+ 1.7) * np.sin(phi) ** 2
+                + 0.067 * np.sin(4 * phi + 0.6 * phase + 1)
             )
 
         def blobby_surface(u: float, v: float, center: np.ndarray, phase: float) -> np.ndarray:
