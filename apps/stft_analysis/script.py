@@ -1,3 +1,4 @@
+from math import trunc
 from pathlib import Path
 import matplotlib as mpl
 from matplotlib import pyplot as plt
@@ -5,7 +6,7 @@ import numpy as np
 from yaml import scan
 from matplotlib.widgets import Button
 
-from _domain.plotting import plot_GaussianFit
+from _domain.plotting import plot_GaussianFit, plot_ScanData
 from apps.c2t_calculation.domain.analysis import run_pipeline
 from apps.c2t_calculation.domain.plotting import plot_calculated_scan
 from apps.scan_averaging.domain import averaging
@@ -26,7 +27,7 @@ from base_core.quantities.models import Length, Time
 from base_core.math.models import Point, Angle, Range
 from base_core.math.enums import AngleUnit
 
-#folder_path = Path(r"/mnt/valeryshare/Droplets/20260417/Scan6")
+
 
 
 mpl.rcParams.update({
@@ -149,18 +150,26 @@ vmi_config: list[IonDataAnalysisConfig] = []
 #     analysis_zone= Range[int](40, 110),
 #     transform_parameter=0.78))
 
+
+# vmi_config.append(IonDataAnalysisConfig( #CS2 droplets 05/12 config
+#     delay_center= Length(93.3, Prefix.MILLI),
+#     center=Point(197, 195),
+#     angle= Angle(12, AngleUnit.DEG),
+#     analysis_zone= Range[int](60, 110),
+#     transform_parameter=0.77))
+
 folder_path: list[Path] = []
 #folder_path.append(Path(r"Z:\Droplets\20260504\Scan3")) #earlier times included
 #folder_path.append(Path(r"Z:\Droplets\20260505\Scan2")) #''         ''      ''
 #folder_path.append(Path(r"Z:\Droplets\20260505\Scan3 stabilized only"))
 
 def main() -> None:
-    folder_path.append(Path(r"Z:\Droplets\20260512\Scan1"))
+    folder_path.append(Path(r"Z:\Droplets\20260427\Scan2"))
     
-
-    vmi_config.append(IonDataAnalysisConfig(
+    WINDOWSIZE = Time(180,Prefix.PICO)
+    vmi_config.append(IonDataAnalysisConfig( #CS2 Jet 05/11 config
     delay_center= Length(93.3, Prefix.MILLI),
-    center=Point(198, 194),
+    center=Point(206, 194),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](60, 110),
     transform_parameter=0.78))
@@ -173,6 +182,8 @@ def main() -> None:
     ax2.tick_params(axis='x',which='both',direction='out')
     yticks = ax2.yaxis.get_major_ticks()
     yticks[-1].label1.set_visible(False)
+    
+    ax1_ions = ax1.twinx()
     
     refresh_button = Button(button_ax, "Refresh")
 
@@ -189,30 +200,36 @@ def main() -> None:
         truncated_Scans = [c2tscan.cut(start,end) for c2tscan in calculated_Scans]
         
 
-        stft_config = StftAnalysisConfig(truncated_Scans, Time(180, Prefix.PICO))
+        stft_config = StftAnalysisConfig(truncated_Scans, WINDOWSIZE)
         resampled_scans = resample_scans(truncated_Scans,stft_config.axis)
-        averaged_data = averaging.average_scans(truncated_Scans)
-        resampled_scan = resample_scans([averaged_data],stft_config.axis)
+        #averaged_data = averaging.average_scans(truncated_Scans)
+        resampled_scan = resample_scans(truncated_Scans,stft_config.axis)
         _, baseline = resampled_scan[0].detrend_moving_average()
 
         ax1.clear()
+        ax1_ions.clear()
         ax2.clear()
         
-        if len(averaged_data.run_ids) > 1:
-            plot_averaged_scan(ax1,data=averaged_data,ecolor=PlotColor.RED)
-        else:
-            plot_calculated_scan(ax1,data=averaged_data,number_of_scans=num_scans)
+        plot_ScanData(ax1,data=truncated_Scans[0],number_of_scans=num_scans,ax_twin=ax1_ions)
         
         #x = [time.value(Prefix.PICO) for time in resampled_scan[0].delays]
         #ax1.plot(x, baseline)
         ax1.grid(visible=True,which='major',alpha=1.0)
         spectrogram = StftAnalysis(resampled_scans,stft_config).calculate_averaged_spectrogram()
-        xrange = [-300,300]
-        ax1.set_xlim(xrange)
-        plot_Spectrogram(ax2,spectrogram,shading='auto')
+        
+        plot_Spectrogram(ax2,spectrogram,v_range=Range(0,0.6),shading='auto')
         plot_nyquist_frequency(ax2,truncated_Scans[0])
+        
+        #ax1_right.plot(calculated_Scans[-1].delays,calculated_Scans[-1].ions_per_frame,color=PlotColor.GRAY,marker='o')
+        #ax1_right.set_ylabel('Ions per frame')
+        
+        
+        xrange = [-300,300]
+        ax2.set_axisbelow(False)
+        ax1.set_xlim(xrange)
         ax2.set_xlim(xrange)
-        fig.suptitle('CS2 Droplets, GA=0mm, DA=15.1mm', fontsize=12)
+        ax2.grid(visible=True,color='grey',linewidth=0.3,zorder=5)
+        fig.suptitle('OCS Droplets, decel. CFG', fontsize=12)
         fig.canvas.draw_idle()
     
     refresh_button.on_clicked(on_refresh)
