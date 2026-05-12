@@ -136,7 +136,17 @@ def calculating(folders: list[Path], configs: list[IonDataAnalysisConfig]) -> tu
     
     return (averagedScanData, spectrogram)
 
-def calculating_comp(folders_comp: list[list[Path]], configs_comp: list[list[IonDataAnalysisConfig]],cut_start = 0, cut_end = 0) -> tuple[list[AveragedScansData],list[AggregateSpectrogram]]:
+def calculating_comp(folders_comp: list[list[Path]], configs_comp: list[list[IonDataAnalysisConfig]],cut_start: Time = None,cut_end: Time = None) -> tuple[list[AveragedScansData],list[AggregateSpectrogram]]:
+    '''
+        folders_comp: the list of listed scan folders to compare. Ex. a list of jet scans from one day and a list of droplets scans from another
+        configs_comp: the list of listed configs corresponding to each scan folder above
+        cut_start, cut_end: to define the desired truncated scan range. 
+        
+        Returns:
+            Tuple of lists of averaged scan data for each scan folder list in the comparison and the corresponding spectrograms
+
+    '''
+    
     n = len(folders_comp)
     #calculated_scans = [[] for i in range(n)]
     calculated_scans = []
@@ -159,7 +169,11 @@ def calculating_comp(folders_comp: list[list[Path]], configs_comp: list[list[Ion
     return (averagedScanData,spectrograms)
         
         
-def match_scans(scan_collection: list[list[C2TScanData]],cut_start,cut_end) -> None:
+def match_scans(scan_collection: list[list[C2TScanData]],cut_start: Time = None,cut_end: Time = None) -> list[list[C2TScanData]]:
+    '''
+        Helper function to match the length of the scans given in scan_comparison and return these matched length scans in a new list. By default it matches the minimum and maximum over all scans, unless given specific 'cut_start' and 'cut_end' times.
+    '''
+    
     mins = []
     maxes = []
     n = len(scan_collection)
@@ -190,16 +204,13 @@ def match_scans(scan_collection: list[list[C2TScanData]],cut_start,cut_end) -> N
                 times = np.array([t.value(Prefix.PICO) for t in c2tdata.delays])
                 delays[i].append(times)
                 
-        xmin = cut_start
-        xmax = cut_end
+        xmin = cut_start.to_primitive()
+        xmax = cut_end.to_primitive()
     for i in range(n):
         m = len(scan_collection[i])
         for j in range(m):
-            mask = (delays[i][j] > xmin) & (delays[i][j] < xmax)
-            inds = np.where(mask)
-            start = inds[0][0]
-            end = inds[-1][-1] 
-            scan_collection[i][j].cut(start=start,end=end)
+            
+             scan_collection[i][j].cut(start=start,end=end)
     
 #--------------------------------------------------------------------------------------------------
 #Loading data for figures    
@@ -306,7 +317,7 @@ times = np.array([t.value(Prefix.PICO) for t in plottable_scan_drop.delays])
 mask = (times > -320)
 inds = np.where(mask)
 start = inds[0][0]
-plottable_scan_drop.cut(start=start)
+truncated_scan_drop = plottable_scan_drop.cut(start=start)
 
 times = np.array([t.value(Prefix.PICO) for t in plottable_scan_jet.delays])
 mask = (times < 200)
