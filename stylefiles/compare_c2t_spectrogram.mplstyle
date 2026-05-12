@@ -6,13 +6,13 @@
 #axes.linewidth : 0.5
 
 ### Grid lines
-#grid.linewidth : 0.5
+grid.linewidth : 0.3
 #grid.linestyle : dashed
 #grid.color : 'xkcd:light gray'
 
 ### Lines
 lines.linewidth : 0.5
-lines.markersize :5
+lines.markersize :1
 #hatch.linewidth: 0.25
 #patch.antialiased   : True
 
