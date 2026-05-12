@@ -66,7 +66,7 @@ savedata_filename_2 = savedata_filedir + r"\CS2_usCFG_droplets.csv" #Name the fi
 
 PlotTitle = r"CS$_2$ - STFT with 180 ps blackman window. Same centrifuge for each scan." "\n" "202512 10th + 12th + 13th"
 
-PlotTitle = r"CS$_2$ in droplets for both - very different centrifuges"
+PlotTitle = r"CS$_2$ jet and droplets - decelerating centrifuge"
 
 
 #JET EXPERIMENT
@@ -74,6 +74,10 @@ PlotTitle = r"CS$_2$ in droplets for both - very different centrifuges"
 configs_1: list[IonDataAnalysisConfig] = []
 folders_1: list[Path] = []
 
+configs_2: list[IonDataAnalysisConfig] = []
+folders_2: list[Path] = []
+
+'''
 folders_1.append(Path(r"20251210\JSS3"))  #20251210 JSS3 is dense throughout the centrifuge
 configs_1.append(IonDataAnalysisConfig(
     delay_center= Length(90.55-POSZEROSHIFT, Prefix.MILLI),
@@ -83,16 +87,43 @@ configs_1.append(IonDataAnalysisConfig(
     transform_parameter= 0.79))
 
 folders_1.append(Path(r"20251210\JSS4"))  #20251210 JSS4 is dense before the centrifuge
-configs_1.append(configs_1[0]) #same config
+configs_1.append(configs_1[0]) #same config'''
 
+#Decelerating Jet
+# first time comparable data
+'''folders_1.append(Path(r"20260429\Scan2"))  
+configs_1.append(IonDataAnalysisConfig(
+    delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(228, 186),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= Range[int](40, 120),
+    transform_parameter=0.78))'''
+
+#Accelerating Jet
+# first time comparable data
+'''folders_1.append(Path(r"20260430\Scan2"))  
+configs_1.append(IonDataAnalysisConfig(
+    delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(228, 186),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= Range[int](40, 120),
+    transform_parameter=0.78))'''
+    
+# second time comparable data
+folders_1.append(Path(r"20260507\Scan2"))  
+configs_1.append(IonDataAnalysisConfig(
+    delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(228, 186),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= Range[int](40, 120),
+    transform_parameter=0.78))
 
 #DROPLETS EXPERIMENT
 #Same GA=26mm, DA = 15.9mm.
 #20251212 Scan 4
 #20251213 scan 1, 2, and 3. BUT! The last 2 scans in scan3 are bad
-configs_2: list[IonDataAnalysisConfig] = []
-folders_2: list[Path] = []
 
+'''
 folders_2.append(Path(r"20251212\Scan4")) #Combination of 20251212 and 20251213. 
 configs_2.append(IonDataAnalysisConfig(
     delay_center= Length(90.55-POSZEROSHIFT, Prefix.MILLI),
@@ -124,16 +155,14 @@ configs_2.append(IonDataAnalysisConfig(
     center=Point(194, 204),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
-    transform_parameter= 0.79))
+    transform_parameter= 0.79))'''
 
 
 #FORCE DROPLETS COMPARISON
-folders_1 = folders_2
-configs_1 = configs_2
+#folders_1 = folders_2
+#configs_1 = configs_2
 #APRIL CENTRIFUGE REVERSED
 # GA=0, DA = 16.43mm (slower acceleration than GA=26mm data)
-configs_2: list[IonDataAnalysisConfig] = []
-folders_2: list[Path] = []
 
 #folders_2.append(Path(r"20260427\Scan3"))  
 # configs_2.append(IonDataAnalysisConfig(
@@ -143,6 +172,10 @@ folders_2: list[Path] = []
 #     analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
 #     transform_parameter=0.78))
 
+
+# Decelerating
+# first time comparable data
+'''
 folders_2.append(Path(r"20260428\Scan1")) 
 configs_2.append(IonDataAnalysisConfig(
     delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
@@ -151,6 +184,44 @@ configs_2.append(IonDataAnalysisConfig(
     analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
     transform_parameter=0.78))
 
+folders_2.append(Path(r"20260429\Scan1")) 
+configs_2.append(IonDataAnalysisConfig(
+    delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(205, 194),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
+    transform_parameter=0.78))'''
+
+
+configs_2: list[IonDataAnalysisConfig] = []
+folders_2: list[Path] = []
+
+# Accelerating
+# first time comparable data
+'''folders_2.append(Path(r"20260430\Scan3")) 
+configs_2.append(IonDataAnalysisConfig(
+    delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(205, 194),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
+    transform_parameter=0.78))
+
+folders_2.append(Path(r"20260501\Scan1")) 
+configs_2.append(IonDataAnalysisConfig(
+    delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(205, 194),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
+    transform_parameter=0.78))'''
+    
+# second time comparable data
+folders_2.append(Path(r"20260507\Scan1")) 
+configs_2.append(IonDataAnalysisConfig(
+    delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(204, 196),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
+    transform_parameter=0.78))
 #--------------------------------------------------------------------------------------------------
 #Update the matplotlib settings
 mpl.rcParams.update({
