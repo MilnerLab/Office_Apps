@@ -25,4 +25,3 @@ def plot_ions_square(
     ys = points.y
 
     ax.scatter(xs, ys, color=color, marker=".", s=5, label=label, alpha=0.2)
-    
