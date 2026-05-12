@@ -155,14 +155,14 @@ folder_path: list[Path] = []
 #folder_path.append(Path(r"Z:\Droplets\20260505\Scan3 stabilized only"))
 
 def main() -> None:
-    folder_path.append(Path(r"Z:\Droplets\20260511\Scan1"))
+    folder_path.append(Path(r"Z:\Droplets\20260512\Scan1"))
     
 
     vmi_config.append(IonDataAnalysisConfig(
     delay_center= Length(93.3, Prefix.MILLI),
-    center=Point(228, 186),
+    center=Point(198, 194),
     angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](40, 110),
+    analysis_zone= Range[int](60, 110),
     transform_parameter=0.78))
     
     fig,(ax1,ax2) = plt.subplots(2,1,figsize=(8,5),gridspec_kw={"hspace":0})
@@ -184,8 +184,8 @@ def main() -> None:
         raw_scans = load_ion_data(datafile_paths)
         calculated_Scans = run_pipeline(raw_scans, vmi_config)   
         
-        start = Time(-1000,prefix=Prefix.PICO)
-        end = Time(2000,prefix=Prefix.PICO)
+        start = Time(-300,prefix=Prefix.PICO)
+        end = Time(300,prefix=Prefix.PICO)
         truncated_Scans = [c2tscan.cut(start,end) for c2tscan in calculated_Scans]
         
 
@@ -207,12 +207,12 @@ def main() -> None:
         #ax1.plot(x, baseline)
         ax1.grid(visible=True,which='major',alpha=1.0)
         spectrogram = StftAnalysis(resampled_scans,stft_config).calculate_averaged_spectrogram()
-        #xrange = [-300,300]
-        #ax1.set_xlim(xrange)
+        xrange = [-300,300]
+        ax1.set_xlim(xrange)
         plot_Spectrogram(ax2,spectrogram,shading='auto')
         plot_nyquist_frequency(ax2,truncated_Scans[0])
-        #ax2.set_xlim(xrange)
-        fig.suptitle('CS2 Jet', fontsize=12)
+        ax2.set_xlim(xrange)
+        fig.suptitle('CS2 Droplets, GA=0mm, DA=15.1mm', fontsize=12)
         fig.canvas.draw_idle()
     
     refresh_button.on_clicked(on_refresh)
