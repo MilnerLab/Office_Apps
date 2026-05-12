@@ -7,7 +7,8 @@ from _data_io.dat_finder import DatFinder
 from _data_io.dat_loader import load_ion_data
 from base_core.lab_specifics.base_models import IonDataAnalysisConfig, RawScanData
 from base_core.math.enums import AngleUnit
-from base_core.math.models import Angle, Histogram2D, Point, Range
+from base_core.math.models import Angle, Point, Range
+from base_core.math.special_models import Histogram2D
 from base_core.plotting.histogram_plotting import plot_contour, plot_histogram2d
 from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Length
@@ -47,7 +48,7 @@ def add_labeled_checkbox(
 
 
 def main() -> None:
-    folder_path = Path(r"Z:\Droplets\20260428\Stationary")
+    folder_path = Path(r"Z:\Droplets\20260512\Probe_only")
     file_paths = DatFinder(folder_path,is_full_path=True).find_datafiles()
 
     raw_scans = load_ion_data(file_paths)
