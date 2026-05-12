@@ -176,6 +176,8 @@ class DatFinder:
         file_list = sorted(MOST_RECENT_FOLDER.glob(SCAN_FILE_PATTERN))
         return file_list[-1]
 
+    
+
     def find_datafiles(self) -> list[list[Path]]:
         scans_paths: list[list[Path]] = []
 
