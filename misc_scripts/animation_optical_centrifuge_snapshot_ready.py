@@ -110,9 +110,9 @@ class SceneColors:
             cfg=PURPLE,
             helium=TEAL_A,
             atom_center=GREY,
-            atom_outer=BLUE_C,
+            atom_outer=RED,
             bond=WHITE,
-            ring=ORANGE,
+            ring=GREY,
             e_field=RED,
             droplet=TEAL_E,
             plot=WHITE,
@@ -255,16 +255,16 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
     def construct(self) -> None:
         
         # manim -s -r 7680,4320 misc_scripts/animation_optical_centrifuge_snapshot_ready.py PhysicalOpticalCentrifuge3D
-        mode = RenderMode(snapshot_only=True, snapshot_time= 1, high_detail=True)
-        self.set_camera_orientation(phi=68 * DEGREES, theta=-55 * DEGREES, zoom=1.27, frame_center=np.array([0.55, -0.6, 0.0]))
+        #mode = RenderMode(snapshot_only=True, snapshot_time= 1, high_detail=True)
+        #self.set_camera_orientation(phi=68 * DEGREES, theta=-55 * DEGREES, zoom=1.27, frame_center=np.array([0.55, -0.6, 0.0]))
         
         # manim -p -r 3840,2160 --fps 60 misc_scripts/animation_optical_centrifuge_snapshot_ready.py PhysicalOpticalCentrifuge3D
         # manim -pql misc_scripts/animation_optical_centrifuge_snapshot_ready.py PhysicalOpticalCentrifuge3D
-        #mode = RenderMode(snapshot_only=False, snapshot_time= 0, high_detail=True)
-        #self.set_camera_orientation(phi=68 * DEGREES, theta=-55 * DEGREES)
+        mode = RenderMode(snapshot_only=False, snapshot_time= 0, high_detail=True)
+        self.set_camera_orientation(phi=68 * DEGREES, theta=-55 * DEGREES)
         
         layout = SceneLayout()
-        colors = SceneColors().light()
+        colors = SceneColors().dark()
         geometry = self._geometry_resolution(mode)
 
         self.camera.background_color = colors.background
@@ -321,7 +321,7 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
 
     def _geometry_resolution(self, mode: RenderMode) -> dict[str, tuple[int, int]]:
         if mode.high_detail:
-            amp_factor = 5
+            amp_factor = 2
             return {
                 "centrifuge": (24, 240),
                 "sphere": (24 * amp_factor, 12 * amp_factor),
