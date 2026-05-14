@@ -163,20 +163,32 @@ folder_path: list[Path] = []
 #folder_path.append(Path(r"Z:\Droplets\20260505\Scan2")) #''         ''      ''
 #folder_path.append(Path(r"Z:\Droplets\20260505\Scan3 stabilized only"))
 
+ # folder_path.append(Path(r"Z:\Droplets\20260430\Scan3")) #older CS2 droplets accel
+# folder_path.append(Path(r"Z:\Droplets\20260501\Scan1"))
+
 def main() -> None:
-    folder_path.append(Path(r"Z:\Droplets\20260427\Scan2"))
+    #folder_path.append(Path(r"Z:/Droplets/20260513/Scan1"))
+    #folder_path.append(Path(r"Z:/Droplets/20260513/Scan2"))
+    folder_path.append(Path(r"Z:/Droplets/20260513/Scan3"))
     
     WINDOWSIZE = Time(180,Prefix.PICO)
-    vmi_config.append(IonDataAnalysisConfig( #CS2 Jet 05/11 config
+    vmi_config.append(IonDataAnalysisConfig( #CS2 jet 05/13 config
     delay_center= Length(93.3, Prefix.MILLI),
-    center=Point(206, 194),
+    center=Point(219, 184),
     angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](60, 110),
-    transform_parameter=0.78))
+    analysis_zone= Range[int](40, 110),
+    transform_parameter=0.77))
+    
+    #vmi_config.append(vmi_config[0])
     
     fig,(ax1,ax2) = plt.subplots(2,1,figsize=(8,5),gridspec_kw={"hspace":0})
+    date_scan = str([str(folder).replace("\\","/")[12:] for folder in folder_path])
+    
+    
     plt.subplots_adjust(bottom=0.2)  
     button_ax = fig.add_axes((0.8, 0.05, 0.15, 0.075))
+    fig.subplots_adjust(top=0.94,left=0.08,right=0.92)
+    
     ax1.xaxis.label.set_visible(False)
     ax1.tick_params(axis='x',which='both',bottom=False, labelbottom=False)
     ax2.tick_params(axis='x',which='both',direction='out')
@@ -184,7 +196,7 @@ def main() -> None:
     yticks[-1].label1.set_visible(False)
     
     ax1_ions = ax1.twinx()
-    
+       
     refresh_button = Button(button_ax, "Refresh")
 
     def on_refresh(event):
@@ -195,41 +207,37 @@ def main() -> None:
         raw_scans = load_ion_data(datafile_paths)
         calculated_Scans = run_pipeline(raw_scans, vmi_config)   
         
-        start = Time(-300,prefix=Prefix.PICO)
-        end = Time(300,prefix=Prefix.PICO)
+        start = Time(-800,prefix=Prefix.PICO)
+        end = Time(800,prefix=Prefix.PICO)
         truncated_Scans = [c2tscan.cut(start,end) for c2tscan in calculated_Scans]
-        
 
         stft_config = StftAnalysisConfig(truncated_Scans, WINDOWSIZE)
         resampled_scans = resample_scans(truncated_Scans,stft_config.axis)
-        #averaged_data = averaging.average_scans(truncated_Scans)
-        resampled_scan = resample_scans(truncated_Scans,stft_config.axis)
-        _, baseline = resampled_scan[0].detrend_moving_average()
+        averaged_data = averaging.average_scans(truncated_Scans)
 
         ax1.clear()
-        ax1_ions.clear()
         ax2.clear()
+        ax1.clear()
+        ax1_ions.clear()
+        ax1_ions.yaxis.tick_right()
+        ax1_ions.yaxis.set_label_position("right")
         
-        plot_ScanData(ax1,data=truncated_Scans[0],number_of_scans=num_scans,ax_twin=ax1_ions)
+        plot_ScanData(ax1,data=averaged_data,number_of_scans=num_scans,ax_twin=ax1_ions)
         
-        #x = [time.value(Prefix.PICO) for time in resampled_scan[0].delays]
-        #ax1.plot(x, baseline)
         ax1.grid(visible=True,which='major',alpha=1.0)
         spectrogram = StftAnalysis(resampled_scans,stft_config).calculate_averaged_spectrogram()
         
-        plot_Spectrogram(ax2,spectrogram,v_range=Range(0,0.6),shading='auto')
+        plot_Spectrogram(ax2,spectrogram,v_range=Range(0,1),shading='auto')
         plot_nyquist_frequency(ax2,truncated_Scans[0])
         
-        #ax1_right.plot(calculated_Scans[-1].delays,calculated_Scans[-1].ions_per_frame,color=PlotColor.GRAY,marker='o')
-        #ax1_right.set_ylabel('Ions per frame')
-        
-        
-        xrange = [-300,300]
+        #xrange = [-300,300]
         ax2.set_axisbelow(False)
-        ax1.set_xlim(xrange)
-        ax2.set_xlim(xrange)
+        #ax1.set_xlim(xrange)
+        #ax2.set_xlim(xrange)
         ax2.grid(visible=True,color='grey',linewidth=0.3,zorder=5)
-        fig.suptitle('OCS Droplets, decel. CFG', fontsize=12)
+        
+        ax1_ions.tick_params(axis='y',left=False,right=True,labelleft=False)
+        fig.suptitle(date_scan + ': CS2 Jet 120psi, GA=0mm, DA=16.45mm, Decel.', fontsize=12)
         fig.canvas.draw_idle()
     
     refresh_button.on_clicked(on_refresh)

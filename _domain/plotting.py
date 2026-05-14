@@ -1,6 +1,7 @@
 from matplotlib.axes import Axes
 from base_core.fitting.functions import fit_gaussian
 from base_core.fitting.models import GaussianFitResult
+from base_core.lab_specifics.averaging.models import AveragedScansData
 from base_core.lab_specifics.base_models import C2TScanData, ScanDataBase
 from base_core.plotting.enums import PlotColor
 from base_core.quantities.enums import Prefix
@@ -29,7 +30,7 @@ def plot_ScanData(ax: Axes, data: ScanDataBase, label:str = None,*, number_of_sc
     ax.set_xlabel("Probe Delay (ps)")
     ax.set_ylabel(r"$\langle \cos^2 \theta_\mathrm{2D} \rangle$")
     
-    if ax_twin is not None and isinstance(data,C2TScanData):
+    if ax_twin is not None and (isinstance(data,C2TScanData) or isinstance(data,AveragedScansData)):
         ions = np.asarray(data.ions_per_frame)
         
         ax_twin.plot(
@@ -40,7 +41,7 @@ def plot_ScanData(ax: Axes, data: ScanDataBase, label:str = None,*, number_of_sc
             color=ion_color,
             marker = marker,
         )
-        ax_twin.set_ylabel("Ions per frame")
+        ax_twin.set_ylabel("Ions per frame",rotation=270,labelpad=8)
         ax_twin.tick_params(axis="y", labelcolor=ion_color)
         ax_twin.grid(False)
     
