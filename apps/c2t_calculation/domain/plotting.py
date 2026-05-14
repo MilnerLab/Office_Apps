@@ -5,6 +5,8 @@ from _domain.plotting import plot_ScanData
 from base_core.lab_specifics.base_models import C2TScanData, Points
 from base_core.plotting.enums import PlotColor
 from base_core.quantities.enums import Prefix
+from base_core.plotting.enums import PlotColor
+from base_core.quantities.enums import Prefix
 
 
 
@@ -25,3 +27,4 @@ def plot_ions_square(
     ys = points.y
 
     ax.scatter(xs, ys, color=color, marker=".", s=5, label=label, alpha=0.2)
+
