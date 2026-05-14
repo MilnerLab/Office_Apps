@@ -5,8 +5,10 @@ from matplotlib.widgets import Button, TextBox, CheckButtons
 from matplotlib import collections, contour, artist
 from _data_io.dat_finder import DatFinder
 from _data_io.dat_loader import load_ion_data
-from base_core.lab_specifics.base_models import IonDataAnalysisConfig, RawScanData
+from base_core.lab_specifics.base_models import IonData,IonDataAnalysisConfig, RawScanData
 from base_core.math.enums import AngleUnit
+from base_core.math.models import Angle, Point, Range
+from base_core.math.special_models import Histogram2D
 from base_core.math.models import Angle, Point, Range
 from base_core.math.special_models import Histogram2D
 from base_core.plotting.histogram_plotting import plot_contour, plot_histogram2d
@@ -17,6 +19,7 @@ from base_core.quantities.models import Length
 BINS = 50
 MIN_COUNT = 10
 POSZEROSHIFT = 0.0
+DELAY = 93.3 
 contours_toggle = [True]
 hist_toggle = [True]
 
@@ -48,7 +51,7 @@ def add_labeled_checkbox(
 
 
 def main() -> None:
-    folder_path = Path(r"Z:\Droplets\20260512\Probe_only")
+    folder_path = Path(r"Z:/Droplets/20260512/Probe_only")
     file_paths = DatFinder(folder_path,is_full_path=True).find_datafiles()
 
     raw_scans = load_ion_data(file_paths)
@@ -73,7 +76,7 @@ def main() -> None:
     gap = 0.01
     box_h = 0.055
 
-    y_delay = 0.72
+    y_path = 0.72
     y_center = 0.61
     y_angle = 0.50
     y_range = 0.39
@@ -107,22 +110,14 @@ def main() -> None:
     tb_bins = add_labeled_textbox(
         fig,
         x_mid,
-        y_delay+0.1,
+        y_path+0.1,
         small_w,
         box_h,
         "Bins",
         f"{BINS}",
     )
     
-    tb_delay = add_labeled_textbox(
-        fig,
-        x_mid,
-        y_delay,
-        full_w,
-        box_h,
-        "delay [mm]",
-        str(94.5 - POSZEROSHIFT),
-    )
+   
 
     tb_center_x = add_labeled_textbox(
         fig,
@@ -181,6 +176,16 @@ def main() -> None:
         "transform",
         "0.76",
     )
+    
+    tb_path = add_labeled_textbox(
+        fig,
+        x_mid,
+        y_path,
+        full_w,
+        box_h,
+        "File path",
+        folder_path,
+    )
 
     info_ax = fig.add_axes((x_mid - 0.005, y_info, full_w + 0.03, 0.07))
     info_ax.axis("off")
@@ -192,7 +197,7 @@ def main() -> None:
     # ------------------------------------------------------------------
     def build_config() -> IonDataAnalysisConfig:
         return IonDataAnalysisConfig(
-            delay_center=Length(float(tb_delay.text), Prefix.MILLI),
+            delay_center=Length(DELAY, Prefix.MILLI),
             center=Point(
                 int(float(tb_center_x.text)),
                 int(float(tb_center_y.text)),
@@ -220,6 +225,18 @@ def main() -> None:
     def on_refresh(_event):
         global hist_artist, contour_artist
         try:
+            
+            
+            file_paths = DatFinder(folder_path,is_full_path=True).find_datafiles()
+
+            raw_scans = load_ion_data(file_paths)
+            ion_data: IonData
+            for raw in raw_scans:
+                for d in raw.ion_datas:
+                    ion_data.points.append_points(d.points)
+                
+            points_before = ion_data.points
+            
             config = build_config()
             points_after = ion_data.get_points_after_config(config)
             
@@ -264,7 +281,7 @@ def main() -> None:
 
     for tb in (
         tb_bins,
-        tb_delay,
+        tb_path,
         tb_center_x,
         tb_center_y,
         tb_angle,

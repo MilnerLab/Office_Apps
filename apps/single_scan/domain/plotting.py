@@ -13,26 +13,10 @@ def plot_single_scan(ax: Axes, data: C2TScanData, show_ions: bool = False, data_
         label = f"{data.file_path.stem}"
     else:
         raise ValueError('Should have a file path.')
-        
-    plot_ScanData(ax, data, label, data_color,ecolor,marker)
     
-    if data.ions_per_frame is None:
-        return
+    plot_ScanData(ax, data, label, show_ions, data_color, ecolor, marker)
     
     
-    if isinstance(show_ions, bool) and show_ions:
-        delay = [t.value(Prefix.PICO) for t in data.delays]
-        ions = np.asarray(data.ions_per_frame)
-        # zweite y-Achse rechts
-        ax_ions = ax.twinx()
-        ax_ions.plot(
-            delay,
-            ions,
-            linestyle="--",
-            linewidth=1.0,
-            color=ion_color,
-            marker = marker,
-        )
-        ax_ions.set_ylabel("Ions per frame")
-        ax_ions.tick_params(axis="y", labelcolor=ion_color)
+    
+    
     
