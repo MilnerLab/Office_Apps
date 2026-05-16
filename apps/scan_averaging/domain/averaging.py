@@ -111,7 +111,6 @@ def average_scans(scans: List[ScanDataBase], *, key_digits: int = 12) -> Average
         measured_values=avg_c2t,
         run_ids=[s.run_id for s in scans],
         run_id=None,
-        ions_per_frame=avg_ions_per_frame.tolist()
         )
     else:
         return AveragedScansData(
