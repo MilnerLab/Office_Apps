@@ -17,7 +17,7 @@ def plot_scan_and_spectrogram(
     scan_color: PlotColor = PlotColor.BLUE,
     scan_ecolor: PlotColor = PlotColor.RED,
     scan_marker: str = "d",
-    scan_label: str = "CS$_2$ in 120 PSI Jet",
+    scan_label: str = None,
     v_range: Range[float] = Range(0, 1),
     colormap: PlotColorMap = PlotColorMap.MAGMA,
     shading: str = "auto",
@@ -27,7 +27,7 @@ def plot_scan_and_spectrogram(
 
     # Right axis: frequency / spectrogram
     ax_freq = ax_scan.twinx()
-
+    
     # --- Spectrogram on right y-axis ---
     delay = [d.value(Prefix.PICO) for d in spectrogram_data.delay]
     frequency = [f.value(Prefix.GIGA) for f in spectrogram_data.frequency]
@@ -44,9 +44,6 @@ def plot_scan_and_spectrogram(
         alpha=0.85,
     )
 
-    ax_freq.set_ylabel("Oscillation\nFrequency (GHz)")
-    ax_freq.set_ylim(0, 120)
-
     # --- Put scan axis visually above spectrogram axis ---
     ax_scan.set_zorder(ax_freq.get_zorder() + 1)
     ax_scan.patch.set_visible(False)
@@ -59,19 +56,8 @@ def plot_scan_and_spectrogram(
         ecolor=scan_ecolor,
         marker=scan_marker,
         label=scan_label,
+        elinewidth=0
     )
-
-    ax_scan.set_xlabel("Probe Delay (ps)")
-    ax_scan.set_ylabel(r"$\langle \cos^2 \theta_\mathrm{2D} \rangle$")
-
-    # Optional: manually set cos² range
-    ax_scan.set_ylim(0.46, 0.72)
-
-    # Grid only from scan axis, so it aligns with the data plot
-    ax_scan.grid(color="grey", linewidth=0.3)
-
-    # Legend from scan axis only
-    ax_scan.legend(loc="lower center")
 
     return ax_freq, mesh
 
