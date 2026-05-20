@@ -254,17 +254,17 @@ def make_axis_aligned_histogram_image_and_c2t(
 class PhysicalOpticalCentrifuge3D(ThreeDScene):
     def construct(self) -> None:
         
-        # manim -s -r 7680,4320 misc_scripts/animation_optical_centrifuge_snapshot_ready.py PhysicalOpticalCentrifuge3D
-        #mode = RenderMode(snapshot_only=True, snapshot_time= 1, high_detail=True)
-        #self.set_camera_orientation(phi=68 * DEGREES, theta=-55 * DEGREES, zoom=1.27, frame_center=np.array([0.55, -0.6, 0.0]))
+        # manim -s -r 7680,4320 misc_scripts/animation_optical_centrifuge.py PhysicalOpticalCentrifuge3D
+        mode = RenderMode(snapshot_only=True, snapshot_time= 1, high_detail=True)
+        self.set_camera_orientation(phi=68 * DEGREES, theta=-55 * DEGREES, zoom=1.27, frame_center=np.array([0.55, -0.6, 0.0]))
         
-        # manim -p -r 3840,2160 --fps 60 misc_scripts/animation_optical_centrifuge_snapshot_ready.py PhysicalOpticalCentrifuge3D
-        # manim -pql misc_scripts/animation_optical_centrifuge_snapshot_ready.py PhysicalOpticalCentrifuge3D
-        mode = RenderMode(snapshot_only=False, snapshot_time= 0, high_detail=True)
-        self.set_camera_orientation(phi=68 * DEGREES, theta=-55 * DEGREES)
+        # manim -p -r 3840,2160 --fps 60 misc_scripts/animation_optical_centrifuge.py PhysicalOpticalCentrifuge3D
+        # manim -pql misc_scripts/animation_optical_centrifuge.py PhysicalOpticalCentrifuge3D
+        #mode = RenderMode(snapshot_only=False, snapshot_time= 0, high_detail=True)
+        #self.set_camera_orientation(phi=68 * DEGREES, theta=-55 * DEGREES)
         
         layout = SceneLayout()
-        colors = SceneColors().dark()
+        colors = SceneColors().light()
         geometry = self._geometry_resolution(mode)
 
         self.camera.background_color = colors.background
@@ -644,14 +644,16 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
     histogram_provider: "HistogramProvider",
     time_tracker: ValueTracker,
     ) -> tuple[VGroup, VMobject, Dot]:
-        plot_width = 2.7
-        plot_height = 1.0
+        plot_scale_x = 1.45
+        plot_scale_y = 2.1
+        plot_width = 2.7 * plot_scale_x
+        plot_height = 1.0 * plot_scale_y
         label_scaling = 6
         plot_x_min = layout.t_min
         plot_x_max = layout.t_max
         plot_y_min = 0.45
         plot_y_max = 1.00
-        plot_origin = np.array([-4.0, -2.2, 0.0])
+        plot_origin = np.array([-4.0 * (plot_scale_x * 0.9), -2.2 * (plot_scale_y * 0.8), 0.0])
 
         def plot_point_2d(x_value: float, y_value: float) -> np.ndarray:
             x_frac = (x_value - plot_x_min) / (plot_x_max - plot_x_min)

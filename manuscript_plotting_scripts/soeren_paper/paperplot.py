@@ -265,7 +265,7 @@ ax_freq, mesh = plot_scan_and_spectrogram(
     a,
     plottable_scan_1,
     plottable_spectrogram_1,
-    scan_color=PlotColor.WHITE,
+    scan_color=PlotColor.GRAY,
     scan_marker="d",
     shading="auto",
 )
@@ -291,7 +291,7 @@ ax_freq, mesh = plot_scan_and_spectrogram(
     a,
     plottable_scan_3,
     plottable_spectrogram_3,
-    scan_color=PlotColor.WHITE,
+    scan_color=PlotColor.GRAY,
     scan_marker="d",
     shading="auto",
 )
