@@ -74,21 +74,21 @@ PlotTitle = r"CS$_2$ in 30 bar / 16 K droplets"
 configs_1: list[IonDataAnalysisConfig] = []
 folders_1: list[Path] = []
 
-# folders_1.append(Path(r"20260430\Scan3")) #GA=0, DA=15.5, ACCELLERATING
-# configs_1.append(IonDataAnalysisConfig(
-#     delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
-#     center=Point(205, 194),
-#     angle= Angle(12, AngleUnit.DEG),
-#     analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
-#     transform_parameter=0.78))
+folders_1.append(Path(r"20260430\Scan3")) #GA=0, DA=15.5, ACCELLERATING
+configs_1.append(IonDataAnalysisConfig(
+    delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(205, 194),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
+    transform_parameter=0.78))
 
-# folders_1.append(Path(r"20260501\Scan1")) #GA=0, DA=15.5, ACCELLERATING
-# configs_1.append(IonDataAnalysisConfig(
-#     delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
-#     center=Point(205, 194),
-#     angle= Angle(12, AngleUnit.DEG),
-#     analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
-#     transform_parameter=0.78))
+folders_1.append(Path(r"20260501\Scan1")) #GA=0, DA=15.5, ACCELLERATING
+configs_1.append(IonDataAnalysisConfig(
+    delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(205, 194),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
+    transform_parameter=0.78))
 '''
 #Better without 0507
 #20260507\Scan1 looks good on its own, but busies up the graph if added to the others
@@ -100,13 +100,13 @@ folders_1: list[Path] = []
 #     analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
 #     transform_parameter=0.78))
 '''
-folders_1.append(Path(r"20260507\Scan1")) #GA=0, DA=15.5, ACCELLERATING, TO COMPARE WITH 2026/05/13 AND JET FROM 05/11 and 05/13
-configs_1.append(IonDataAnalysisConfig(
-    delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
-    center=Point(204, 196),
-    angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
-    transform_parameter=0.78))
+# folders_1.append(Path(r"20260507\Scan1")) #GA=0, DA=15.5, ACCELLERATING, TO COMPARE WITH 2026/05/13 AND JET FROM 05/11 and 05/13
+# configs_1.append(IonDataAnalysisConfig(
+#     delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
+#     center=Point(204, 196),
+#     angle= Angle(12, AngleUnit.DEG),
+#     analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
+#     transform_parameter=0.78))
     
 
 #--------------------------------------------------------------------------------------------------------------
@@ -137,30 +137,30 @@ folders_2: list[Path] = []
 #     transform_parameter=0.78))
 '''
 
-# folders_2.append(Path(r"20260429\Scan1")) #GA=0, DA=16.42, DECELLERATING
+folders_2.append(Path(r"20260429\Scan1")) #GA=0, DA=16.42, DECELLERATING
+configs_2.append(IonDataAnalysisConfig(
+    delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(205, 194),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
+    transform_parameter=0.78))
+
+
+# folders_2.append(Path(r"20260513\Scan1_without_overdoped_scan1")) #GA=0, DA=16.45, DECELERATING, TO COMPARE WITH 2026/05/07 AND JET FROM 05/11 and 05/13
 # configs_2.append(IonDataAnalysisConfig(
 #     delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
-#     center=Point(205, 194),
+#     center=Point(197, 195),
 #     angle= Angle(12, AngleUnit.DEG),
 #     analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
-#     transform_parameter=0.78))
+#     transform_parameter=0.77))
 
-
-folders_2.append(Path(r"20260513\Scan1_without_overdoped_scan1")) #GA=0, DA=16.45, DECELERATING, TO COMPARE WITH 2026/05/07 AND JET FROM 05/11 and 05/13
-configs_2.append(IonDataAnalysisConfig(
-    delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
-    center=Point(197, 195),
-    angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
-    transform_parameter=0.77))
-
-folders_2.append(Path(r"20260513\Scan2")) #GA=0, DA=16.45, DECELERATING, TO COMPARE WITH 2026/05/07 AND JET FROM 05/11 and 05/13
-configs_2.append(IonDataAnalysisConfig(
-    delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
-    center=Point(197, 195),
-    angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
-    transform_parameter=0.77))
+# folders_2.append(Path(r"20260513\Scan2")) #GA=0, DA=16.45, DECELERATING, TO COMPARE WITH 2026/05/07 AND JET FROM 05/11 and 05/13
+# configs_2.append(IonDataAnalysisConfig(
+#     delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
+#     center=Point(197, 195),
+#     angle= Angle(12, AngleUnit.DEG),
+#     analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
+#     transform_parameter=0.77))
 
 #--------------------------------------------------------------------------------------------------
 #Update the matplotlib settings

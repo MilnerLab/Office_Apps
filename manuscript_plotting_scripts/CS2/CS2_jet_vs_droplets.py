@@ -66,7 +66,7 @@ savedata_filename_2 = savedata_filedir + r"\CS2_usCFG_droplets.csv" #Name the fi
 
 PlotTitle = r"CS$_2$ - STFT with 180 ps blackman window. Same centrifuge for each scan." "\n" "202512 10th + 12th + 13th"
 
-PlotTitle = r"CS$_2$ jet and droplets - decelerating centrifuge"
+PlotTitle = r"CS$_2$ jet and droplets - same accelerating centrifuge - 20260507"
 
 
 #JET EXPERIMENT
@@ -222,6 +222,8 @@ configs_2.append(IonDataAnalysisConfig(
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
     transform_parameter=0.78))
+
+
 #--------------------------------------------------------------------------------------------------
 #Update the matplotlib settings
 mpl.rcParams.update({
