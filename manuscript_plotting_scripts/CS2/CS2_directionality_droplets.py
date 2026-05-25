@@ -3,6 +3,7 @@ from pathlib import Path
 from altair import FontWeight
 import matplotlib as mpl
 from matplotlib import pyplot as plt
+import pandas as pd
 
 from _data_io.dat_finder import DatFinder
 from _data_io.dat_loader import load_ion_data
@@ -29,7 +30,7 @@ from base_core.quantities.models import Length, Time
 DROPLETRADIUSMIN = 65
 
 STFTWINDOWSIZE = Time(180,Prefix.PICO)  
-EARLIEST_DELAY_PS = -230
+EARLIEST_DELAY_PS = -200
 LATEST_DELAY_PS = -EARLIEST_DELAY_PS
 POSZEROSHIFT = 0 #millimetres :)
 
@@ -162,6 +163,17 @@ configs_2.append(IonDataAnalysisConfig(
 #     analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
 #     transform_parameter=0.77))
 
+
+#--------------------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------------------
+# SIMULATION
+simulation_filename1 = r"C:\milnergitfolder\Theory_Group\20260525_E0_4e10\CS2_accelerating_droplets_cos2theta2D_vs_t_with_model_renormalised.csv"
+simulation_filename2 = r"C:\milnergitfolder\Theory_Group\20260525_E0_4e10\CS2_decelerating_droplets_cos2theta2D_vs_t_with_model_renormalised.csv"
+
+forward = pd.read_csv(simulation_filename1,names = ['time','signal_raw','signal_scaled'])
+reverse = pd.read_csv(simulation_filename2,names = ['time','signal_raw','signal_scaled'])
+
+
 #--------------------------------------------------------------------------------------------------
 #Update the matplotlib settings
 plt.style.use(r"stylefiles\compare_c2t_spectrogram.mplstyle")
@@ -170,12 +182,18 @@ plt.style.use(r"stylefiles\compare_c2t_spectrogram.mplstyle")
 plottable_scan_1, plottable_spectrogram_1 = calculating(folders_1, configs_1)
 plottable_scan_2, plottable_spectrogram_2 = calculating(folders_2, configs_2)
 
+#(a) (b) placement etc
+#Labels 
+textx = 0.1
+texty = 0.9
+
+
 
 #Main figure
 mainfig, (axs) = plt.subplots(
             nrows=2,
             ncols=2,
-            figsize=(6.75, 4.2),
+            figsize=(6.75, 4),
             sharex=True,             
             gridspec_kw={'hspace': 0.1,'wspace': 0.3}
         )
@@ -183,12 +201,17 @@ mainfig, (axs) = plt.subplots(
 #Plot first experiment in top row
 a = axs[0,0]
 plot_averaged_scan(a, plottable_scan_1, PlotColor.BLACK,ecolor=PlotColor.RED,marker='d', label = None,elinewidth=0)
+a.plot(forward.time,forward.signal_scaled,color=PlotColor.RED) #plot theory simulation
+a.text(textx, texty, '(a1)',color='k', horizontalalignment='center', verticalalignment='center', transform=a.transAxes)
+
 a.grid()
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 a.set_xlabel(None)
 
 a = axs[0,1]
 plot_Spectrogram(a, plottable_spectrogram_1,shading="auto")
+a.text(textx, texty, '(a2)',color='w', horizontalalignment='center', verticalalignment='center', transform=a.transAxes)
+
 a.set_ylim([0,100])
 a.set_ylabel('Oscillation\nFrequency (GHz)')
 a.yaxis.set_label_coords(YLABELX,0.5)
@@ -199,17 +222,22 @@ a.set_xlabel(None)
 #Plot second experiment in bottom row
 a = axs[1,0]
 plot_averaged_scan(a, plottable_scan_2, PlotColor.BLACK,ecolor=PlotColor.RED,marker='d',label=None,elinewidth=0)
+a.plot(forward.time,reverse.signal_scaled,color=PlotColor.RED) #plot theory simulation
+a.text(textx, texty, '(b1)',color='k', horizontalalignment='center', verticalalignment='center', transform=a.transAxes)
+
 a.grid()
 
 a = axs[1,1]
-plot_Spectrogram(a, plottable_spectrogram_2,shading="auto",v_range=Range(0,1))
-#print('Colour axis is different for second row.')
+plot_Spectrogram(a, plottable_spectrogram_2,shading="auto",v_range=Range(0,0.6))
+a.text(textx, texty, '(b2)',color='w', horizontalalignment='center', verticalalignment='center', transform=a.transAxes)
+
+print('Colour axis is different for second row.')
 a.set_ylim([0,100])
 a.set_ylabel('Oscillation\nFrequency (GHz)')
 a.yaxis.set_label_coords(YLABELX,0.5)
 #plot_nyquist_frequency(a, plottable_scan_2)
 
-mainfig.suptitle(PlotTitle,fontsize=MAJORTITLEFONTSIZE,color='black')
+#mainfig.suptitle(PlotTitle,fontsize=MAJORTITLEFONTSIZE,color='black')
 
 #Save scans
 plottable_scan_1.to_csv(savedata_filename_1)

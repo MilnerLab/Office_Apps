@@ -66,7 +66,7 @@ savedata_filename_2 = savedata_filedir + r"\CS2_usCFG_droplets.csv" #Name the fi
 
 PlotTitle = r"CS$_2$ - STFT with 180 ps blackman window. Same centrifuge for each scan." "\n" "202512 10th + 12th + 13th"
 
-PlotTitle = r"CS$_2$ jet and droplets - same accelerating centrifuge - 20260507"
+PlotTitle = r"CS$_2$ jet and droplets - 2025/12"
 
 
 #JET EXPERIMENT
@@ -77,7 +77,7 @@ folders_1: list[Path] = []
 configs_2: list[IonDataAnalysisConfig] = []
 folders_2: list[Path] = []
 
-'''
+
 folders_1.append(Path(r"20251210\JSS3"))  #20251210 JSS3 is dense throughout the centrifuge
 configs_1.append(IonDataAnalysisConfig(
     delay_center= Length(90.55-POSZEROSHIFT, Prefix.MILLI),
@@ -87,7 +87,7 @@ configs_1.append(IonDataAnalysisConfig(
     transform_parameter= 0.79))
 
 folders_1.append(Path(r"20251210\JSS4"))  #20251210 JSS4 is dense before the centrifuge
-configs_1.append(configs_1[0]) #same config'''
+configs_1.append(configs_1[0]) #same config
 
 #Decelerating Jet
 # first time comparable data
@@ -110,20 +110,20 @@ configs_1.append(IonDataAnalysisConfig(
     transform_parameter=0.78))'''
     
 # second time comparable data
-folders_1.append(Path(r"20260507\Scan2"))  
-configs_1.append(IonDataAnalysisConfig(
-    delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
-    center=Point(228, 186),
-    angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](40, 120),
-    transform_parameter=0.78))
+# folders_1.append(Path(r"20260507\Scan2"))  
+# configs_1.append(IonDataAnalysisConfig(
+#     delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
+#     center=Point(228, 186),
+#     angle= Angle(12, AngleUnit.DEG),
+#     analysis_zone= Range[int](40, 120),
+#     transform_parameter=0.78))
 
 #DROPLETS EXPERIMENT
 #Same GA=26mm, DA = 15.9mm.
 #20251212 Scan 4
 #20251213 scan 1, 2, and 3. BUT! The last 2 scans in scan3 are bad
 
-'''
+
 folders_2.append(Path(r"20251212\Scan4")) #Combination of 20251212 and 20251213. 
 configs_2.append(IonDataAnalysisConfig(
     delay_center= Length(90.55-POSZEROSHIFT, Prefix.MILLI),
@@ -155,7 +155,7 @@ configs_2.append(IonDataAnalysisConfig(
     center=Point(194, 204),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
-    transform_parameter= 0.79))'''
+    transform_parameter= 0.79))
 
 
 #FORCE DROPLETS COMPARISON
@@ -193,8 +193,8 @@ configs_2.append(IonDataAnalysisConfig(
     transform_parameter=0.78))'''
 
 
-configs_2: list[IonDataAnalysisConfig] = []
-folders_2: list[Path] = []
+# configs_2: list[IonDataAnalysisConfig] = []
+# folders_2: list[Path] = []
 
 # Accelerating
 # first time comparable data
@@ -215,13 +215,13 @@ configs_2.append(IonDataAnalysisConfig(
     transform_parameter=0.78))'''
     
 # second time comparable data
-folders_2.append(Path(r"20260507\Scan1")) 
-configs_2.append(IonDataAnalysisConfig(
-    delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
-    center=Point(204, 196),
-    angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
-    transform_parameter=0.78))
+# folders_2.append(Path(r"20260507\Scan1")) 
+# configs_2.append(IonDataAnalysisConfig(
+#     delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
+#     center=Point(204, 196),
+#     angle= Angle(12, AngleUnit.DEG),
+#     analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
+#     transform_parameter=0.78))
 
 
 #--------------------------------------------------------------------------------------------------
@@ -335,7 +335,7 @@ mainfig, (axs) = plt.subplots(
 
 #Plot first experiment in top row
 a = axs[0,0]
-plot_averaged_scan(a, plottable_scan_1, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d', label = "December")
+plot_averaged_scan(a, plottable_scan_1, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d', label = "120 PSI Jet")
 a.grid(color='grey',linewidth=0.3)
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 a.legend(loc="lower center")
@@ -346,7 +346,7 @@ plot_nyquist_frequency(a, plottable_scan_1)
 
 #Plot second experiment in bottom row
 a = axs[1,0]
-plot_averaged_scan(a, plottable_scan_2, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d',label="April")
+plot_averaged_scan(a, plottable_scan_2, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d',label="30 bar / 16 K Droplets")
 a.grid(color='grey',linewidth=0.3)
 a.legend()
 a = axs[1,1]

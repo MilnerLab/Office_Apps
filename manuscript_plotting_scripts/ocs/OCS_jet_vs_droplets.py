@@ -62,7 +62,7 @@ savedata_filename_2 = savedata_filedir + r"\OCS_usCFG_droplets.csv" #Name the fi
 
 
 #Plot on top
-PlotTitle = ''
+PlotTitle = 'OCS jet vs droplets (2026/04)'
 #PlotTitle = r"OCS - same centrifuge, same day, GA=0mm." "\n" "20260210 Scans 3 and 4" #GA = 0mm
 
 #PlotTitle = r"OCS - STFT with 180 ps blackman window. Same centrifuge for each scan." "\n" "20260210 Scans 3 and 4" #GA = 0mm
@@ -99,13 +99,13 @@ configs_1.append(IonDataAnalysisConfig(
 #     transform_parameter= 0.73))
 #folders_1.append(Path(r"20260223\Scan2_Jet")) 
 
-#APRIL REPEAT
+#APRIL REPEAT ()
 # GA=0, DA = 15.5mm
 
 configs_1: list[IonDataAnalysisConfig] = []
 folders_1: list[Path] = []
 
-folders_1.append(Path(r"20260424\Scan1")) 
+folders_1.append(Path(r"20260424\Scan1"))  #20260424 scan1 is OCS jet
 configs_1.append(IonDataAnalysisConfig(
     delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
     center=Point(230, 192),
@@ -145,7 +145,6 @@ configs_2.append(IonDataAnalysisConfig(
 #configs_2.append(configs_2[0])
 
 
-
 #APRIL REPEATs
 # GA=0, DA = 15.5mm
 
@@ -159,6 +158,7 @@ configs_2.append(IonDataAnalysisConfig(
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
     transform_parameter=0.78))
+'''
 
 #FORCE DROPLETS COMPARISON
 folders_1 = folders_2
@@ -176,7 +176,7 @@ configs_2.append(IonDataAnalysisConfig(
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
     transform_parameter=0.78))
-
+'''
 
 #--------------------------------------------------------------------------------------------------
 #Update the matplotlib settings
@@ -289,8 +289,8 @@ mainfig, (axs) = plt.subplots(
 
 #Plot first experiment in top row
 a = axs[0,0]
-#plot_averaged_scan(a, plottable_scan_1, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d', label = "80 PSI Jet")
-plot_averaged_scan(a, plottable_scan_1, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d', label = "April OCS Droplet Data")
+plot_averaged_scan(a, plottable_scan_1, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d', label = "80 PSI Jet")
+#plot_averaged_scan(a, plottable_scan_1, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d', label = "April OCS Droplet Data")
 a.grid(color='grey',linewidth=0.3)
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 a.legend(loc="lower center")
@@ -301,8 +301,8 @@ plot_nyquist_frequency(a, plottable_scan_1)
 
 #Plot second experiment in bottom row
 a = axs[1,0]
-#plot_averaged_scan(a, plottable_scan_2, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d',label="30 bar / 18 K Droplets")
-plot_averaged_scan(a, plottable_scan_2, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d',label="April OCS in 30 bar/18 K")
+plot_averaged_scan(a, plottable_scan_2, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d',label="30 bar / 18 K Droplets")
+#plot_averaged_scan(a, plottable_scan_2, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d',label="April OCS in 30 bar/18 K")
 a.grid(color='grey',linewidth=0.3)
 a.legend()
 a = axs[1,1]
