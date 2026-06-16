@@ -2,7 +2,7 @@
 from pathlib import Path
 
 from astropy import conf
-from base_core.framework.services import runnable_service_base
+#from base_core.framework.services import runnable_service_base
 from base_core.lab_specifics.base_models import C2TScanData, IonData, IonDataAnalysisConfig, Measurement, RawScanData, ScanDataBase, calculate_time_delay
 from base_core.math.models import MarkedPoints, Points
 from base_core.quantities.constants import SPEED_OF_LIGHT
