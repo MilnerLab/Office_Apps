@@ -175,30 +175,35 @@ plottable_scan_3 = calculating(folders_3, configs_3)
 mainfig, (axs) = plt.subplots(
             nrows=2,
             ncols=1,
-            figsize=(6.75, 4.2),
+            figsize=(6.75/2, 3),
             sharex=True,             
-            gridspec_kw={'hspace': 0.1,'wspace': 0.3}
+            gridspec_kw={'hspace': 0,'wspace': 0.3}
         )
+#(a) (b) placement etc
+textx = 0.1
+texty = 0.85
 
 #Plot first experiment in top row
 a = axs[0]
-plot_averaged_scan(a, plottable_scan_1, PlotColor.BLACK,ecolor=PlotColor.RED,marker='d', label = "3 mJ Polarization-Averaged Centrifuge",elinewidth=1)
+plot_averaged_scan(a, plottable_scan_1, PlotColor.BLACK,ecolor=PlotColor.RED,marker='d', label = None,elinewidth=1)
 a.grid()
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 a.set_xlabel(None)
+#a.legend(loc='upper right')
+a.text(textx, texty, '($\\textbf{a}$)',color='k', horizontalalignment='center', verticalalignment='center', transform=a.transAxes)
 
-a.legend(loc='upper right')
 
 #Plot second experiment in bottom row
 a = axs[1]
-plot_averaged_scan(a, plottable_scan_2, PlotColor.BLACK,ecolor=PlotColor.RED,marker='d',label="3 mJ Polarization-Averaged Centrifuge",elinewidth=1)
-plot_averaged_scan(a, plottable_scan_3, PlotColor.GRAY,ecolor=PlotColor.GRAY,marker='s',label="1.5 mJ Linearly Polarized Field",elinewidth=1)
-
+#plot_averaged_scan(a, plottable_scan_2, PlotColor.BLACK,ecolor=PlotColor.RED,marker='d',label="3 mJ Polarization-Averaged Centrifuge",elinewidth=1)
+#plot_averaged_scan(a, plottable_scan_3, PlotColor.GRAY,ecolor=PlotColor.GRAY,marker='s',label="1.5 mJ Linearly Polarized Field",elinewidth=1)
+plot_averaged_scan(a, plottable_scan_2, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d',label=None,elinewidth=1)
+plot_averaged_scan(a, plottable_scan_3, PlotColor.GRAY,ecolor=PlotColor.GRAY,marker='s',label=None,elinewidth=1)
 a.grid()
-a.legend(loc='upper right')
+#a.legend(loc='upper right')
+a.text(textx, texty, '($\\textbf{b}$)',color='k', horizontalalignment='center', verticalalignment='center', transform=a.transAxes)
 
-
-mainfig.suptitle(PlotTitle,fontsize=MAJORTITLEFONTSIZE,color='black')
+#mainfig.suptitle(PlotTitle,fontsize=MAJORTITLEFONTSIZE,color='black')
 
 #Save scans
 plottable_scan_1.to_csv(savedata_filename_1)

@@ -202,7 +202,7 @@ mainfig, (axs) = plt.subplots(
 a = axs[0,0]
 plot_averaged_scan(a, plottable_scan_1, PlotColor.BLACK,ecolor=PlotColor.RED,marker='d', label = None,elinewidth=0)
 a.plot(forward.time,forward.signal_scaled,color=PlotColor.RED) #plot theory simulation
-a.text(textx, texty, '(a1)',color='k', horizontalalignment='center', verticalalignment='center', transform=a.transAxes)
+a.text(textx, texty, '($\\textbf{a1}$)',color='k', horizontalalignment='center', verticalalignment='center', transform=a.transAxes)
 
 a.grid()
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
@@ -210,7 +210,7 @@ a.set_xlabel(None)
 
 a = axs[0,1]
 plot_Spectrogram(a, plottable_spectrogram_1,shading="auto")
-a.text(textx, texty, '(a2)',color='w', horizontalalignment='center', verticalalignment='center', transform=a.transAxes)
+a.text(textx, texty, '($\\textbf{a2}$)',color='w', horizontalalignment='center', verticalalignment='center', transform=a.transAxes)
 
 a.set_ylim([0,100])
 a.set_ylabel('Oscillation\nFrequency (GHz)')
@@ -223,13 +223,13 @@ a.set_xlabel(None)
 a = axs[1,0]
 plot_averaged_scan(a, plottable_scan_2, PlotColor.BLACK,ecolor=PlotColor.RED,marker='d',label=None,elinewidth=0)
 a.plot(forward.time,reverse.signal_scaled,color=PlotColor.RED) #plot theory simulation
-a.text(textx, texty, '(b1)',color='k', horizontalalignment='center', verticalalignment='center', transform=a.transAxes)
+a.text(textx, texty, '($\\textbf{b1}$)',color='k', horizontalalignment='center', verticalalignment='center', transform=a.transAxes)
 
 a.grid()
 
 a = axs[1,1]
 plot_Spectrogram(a, plottable_spectrogram_2,shading="auto",v_range=Range(0,0.6))
-a.text(textx, texty, '(b2)',color='w', horizontalalignment='center', verticalalignment='center', transform=a.transAxes)
+a.text(textx, texty, '($\\textbf{b2}$)',color='w', horizontalalignment='center', verticalalignment='center', transform=a.transAxes)
 
 print('Colour axis is different for second row.')
 a.set_ylim([0,100])

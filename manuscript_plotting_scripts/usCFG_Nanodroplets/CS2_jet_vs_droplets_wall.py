@@ -161,10 +161,10 @@ ax2.plot(x,y,'k--',linewidth=1)
 
 
 #(a) (b) placement etc
-textx = 0.055
-texty = 0.9
-ax1.text(textx, texty, '(a)',color='k', horizontalalignment='center', verticalalignment='center', transform=ax1.transAxes)
-ax2.text(textx, texty, '(b)',color='k', horizontalalignment='center', verticalalignment='center', transform=ax2.transAxes)
+textx = 0.1
+texty = 0.85
+ax1.text(textx, texty, '($\\textbf{a}$)',color='k', horizontalalignment='center', verticalalignment='center', transform=ax1.transAxes)
+ax2.text(textx, texty, '($\\textbf{b}$)',color='k', horizontalalignment='center', verticalalignment='center', transform=ax2.transAxes)
 
 ax1.set_ylabel(r'$\langle \cos^2\theta_{2D}\rangle$')
 ax2.set_ylabel(r'$\langle \cos^2\theta_{2D}\rangle$')
