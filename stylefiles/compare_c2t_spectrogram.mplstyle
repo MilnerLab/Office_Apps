@@ -68,8 +68,8 @@ xtick.bottom: True
 #figure.subplot.right: 0.95
 #figure.autolayout : False
 
-### Fonts (computer modern)
-text.usetex: True
+### Fonts (computer modern, latex etc)
+text.usetex: True 
 mathtext.fontset: cm
 font.family: serif
 font.serif: cmr10
