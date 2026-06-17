@@ -115,7 +115,7 @@ a.plot(forward.time,forward.signal_scaled,color=PlotColor.RED) #plot theory simu
 a.grid()
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 a.set_xlabel(None)
-a.text(textx, texty, '(a)',color='k', horizontalalignment='center', verticalalignment='center', transform=a.transAxes)
+a.text(textx, texty, '($\\textbf{a}$)',color='k', horizontalalignment='center', verticalalignment='center', transform=a.transAxes)
 
 a = axs[1]
 plot_Spectrogram(a, plottable_spectrogram_1,shading="auto",v_range=Range(0,0.6))
@@ -125,7 +125,7 @@ a.yaxis.set_label_coords(YLABELX,0.5)
 
 #plot_nyquist_frequency(a, plottable_scan_1)
 a.set_xlabel(None)
-a.text(textx, texty, '(b)',color='w', horizontalalignment='center', verticalalignment='center', transform=a.transAxes)
+a.text(textx, texty, '($\\textbf{b}$)',color='w', horizontalalignment='center', verticalalignment='center', transform=a.transAxes)
 
 mainfig.savefig(fig_filename,format='png',dpi=300)
 plt.show()
