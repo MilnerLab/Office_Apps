@@ -1,0 +1,2 @@
+Notes 2026/06/16:
+the gas vs droplets comparison is in Cameron's branch.
