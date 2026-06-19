@@ -139,10 +139,10 @@ def load_points(scans_paths:list[list[Path]]): -> Points:
             ys = arr[:, 1]
 """            
 
-def load_xcorr_means(file_path:Path,pos_tzero:Length) -> ScanDataBase:
+def load_xcorr_means(file_path:Path,pos_tzero:Length,prefactor=1) -> ScanDataBase:
     ScopeData = np.array(pd.read_csv(file_path,header=None,sep='\t',lineterminator='\n',dtype=float))
     delay = [calculate_time_delay(Length(d,Prefix.MILLI),pos_tzero) for d in ScopeData[:,0]]
-    signal = np.average(ScopeData[:,1:-1],axis=1)
+    signal = np.average(ScopeData[:,1:-1],axis=1)*prefactor
     error = np.std(ScopeData[:,1:-1],axis=1)/np.sqrt(ScopeData.shape[1] - 1)
 
     values = [Measurement(signal[i], error[i]) for i in range(len(signal))]
