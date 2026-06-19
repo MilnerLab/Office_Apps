@@ -14,7 +14,7 @@ from apps.scan_averaging.domain.plotting import plot_averaged_scan
 from apps.single_scan.domain.plotting import plot_single_scan
 from apps.stft_analysis.domain.config import StftAnalysisConfig
 from apps.stft_analysis.domain.models import AggregateSpectrogram
-from apps.stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
+from apps.stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency, plot_scan_and_spectrogram
 from apps.stft_analysis.domain.resampling import resample_scans
 from apps.stft_analysis.domain.stft_calculation import StftAnalysis
 from apps.stft_analysis.domain.stft_calculation import StftAnalysis
@@ -228,15 +228,18 @@ mainfig, (axs) = plt.subplots(
         )
 
 #Plot first experiment in top row
-a = axs[0,0]
-plot_averaged_scan(a, plottable_scan_1, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d', label = "CS$_2$ in 120 PSI Jet")
-a.grid(color='grey',linewidth=0.3)
-a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
-a.legend(loc="lower center")
-a = axs[0,1]
-plot_Spectrogram(a, plottable_spectrogram_1,shading="auto")
-a.set_ylim([0,120])
-#plot_nyquist_frequency(a, plottable_scan_1)
+a = axs[0, 0]
+
+ax_freq, mesh = plot_scan_and_spectrogram(
+    a,
+    plottable_scan_1,
+    plottable_spectrogram_1,
+    scan_color=PlotColor.BLUE,
+    scan_ecolor=PlotColor.RED,
+    scan_marker="d",
+    scan_label="CS$_2$ in 120 PSI Jet",
+    shading="auto",
+)
 
 #Plot second experiment in bottom row
 a = axs[1,0]

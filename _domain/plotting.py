@@ -8,25 +8,37 @@ from base_core.quantities.enums import Prefix
 import numpy as np
 
 
-def plot_ScanData(ax: Axes, data: ScanDataBase, label:str = None,*, number_of_scans: int = 1,ax_twin: Axes = None, color: PlotColor = PlotColor.BLUE, ecolor: PlotColor = PlotColor.RED,marker = 'o', ion_color: PlotColor = PlotColor.GRAY) -> None:
+def plot_ScanData(ax: Axes, data: ScanDataBase, label:str = None,*, number_of_scans: int = 1, ax_twin: Axes = None, color: PlotColor = PlotColor.BLUE, ecolor: PlotColor = PlotColor.RED,marker = 'o', ion_color: PlotColor = PlotColor.GRAY, elinewidth:float = 0.5) -> None:
     x = [time.value(Prefix.PICO) for time in data.delays]
     y = np.array([c.value for c in data.measured_values])
     error = np.array([c.error for c in data.measured_values])
     
-    if label == None:
-        label =  f"{number_of_scans} scans" 
-  
-    ax.errorbar(
+    
+    
+    if elinewidth == 0:
+        ax.plot(
         x,
         y,
-        yerr=None,
-        #ecolor=ecolor,
         color=color,
         marker = marker,
         markersize = 1.0,
-        label = label,
     )
-    ax.legend(loc='upper right')
+    else:
+        ax.errorbar(
+            x,
+            y,
+            yerr=error,
+            ecolor=ecolor,
+            color=color,
+            marker = marker,
+            markersize = 1.0,
+            elinewidth = elinewidth
+        )
+        
+    if label is not None:
+        ax.set_label(label)
+        ax.legend(loc='upper left')
+        
     ax.set_xlabel("Probe Delay (ps)")
     ax.set_ylabel(r"$\langle \cos^2 \theta_\mathrm{2D} \rangle$")
     
