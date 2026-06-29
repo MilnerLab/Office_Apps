@@ -68,7 +68,7 @@ class SceneLayout:
 
     @property
     def detector_center(self) -> np.ndarray:
-        return self.molecule_center + np.array([0.0, 0.0, -2.25])
+        return self.molecule_center + np.array([0.0, 0.0, -2.4])
 
     @property
     def lab_axes_origin(self) -> np.ndarray:
@@ -542,7 +542,7 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         time_tracker: ValueTracker,
     ) -> MathTex:
         pulse_center_x = model["pulse_center_x"]
-        label = MathTex(r"\vec{E}_{\mathrm{CFG}}", font_size=34, color=colors.e_field)
+        label = MathTex(r"\vec{E}_{\mathrm{CFG}}", font_size=44, color=colors.e_field)
 
         def update_label(mob: MathTex) -> None:
             current_time = time_tracker.get_value()
@@ -612,17 +612,17 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         )
         label_line = DashedLine(
             label_anchor,
-            label_anchor + np.array([0, 0.4, 0.38]),
+            label_anchor + np.array([-0.8, 0.4, 0.38]),
             color=colors.angle_line,
             stroke_width=2,
             fill_opacity=0.6,
         )
         theta_label_pos = rotate_point_around_z(
-            label_anchor + np.array([0, 0.4, 0.6]),
+            label_anchor + np.array([-0.8, 0.4, 0.6]),
             90 * DEGREES,
             detector_center,
         )
-        theta_label = MathTex(r"\theta_{\mathrm{2D}}", font_size=36, color=colors.angle)
+        theta_label = MathTex(r"\theta_{\mathrm{2D}}", font_size=44, color=BLACK)
         theta_label.move_to(theta_label_pos)
 
         detector_group = Group(
@@ -648,7 +648,6 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         plot_scale_y = 2.1
         plot_width = 2.7 * plot_scale_x
         plot_height = 1.0 * plot_scale_y
-        label_scaling = 6
         plot_x_min = layout.t_min
         plot_x_max = layout.t_max
         plot_y_min = 0.45
@@ -669,10 +668,10 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
         # ------------------------------------------------------------
         # Inset background / frame
         # ------------------------------------------------------------
-        inset_left = plot_origin[0] - 0.72
+        inset_left = plot_origin[0] - 0.90
         inset_right = plot_origin[0] + plot_width + 0.22
         inset_bottom = plot_origin[1] - 0.42
-        inset_top = plot_origin[1] + plot_height + 0.58
+        inset_top = plot_origin[1] + plot_height + 0.68
 
         inset_width = inset_right - inset_left
         inset_height = inset_top - inset_bottom
@@ -718,31 +717,31 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
 
         plot_title = MathTex(
             r"\langle \cos^2\theta_{\mathrm{2D}}\rangle",
-            font_size=24 + label_scaling,
+            font_size=36,
             color=colors.plot,
         )
-        plot_title.move_to(plot_origin + np.array([0.0, plot_height + 0.28, 0.0]))
+        plot_title.move_to(plot_origin + np.array([0.0, plot_height + 0.38, 0.0]))
 
         plot_x_label = MathTex(
-            r"\mathrm{probe\ delay}",
-            font_size=18 + label_scaling,
+            r"\mathrm{Probe\ Delay}",
+            font_size=36,
             color=colors.plot,
         )
         plot_x_label.move_to(plot_origin + np.array([plot_width * 0.58, -0.22, 0.0]))
 
         plot_y05_label = MathTex(
             r"0.5",
-            font_size=16 + label_scaling,
+            font_size=36,
             color=colors.plot,
         )
-        plot_y05_label.move_to(plot_point_2d(plot_x_min, 0.5) + np.array([-0.22, 0.0, 0.0]))
+        plot_y05_label.move_to(plot_point_2d(plot_x_min, 0.5) + np.array([-0.32, 0.0, 0.0]))
 
         plot_y1_label = MathTex(
             r"1.0",
-            font_size=16 + label_scaling,
+            font_size=36,
             color=colors.plot,
         )
-        plot_y1_label.move_to(plot_point_2d(plot_x_min, 1.0) + np.array([-0.22, 0.0, 0.0]))
+        plot_y1_label.move_to(plot_point_2d(plot_x_min, 1.0) + np.array([-0.32, 0.0, 0.0]))
 
         plot_static = VGroup(
             inset_background,
@@ -930,9 +929,9 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
             make_arrow_tip(z_end, z_dir, colors.coordinate_system, radius=cone_radius, height=cone_height),
         )
 
-        x_label = MathTex("x", font_size=40, color=colors.coordinate_system)
-        y_label = MathTex("y", font_size=40, color=colors.cfg)
-        z_label = MathTex("z", font_size=40, color=colors.coordinate_system)
+        x_label = MathTex("x", font_size=72, color=colors.coordinate_system)
+        y_label = MathTex("y", font_size=72, color=colors.cfg)
+        z_label = MathTex("z", font_size=72, color=colors.coordinate_system)
 
         x_label.move_to(origin + (length + label_shift + cone_height) * x_dir)
         y_label.move_to(origin + (length + label_shift + cone_height) * y_dir)

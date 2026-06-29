@@ -252,7 +252,7 @@ a.legend()
 a = axs[1,1]
 plot_Spectrogram(a, plottable_spectrogram_2,shading="auto")
 a.set_ylim([0,120])
-plot_nyquist_frequency(a, plottable_scan_2)
+#plot_nyquist_frequency(a, plottable_scan_2)
 mainfig.suptitle(PlotTitle,fontsize=USEFONTSIZE,color='black')
 
 #Save scans
