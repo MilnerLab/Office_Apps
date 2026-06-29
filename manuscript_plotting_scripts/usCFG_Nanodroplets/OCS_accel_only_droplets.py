@@ -124,7 +124,7 @@ a.set_ylabel('Oscillation\nFrequency (GHz)')
 a.yaxis.set_label_coords(YLABELX,0.5)
 
 #plot_nyquist_frequency(a, plottable_scan_1)
-a.set_xlabel(None)
+#a.set_xlabel(None)
 a.text(textx, texty, '($\\textbf{b}$)',color='w', horizontalalignment='center', verticalalignment='center', transform=a.transAxes)
 
 mainfig.savefig(fig_filename,format='png',dpi=300)
