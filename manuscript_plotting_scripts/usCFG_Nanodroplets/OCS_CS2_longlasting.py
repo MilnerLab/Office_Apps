@@ -244,7 +244,9 @@ mainfig, (axs) = plt.subplots(
             sharex=True,             
             gridspec_kw={'hspace': 0,'wspace': 0.3}
         )
-
+#(a) (b) placement 
+textx = 0.93    
+texty = 0.85
 #First subplot is OCS in droplets, usCFG vs resonant cfCFG vs nonresonant cfCFG
 a = axs[0]
 plot_averaged_scan(a, OCS_usCFG, marker='x',color=PlotColor.BLUE,ecolor=PlotColor.RED, label = None)
@@ -253,12 +255,14 @@ a.errorbar(OCS_cfCFG_nonresonant.DELAY,OCS_cfCFG_nonresonant.C2T,yerr=OCS_cfCFG_
 a.plot(t_interp,c2t_interp,'c-',linewidth=3) #fit to field-free decay
 a.set_ylabel(None)
 a.grid()
+a.text(textx, texty, '($\\mathbf{a}$)',color='k', horizontalalignment='center', verticalalignment='center', transform=a.transAxes)
 
 #Second subplot is CS2 in the jet with the averaged usCFG
 a = axs[1]
 plot_averaged_scan(a,CS2_jet,marker='d',color=PlotColor.BLACK,ecolor=PlotColor.RED,label=None)
 a.set_ylabel(None)
 a.grid()
+a.text(textx, texty, '($\\mathbf{b}$)',color='k', horizontalalignment='center', verticalalignment='center', transform=a.transAxes)
 
 
 #Third subplot is CS2 in droplets with averaged usCFG and then also 1 arm
@@ -268,6 +272,7 @@ plot_averaged_scan(a,cs2_droplets_1arm,marker='d',color=PlotColor.GRAY,ecolor=Pl
 
 a.set_ylabel(None)
 a.grid()
+a.text(textx, texty, '($\\mathbf{c}$)',color='k', horizontalalignment='center', verticalalignment='center', transform=a.transAxes)
 
 
 
