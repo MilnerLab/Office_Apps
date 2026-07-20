@@ -1,7 +1,10 @@
 # io/dat_loader.py
 from pathlib import Path
-from apps.c2t_calculation.domain.config import IonDataAnalysisConfig
-from base_core.math.models import Point
+
+from astropy import conf
+from base_core.framework.services import runnable_service_base
+from base_core.lab_specifics.base_models import C2TScanData, IonData, IonDataAnalysisConfig, Measurement, RawScanData, ScanDataBase, calculate_time_delay
+from base_core.math.models import MarkedPoints, Points
 from base_core.quantities.constants import SPEED_OF_LIGHT
 from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Length, Time
@@ -9,11 +12,10 @@ import numpy as np
 import pandas as pd
 import time
 
-from _domain.models import LoadableScan, Measurement, IonData, C2TScanData, RawScanData, ScanDataBase
 
 
 
-def load_time_scan(path: Path) -> C2TScanData:
+def load_time_scan(path: Path, config: IonDataAnalysisConfig) -> C2TScanData:
 
     delays: list[Time] = []
     c2ts: list[Measurement] = []
@@ -44,71 +46,115 @@ def load_time_scan(path: Path) -> C2TScanData:
     if not delays:
         raise ValueError("No valid data lines (>= 4 numeric columns) found in file.")
 
-    file_name = path
-
-    return C2TScanData(delays=delays, measured_values=c2ts, file_path=file_name, ions_per_frame=ions)
+    return C2TScanData(delays=delays, measured_values=c2ts, run_id=None, ions_per_frame=ions, config=config)
 
 
-def load_time_scans(paths: list[Path]) -> list[C2TScanData]:
+def load_time_scans(paths: list[Path], config: IonDataAnalysisConfig) -> list[C2TScanData]:
     
     scanDatas: list[C2TScanData] = []
     
     for path in paths:
-        scanDatas.append(load_time_scan(path=path))
+        scanDatas.append(load_time_scan(path=path, config=config))
 
     return scanDatas
 
 
-def load_ion_data(scans_paths: list[list[Path]], configs: list[IonDataAnalysisConfig]) -> list[RawScanData]:
-    
-    if len(scans_paths) != len(configs):
-        raise ValueError("No distinct assignment possible.")
-    
+def load_ion_data(scans_paths: list[list[Path]]) -> list[RawScanData]:
     raw_scans: list[RawScanData] = []
-    
-    for i in range(len(scans_paths)):
-        output: list[IonData] = []
-        idx_by_delay: dict[Time, int] = {}  
-        
-        t0 = time.perf_counter()
-        
-        for path in sorted(scans_paths[i]):
-            run_id, delay = extract_infos_from_name(path,configs[i].delay_center)
 
-            arr = np.loadtxt(path, usecols=(1, 2), ndmin=2)
-            points = [Point(x, y) for x, y in arr]
+    for scan_group in scans_paths:
+        x_chunks_by_pos: dict[Length, list[np.ndarray]] = {}
+        y_chunks_by_pos: dict[Length, list[np.ndarray]] = {}
+        frame_chunks_by_pos: dict[Length, list[np.ndarray]] = {}
+        run_id_by_pos: dict[Length, int] = {}
+        next_frame_offset_by_pos: dict[Length, int] = {}
 
-            if delay in idx_by_delay:
-                output[idx_by_delay[delay]].points.extend(points)
+        number_of_scans = 0
+
+        for path in sorted(scan_group):
+            run_id, stage_position = extract_infos_from_name(path)
+
+            arr = np.loadtxt(path, usecols=(0, 1, 2), ndmin=2, dtype=np.float64)
+
+            local_frames = arr[:, 0].astype(np.int64)
+            xs = arr[:, 1]
+            ys = arr[:, 2]
+
+            if stage_position not in x_chunks_by_pos:
+                x_chunks_by_pos[stage_position] = []
+                y_chunks_by_pos[stage_position] = []
+                frame_chunks_by_pos[stage_position] = []
+                run_id_by_pos[stage_position] = run_id
+                next_frame_offset_by_pos[stage_position] = 0
+
+            offset = next_frame_offset_by_pos[stage_position]
+
+            if local_frames.size > 0:
+                local_frames = local_frames - local_frames.min()
+                frames = local_frames + offset
+
+                n_local_frames = int(local_frames.max()) + 1
+                next_frame_offset_by_pos[stage_position] += n_local_frames
             else:
-                idx_by_delay[delay] = len(output)
-                output.append(IonData(run_id, delay, points))
-        
-        t1 = time.perf_counter()
-        print("loadtxt:", t1 - t0)
-        
-        output.sort(key=lambda x: x.delay)
-        
-        raw_scans.append(RawScanData(output, configs[i]))
+                frames = local_frames
+
+            x_chunks_by_pos[stage_position].append(xs)
+            y_chunks_by_pos[stage_position].append(ys)
+            frame_chunks_by_pos[stage_position].append(frames)
+
+            
+
+        output: list[IonData] = []
+        for stage_position in sorted(x_chunks_by_pos.keys()):
+            xs = np.concatenate(x_chunks_by_pos[stage_position])
+            ys = np.concatenate(y_chunks_by_pos[stage_position])
+            frames = np.concatenate(frame_chunks_by_pos[stage_position])
+
+            hits = MarkedPoints(xs, ys, frames)
+
+            output.append(
+                IonData(
+                    id=run_id_by_pos[stage_position],
+                    stage_position=stage_position,
+                    ions_per_frame=hits.avg_points_per_marker(),
+                    points=hits,
+                )
+            )
+
+        raw_scans.append(
+            RawScanData(
+                run_id=output[0].id,
+                ion_datas=output,
+                number_of_scans=number_of_scans,
+            )
+        )
 
     return raw_scans
+"""
+def load_points(scans_paths:list[list[Path]]): -> Points:
+    for i in range(len(scans_paths)):
+        for path in sorted(scans_paths[i]):
+            arr = np.loadtxt(path, usecols=(1, 2), ndmin=2, dtype=np.float64)
+            xs = arr[:, 0]
+            ys = arr[:, 1]
+"""            
 
-def load_xcorr_means(file_path:Path,pos_tzero:Length) -> LoadableScan:
+def load_xcorr_means(file_path:Path,pos_tzero:Length,prefactor=1) -> ScanDataBase:
     ScopeData = np.array(pd.read_csv(file_path,header=None,sep='\t',lineterminator='\n',dtype=float))
     delay = [calculate_time_delay(Length(d,Prefix.MILLI),pos_tzero) for d in ScopeData[:,0]]
-    signal = np.average(ScopeData[:,1:-1],axis=1)
+    signal = np.average(ScopeData[:,1:-1],axis=1)*prefactor
     error = np.std(ScopeData[:,1:-1],axis=1)/np.sqrt(ScopeData.shape[1] - 1)
 
     values = [Measurement(signal[i], error[i]) for i in range(len(signal))]
     
-    return LoadableScan(file_path=file_path,delays = delay, measured_values = values)
+    return ScanDataBase(run_id=0,delays = delay, measured_values = values)
 
 ###########
 #  Helper functions
 ###########
 
 
-def extract_infos_from_name(path: Path, delay_center: Length) -> tuple[int, Time]:
+def extract_infos_from_name(path: Path) -> tuple[int, Length]:
     stem = Path(path).stem
     time_part, stage_part = stem.split("DLY_", 1)
     
@@ -116,12 +162,5 @@ def extract_infos_from_name(path: Path, delay_center: Length) -> tuple[int, Time
     stage_part = stage_part[:-2]
     stage_part = stage_part.replace("p", ".")
 
-    delay = calculate_time_delay(Length(float(stage_part), Prefix.MILLI), delay_center)
+    return int(time_part), Length(float(stage_part), Prefix.MILLI)
 
-    return int(time_part), delay
-
-
-def calculate_time_delay(stage_position: Length, delay_center: Length) -> Time:
-    delta = (stage_position - delay_center) * 2
-
-    return Time(delta / SPEED_OF_LIGHT)

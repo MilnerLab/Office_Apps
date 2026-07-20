@@ -1,4 +1,6 @@
 from typing import List
+from base_core.lab_specifics.averaging.models import AveragedScansData
+from base_core.lab_specifics.base_models import C2TScanData, Measurement, ScanDataBase
 from base_core.quantities.models import Time
 import numpy as np
 
@@ -8,14 +10,11 @@ from typing import List
 
 import numpy as np
 
-from _domain.models import LoadableScan, Measurement
-from apps.scan_averaging.domain.models import AveragedScansData
-
 
 from typing import List
 import numpy as np
 
-def average_scans(scans: List[LoadableScan], *, key_digits: int = 12) -> AveragedScansData:
+def average_scans(scans: List[ScanDataBase], *, key_digits: int = 12) -> AveragedScansData:
     """
     Average scans with possibly different x-axes.
 
@@ -29,6 +28,9 @@ def average_scans(scans: List[LoadableScan], *, key_digits: int = 12) -> Average
     """
     if not scans:
         raise ValueError("Scan list is empty.")
+    
+    # if not isinstance(scans,List):
+    #     scans = []
 
     # --- helpers ------------------------------------------------------------
     def _key(t: Time) -> float:
@@ -56,17 +58,35 @@ def average_scans(scans: List[LoadableScan], *, key_digits: int = 12) -> Average
     n_x = len(x_union)
     y_mat = np.full((n_scans, n_x), np.nan, dtype=float)
     s_mat = np.full((n_scans, n_x), np.nan, dtype=float)
+    ions_per_frame = []
 
     # --- map scans onto union axis -----------------------------------------
-    for i, s in enumerate(scans):
-        if len(s.delays) != len(s.measured_values):
-            raise ValueError(f"Scan {i} has mismatched delay/c2t lengths.")
+    if isinstance(scans[0],C2TScanData):
+        for i, s in enumerate(scans):
+            if len(s.delays) != len(s.measured_values):
+                raise ValueError(f"Scan {i} has mismatched delay/c2t lengths.")
+            ions_per_frame.append(s.ions_per_frame)
+            
+            for t, c in zip(s.delays, s.measured_values):
+                j = key_to_idx[_key(t)]
+                y_mat[i, j] = float(c.value)
+                s_mat[i, j] = float(c.error)
 
-        for t, c in zip(s.delays, s.measured_values):
-            j = key_to_idx[_key(t)]
-            y_mat[i, j] = float(c.value)
-            s_mat[i, j] = float(c.error)
-
+        #avg ions/frame over the multiple scan folders
+        max_len = max(len(row) for row in ions_per_frame)
+        arr = np.array([row + [np.nan] * (max_len - len(row)) for row in ions_per_frame])
+        avg_ions_per_frame = np.nanmean(arr,axis=0)
+    
+    else:
+         for i, s in enumerate(scans):
+            if len(s.delays) != len(s.measured_values):
+                raise ValueError(f"Scan {i} has mismatched delay/c2t lengths.")
+            
+            for t, c in zip(s.delays, s.measured_values):
+                j = key_to_idx[_key(t)]
+                y_mat[i, j] = float(c.value)
+                s_mat[i, j] = float(c.error)
+                
     # --- average y using nanmean -------------------------------------------
     avg_y = np.nanmean(y_mat, axis=0)
 
@@ -83,9 +103,19 @@ def average_scans(scans: List[LoadableScan], *, key_digits: int = 12) -> Average
         Measurement(value=float(v), error=float(e))
         for v, e in zip(avg_y, avg_sigma)
     ]
-
-    return AveragedScansData(
+    
+    
+    if isinstance(scans[0], C2TScanData):
+        return AveragedScansData(
         delays=x_union.copy(),
         measured_values=avg_c2t,
-        file_names=[s.file_path for s in scans],
-    )
+        run_ids=[s.run_id for s in scans],
+        run_id=None,
+        )
+    else:
+        return AveragedScansData(
+            delays=x_union.copy(),
+            measured_values=avg_c2t,
+            run_ids=[s.run_id for s in scans],
+            run_id=None
+        )

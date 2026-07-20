@@ -6,10 +6,8 @@ import matplotlib as mpl
 from _data_io.dat_finder import DatFinder
 from _data_io.dat_loader import load_ion_data
 from _data_io.dat_saver import create_save_path_for_calc_ScanFile
-from apps.c2t_calculation.domain.config import IonDataAnalysisConfig
-from apps.c2t_calculation.domain.pipeline import run_pipeline
+from apps.c2t_calculation.domain.analysis import run_pipeline
 from apps.scan_averaging.domain.averaging import average_scans
-from apps.scan_averaging.domain.models import AveragedScansData
 from apps.scan_averaging.domain.plotting import plot_averaged_scan
 from apps.single_scan.domain.plotting import plot_single_scan
 from apps.stft_analysis.domain.config import StftAnalysisConfig
@@ -17,6 +15,8 @@ from apps.stft_analysis.domain.models import AggregateSpectrogram
 from apps.stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
 from apps.stft_analysis.domain.resampling import resample_scans
 from apps.stft_analysis.domain.stft_calculation import StftAnalysis
+from base_core.lab_specifics.averaging.models import AveragedScansData
+from base_core.lab_specifics.base_models import IonDataAnalysisConfig
 from base_core.math.enums import AngleUnit
 from base_core.math.models import Angle, Point, Range
 from base_core.plotting.enums import PlotColor
@@ -33,9 +33,8 @@ def calculating(folders: list[Path], configs: list[IonDataAnalysisConfig]) -> tu
     
     
     scans_paths = DatFinder(folders).find_datafiles() #Change this if you want a specific path rather than the Droplets folder
-    raw_datas = load_ion_data(scans_paths, configs)
-    save_path = create_save_path_for_calc_ScanFile(folders[0], str(raw_datas[0].ion_datas[0].run_id))
-    calculated_scans = run_pipeline(raw_datas, save_path)
+    raw_datas = load_ion_data(scans_paths)
+    calculated_scans = run_pipeline(raw_datas, configs)
     averagedScanData = average_scans(calculated_scans)
     config = StftAnalysisConfig(calculated_scans)
     config.stft_window_size = STFTWINDOWSIZE 

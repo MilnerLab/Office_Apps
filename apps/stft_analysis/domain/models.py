@@ -2,16 +2,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from base_core.fitting.functions import fit_gaussian
 from base_core.framework import di
+from base_core.lab_specifics.base_models import ScanDataBase
 from base_core.math.functions import gaussian
 from base_core.math.models import Range
 from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Frequency, Time
 import numpy as np
 
-from _domain.models import  LoadableScan
+
 
 @dataclass(frozen=True)
-class ResampledScan(LoadableScan):
+class ResampledScan(ScanDataBase):
     scan_range: Range[Time] = None
     
     def detrend(self) -> tuple[list[float], list[float]]:
@@ -34,7 +35,7 @@ class ResampledScan(LoadableScan):
         return ((y - g).tolist(), g.tolist())
 
 
-    def detrend_moving_average(self, window: int = 10) -> list[float]:
+    def detrend_moving_average(self, window: int = 10) -> tuple[list[float], list[float]]:
         y = np.asarray([c.value for c in self.measured_values], dtype=float)
 
         mask = np.isfinite(y).astype(float)
@@ -58,7 +59,7 @@ class ResampledScan(LoadableScan):
         den = np.convolve(mp,  kernel, mode="valid")
 
         baseline = np.divide(num, den, out=np.full_like(num, np.nan), where=den > 0)
-        return (y - baseline).tolist()
+        return ((y - baseline).tolist(), baseline.tolist())
         
 
 @dataclass(frozen=True)
@@ -70,8 +71,8 @@ class SpectrogramBase:
     
 @dataclass(frozen=True)
 class SpectrogramResult(SpectrogramBase):
-    file_path: Path
+    run_id: int
 
 @dataclass(frozen=True)
 class AggregateSpectrogram(SpectrogramBase):
-    file_paths: list[Path]
+    run_ids: list[int]

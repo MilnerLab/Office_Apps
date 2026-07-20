@@ -1,91 +1,247 @@
+from math import trunc
 from pathlib import Path
-from turtle import st
+import matplotlib as mpl
 from matplotlib import pyplot as plt
 import numpy as np
+from yaml import scan
+from matplotlib.widgets import Button
 
+from _domain.plotting import plot_GaussianFit, plot_ScanData
+from apps.c2t_calculation.domain.analysis import run_pipeline
+from apps.c2t_calculation.domain.plotting import plot_calculated_scan
+from apps.scan_averaging.domain import averaging
 from apps.stft_analysis.domain.config import StftAnalysisConfig
 from apps.stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
 from apps.stft_analysis.domain.resampling import resample_scans
 from apps.stft_analysis.domain.stft_calculation import StftAnalysis
-from _data_io.dat_finder import DatFinder
-from _data_io.dat_loader import load_time_scan, load_time_scans
-from apps.scan_averaging.domain.averaging import average_scans
-from apps.scan_averaging.domain.models import AveragedScansData
+from _data_io.dat_finder import MOST_RECENT_FOLDER, DatFinder
+from _data_io.dat_loader import load_ion_data
+from apps.scan_averaging.domain import averaging
+#from apps.scan_averaging.domain.models import AveragedScansData
 from apps.scan_averaging.domain.plotting import plot_averaged_scan
 from apps.single_scan.domain.plotting import plot_single_scan
+from base_core.lab_specifics.base_models import IonDataAnalysisConfig
 from base_core.plotting.enums import PlotColor
 from base_core.quantities.enums import Prefix
-from base_core.quantities.models import Time
+from base_core.quantities.models import Length, Time
+from base_core.math.models import Point, Angle, Range
+from base_core.math.enums import AngleUnit
 
-""" folder_path1 = Path(r"Z:\Droplets\20260211\Scan1_ScanFiles")
-folder_path2 = Path(r"Z:\Droplets\20260211\Scan2_ScanFiles")
-folder_path4 = Path(r"Z:\Droplets\20260211\Scan4_ScanFiles")
 
-file_paths_avg1 = DatFinder(folder_path1).find_scanfiles()
-file_paths_avg2 = DatFinder(folder_path2).find_scanfiles()
-file_paths_avg4 = DatFinder(folder_path4).find_scanfiles()
 
+
+mpl.rcParams.update({
     
-scan_data_avg1 = load_time_scans(file_paths_avg1)
-scan_data_avg2 = load_time_scans(file_paths_avg2)
-scan_data_avg4 = load_time_scans(file_paths_avg4)
+    # --- Axes ---
+    "axes.titlesize": "medium",
+    "axes.labelsize": 8,
+    "axes.formatter.use_mathtext": True,
+    "axes.linewidth": 0.5,
+    "axes.grid": True,
+    "axes.grid.axis": "both",  # which axis the grid should apply to
+    "axes.grid.which": "major",
+    "axes.axisbelow" : True,
+    "grid.alpha": 1.0,
 
-config1 = StftAnalysisConfig(scan_data_avg1)
-config2 = StftAnalysisConfig(scan_data_avg2)
-config4 = StftAnalysisConfig(scan_data_avg4)
-#print(config.stft_window_size)
-resampled_scans1 = resample_scans(scan_data_avg1, config1.axis)
-resampled_scans2 = resample_scans(scan_data_avg2, config2.axis)
-resampled_scans4 = resample_scans(scan_data_avg4, config4.axis)
+    # --- Grid lines ---
+    "grid.linewidth": 0.3,
+    "grid.linestyle": "solid",
+    "grid.color": "grey",
 
-ax = np.empty((3,2), dtype=object)
-fig,ax = plt.subplots(3,2, figsize=(10,12))
-averagedScanData1 = average_scans(scan_data_avg1)
-averagedScanData2 = average_scans(scan_data_avg2)
-averagedScanData4 = average_scans(scan_data_avg4)
-plot_averaged_scan(ax=ax[0,0],data=averagedScanData1, label="Averaged Scans", color=PlotColor.RED)
-plot_averaged_scan(ax=ax[1,0],data=averagedScanData2, label="Averaged Scans", color=PlotColor.RED)
-plot_averaged_scan(ax=ax[2,0],data=averagedScanData4)
-spectrogram1 = calculate_averaged_spectrogram(resampled_scans1, config1)
-spectrogram2 = calculate_averaged_spectrogram(resampled_scans2, config2)
-spectrogram4 = calculate_averaged_spectrogram(resampled_scans4, config4)
-plot_Spectrogram(ax[0,0], spectrogram1)
-plot_Spectrogram(ax[0,1], spectrogram2)
-plot_Spectrogram(ax[0,2], spectrogram4) """
+    # --- Lines ---
+    "lines.linewidth": 0.5,
+    "lines.marker": "o",
+    "lines.markersize": 1.0,
+    "hatch.linewidth": 0.25,
+    "patch.antialiased": True,
+    
+    #---Errorbars---
+    "errorbar.capsize": 1,
 
-fig_path = Path(r"C:\Users\camp06\OneDrive - UBC\Documents\droplets_manuscript\test\20260219_jet_avg.png")
-folder_path = Path(r"Z:\Droplets\20260221\Scan1_ScanFiles")
-#file_paths_avg = DatFinder(folder_path).find_scanfiles()
-#scan_data_avg = load_time_scans(file_paths_avg)
+    # --- Ticks (X) ---
+    #"xtick.top": True,
+    "xtick.bottom": True,
+    "xtick.major.size": 3.0,
+    "xtick.minor.size": 1.5,
+    "xtick.major.width": 0.5,
+    "xtick.minor.width": 0.5,
+    "xtick.direction": "in",
+    "xtick.minor.visible": False,
+    #"xtick.major.top": True,
+    "xtick.major.bottom": True,
+    "xtick.minor.bottom": True,
+    "xtick.major.pad": 5.0,
+    "xtick.minor.pad": 5.0,
+    "xtick.labelsize": 8,
 
-file_paths_avg = DatFinder().find_scanfiles()
-scan_data_avg = load_time_scans(file_paths_avg)
+    # --- Ticks (Y) ---
+    "ytick.left": True,
+    #"ytick.right": True,
+    "ytick.major.size": 3.0,
+    #"ytick.minor.size": 1.5,
+    "ytick.major.width": 0.5,
+    #"ytick.minor.width": 0.5,
+    "ytick.direction": "in",
+    #"ytick.minor.visible": True,
+    "ytick.major.left": True,
+    #"ytick.major.right": True,
+    #"ytick.minor.left": True,
+    "ytick.major.pad": 2.0,
+    #"ytick.minor.pad": 5.0,
+    "ytick.labelsize": 8,
+    
+    
+    # --- Legend ---
+    "legend.frameon": True,
+    "legend.fontsize": 8,
+    "legend.handlelength": 1.375,
+    "legend.labelspacing": 0.4,
+    "legend.columnspacing": 1,
+    "legend.facecolor": "white",
+    "legend.edgecolor": "white",
+    "legend.framealpha": 1,
+    "legend.title_fontsize": 8,
+ 
+    # --- Figure size ---
+    #"figure.figsize": (3.375, 3.6), #1- column fig
+    #"figure.figsize": (3.375, 3),
+    #"figure.figsize": (6.75, 3.6), #approx. 2- column fig
+    "figure.subplot.left": 0.125,
+    "figure.subplot.bottom": 0.175,
+    "figure.subplot.top": 0.95,
+    "figure.subplot.right": 0.95,
 
-""" fig,(axs) = plt.subplots(2,3,figsize=(16,8))
-i = 0
-for scan in scan_data_avg:
-    if i <= 2:
-        plot_single_scan(axs[0,i],data=scan)
-    else: 
-        plot_single_scan(axs[1,i-3],data=scan)
-    i += 1
-fig.tight_layout()
-fig.savefig(fig_path,format='png')
-plt.show() """
+    # --- Fonts (computer modern) ---
+    "font.size": 8,
+    "text.usetex": True,      
+    #"mathtext.fontset": "cm",
+    "font.family": "serif",
+    "font.serif": ["cmr10"]
 
-config = StftAnalysisConfig(scan_data_avg)
-resampled_scans = resample_scans(scan_data_avg,config.axis)
-averaged_data = average_scans(scan_data_avg)
+})
+
+def get_scan_number(folder_path: Path = MOST_RECENT_FOLDER) -> int:
+        scan_files = DatFinder(folder_path).find_scanfiles()
+        return len(scan_files)
+    
+
+vmi_config: list[IonDataAnalysisConfig] = []
+
+# vmi_config.append(IonDataAnalysisConfig(    #05/04 cs2 droplet scan
+#     delay_center= Length(93.3, Prefix.MILLI),
+#     center=Point(206, 194),
+#     angle= Angle(12, AngleUnit.DEG),
+#     analysis_zone= Range[int](60, 110),
+#     transform_parameter=0.78))
+
+# vmi_config.append(IonDataAnalysisConfig( #05/05 cs2 droplet scans
+#     delay_center= Length(93.3, Prefix.MILLI),
+#     center=Point(204, 196),
+#     angle= Angle(12, AngleUnit.DEG),
+#     analysis_zone= Range[int](60, 110),
+#     transform_parameter=0.78))
+
+# vmi_config.append(vmi_config[1])
+
+# vmi_config.append(IonDataAnalysisConfig( #CS2 Jet 05/11 config
+#     delay_center= Length(93.3, Prefix.MILLI),
+#     center=Point(228, 186),
+#     angle= Angle(12, AngleUnit.DEG),
+#     analysis_zone= Range[int](40, 110),
+#     transform_parameter=0.78))
 
 
-fig,(ax1,ax2) = plt.subplots(2,1,figsize=(8,5))
+# vmi_config.append(IonDataAnalysisConfig( #CS2 droplets 05/12 config
+#     delay_center= Length(93.3, Prefix.MILLI),
+#     center=Point(197, 195),
+#     angle= Angle(12, AngleUnit.DEG),
+#     analysis_zone= Range[int](60, 110),
+#     transform_parameter=0.77))
 
-plot_averaged_scan(ax1,data=averaged_data)
-spectrogram = StftAnalysis(resampled_scans,config).calculate_averaged_spectrogram()
-plot_Spectrogram(ax2,spectrogram)
-plot_nyquist_frequency(ax2,scan_data_avg[0])
-ax2.set_xlim(-200,200)
-fig.suptitle('OCS Droplets', fontsize=12)
-fig.tight_layout()
-#fig.savefig(fig_path,format='png')
-plt.show()
+folder_path: list[Path] = []
+#folder_path.append(Path(r"Z:\Droplets\20260504\Scan3")) #earlier times included
+#folder_path.append(Path(r"Z:\Droplets\20260505\Scan2")) #''         ''      ''
+#folder_path.append(Path(r"Z:\Droplets\20260505\Scan3 stabilized only"))
+
+ # folder_path.append(Path(r"Z:\Droplets\20260430\Scan3")) #older CS2 droplets accel
+# folder_path.append(Path(r"Z:\Droplets\20260501\Scan1"))
+
+def main() -> None:
+    #folder_path.append(Path(r"Z:/Droplets/20260513/Scan1"))
+    #folder_path.append(Path(r"Z:/Droplets/20260513/Scan2"))
+    folder_path.append(Path(r"Z:/Droplets/20260513/Scan3"))
+    
+    WINDOWSIZE = Time(180,Prefix.PICO)
+    vmi_config.append(IonDataAnalysisConfig( #CS2 jet 05/13 config
+    delay_center= Length(93.3, Prefix.MILLI),
+    center=Point(219, 184),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= Range[int](40, 110),
+    transform_parameter=0.77))
+    
+    #vmi_config.append(vmi_config[0])
+    
+    fig,(ax1,ax2) = plt.subplots(2,1,figsize=(8,5),gridspec_kw={"hspace":0})
+    date_scan = str([str(folder).replace("\\","/")[12:] for folder in folder_path])
+    
+    
+    plt.subplots_adjust(bottom=0.2)  
+    button_ax = fig.add_axes((0.8, 0.05, 0.15, 0.075))
+    fig.subplots_adjust(top=0.94,left=0.08,right=0.92)
+    
+    ax1.xaxis.label.set_visible(False)
+    ax1.tick_params(axis='x',which='both',bottom=False, labelbottom=False)
+    ax2.tick_params(axis='x',which='both',direction='out')
+    yticks = ax2.yaxis.get_major_ticks()
+    yticks[-1].label1.set_visible(False)
+    
+    ax1_ions = ax1.twinx()
+       
+    refresh_button = Button(button_ax, "Refresh")
+
+    def on_refresh(event):
+        files = DatFinder(folder_path,is_full_path=True)
+        datafile_paths = files.find_datafiles()
+        num_scans = get_scan_number()
+        
+        raw_scans = load_ion_data(datafile_paths)
+        calculated_Scans = run_pipeline(raw_scans, vmi_config)   
+        
+        start = Time(-800,prefix=Prefix.PICO)
+        end = Time(800,prefix=Prefix.PICO)
+        truncated_Scans = [c2tscan.cut(start,end) for c2tscan in calculated_Scans]
+
+        stft_config = StftAnalysisConfig(truncated_Scans, WINDOWSIZE)
+        resampled_scans = resample_scans(truncated_Scans,stft_config.axis)
+        averaged_data = averaging.average_scans(truncated_Scans)
+
+        ax1.clear()
+        ax2.clear()
+        ax1.clear()
+        ax1_ions.clear()
+        ax1_ions.yaxis.tick_right()
+        ax1_ions.yaxis.set_label_position("right")
+        
+        plot_ScanData(ax1,data=averaged_data,number_of_scans=num_scans,ax_twin=ax1_ions)
+        
+        ax1.grid(visible=True,which='major',alpha=1.0)
+        spectrogram = StftAnalysis(resampled_scans,stft_config).calculate_averaged_spectrogram()
+        
+        plot_Spectrogram(ax2,spectrogram,v_range=Range(0,1),shading='auto')
+        plot_nyquist_frequency(ax2,truncated_Scans[0])
+        
+        #xrange = [-300,300]
+        ax2.set_axisbelow(False)
+        #ax1.set_xlim(xrange)
+        #ax2.set_xlim(xrange)
+        ax2.grid(visible=True,color='grey',linewidth=0.3,zorder=5)
+        
+        ax1_ions.tick_params(axis='y',left=False,right=True,labelleft=False)
+        fig.suptitle(date_scan + ': CS2 Jet 120psi, GA=0mm, DA=16.45mm, Decel.', fontsize=12)
+        fig.canvas.draw_idle()
+    
+    refresh_button.on_clicked(on_refresh)
+    plt.show()
+    
+if __name__ == "__main__":
+    main()
