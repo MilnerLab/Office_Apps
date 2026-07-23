@@ -55,7 +55,7 @@ def calculating(folders: list[Path], configs: list[IonDataAnalysisConfig]) -> tu
 
 #Path to save figure in
 fig_filedir = r"Z:\Droplets\plots" 
-fig_filename = fig_filedir + r"\OCS_accel_only_droplets_TEMP.png" #Name the file to save here
+fig_filename = fig_filedir + r"\OCS_accel_only_droplets_TEMP.pdf" #Name the file to save here
 
 #Path to save processed data in
 savedata_filedir = r"Z:\Droplets\exportdata" 
@@ -80,13 +80,13 @@ configs_1.append(IonDataAnalysisConfig(
 #--------------------------------------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------------------------------------
 # SIMULATION
-simulation_filename1 = r"C:\milnergitfolder\Theory_Group\20260525_E0_4e10\OCS_accelerating_droplets_cos2theta2D_vs_t_with_model_renormalised.csv"
+simulation_filename1 = r"/mnt/data/git/Milner_Lab/Latex/droplet_theory_paper/theory_calc/OCS_accelerating_droplets_OCS_cos2theta2D_vs_t_model_only.csv"
 
 forward = pd.read_csv(simulation_filename1,names = ['time','signal_raw','signal_scaled'])
 
 #--------------------------------------------------------------------------------------------------
 #Update the matplotlib settings
-plt.style.use(r"stylefiles\compare_c2t_spectrogram.mplstyle")
+plt.style.use(r"stylefiles/compare_c2t_spectrogram.mplstyle")
 
 #Pipeline 
 plottable_scan_1, plottable_spectrogram_1 = calculating(folders_1, configs_1)
@@ -102,14 +102,14 @@ texty = 0.2
 mainfig, (axs) = plt.subplots(
             nrows=2,
             ncols=1,
-            figsize=(6.75/2, 2.5),
+            figsize=(6.75/2, 3.5),
             sharex=True,             
             gridspec_kw={'hspace': 0.1,'wspace': 0.3}
         )
 
 #Plot first experiment in top row
 a = axs[0]
-plot_averaged_scan(a, plottable_scan_1, PlotColor.BLACK,ecolor=PlotColor.RED,marker='d', label = None,elinewidth=0)
+plot_averaged_scan(a, plottable_scan_1, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d', label = None,elinewidth=0)
 a.plot(forward.time,forward.signal_scaled,color=PlotColor.RED) #plot theory simulation
 
 a.grid()
@@ -127,6 +127,6 @@ a.yaxis.set_label_coords(YLABELX,0.5)
 #a.set_xlabel(None)
 a.text(textx, texty, '($\\textbf{b}$)',color='w', horizontalalignment='center', verticalalignment='center', transform=a.transAxes)
 
-mainfig.savefig(fig_filename,format='png',dpi=300)
+mainfig.savefig(fig_filename,format='pdf',dpi=300)
 plt.show()
 print('Done!')
