@@ -27,7 +27,7 @@ from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Length, Time
 
 #Update the matplotlib settings
-plt.style.use(r"stylefiles\compare_c2t_spectrogram.mplstyle")
+plt.style.use(r"stylefiles/compare_c2t_spectrogram.mplstyle")
 
 DROPLETRADIUSMIN = 60
 
@@ -118,16 +118,17 @@ savefig_folder = r"Z:\Droplets\plots\\"
 #-----------------------------------------------------------------------------------
 #Figure 1 - CS2 jet and droplets 2025 data BREAKING THROUGH THE WALLLLL
 
-savefig1_filename = savefig_folder + r"cs2-breakingwall_TEMP.png"
-#fig1,(ax1,ax2) = plt.subplots(2,1,sharex=True,gridspec_kw={'hspace':0})
+savefig1_filename = savefig_folder + r"cs2-breakingwall_TEMP.pdf"
 #Main figure
-fig1, (ax1,ax2) = plt.subplots(
+fig1, axs = plt.subplots(
             nrows=2,
-            ncols=1,
-            figsize=(6.75/2, 3),
-            sharex=True,             
-            gridspec_kw={'hspace': 0,'wspace': 0.3}
+            ncols=2,
+            figsize=(6.75, 2.8),
+            sharex='col',
+            gridspec_kw={'hspace': 0.1,'wspace': 0.45,'width_ratios': [3,2]}
         )
+ax1, axB = axs[0,0], axs[0,1] #jet: scan, spectrogram
+ax2, axD = axs[1,0], axs[1,1] #droplets: scan, spectrogram
 
 
 #Truncating so that the datasets have same delay range
@@ -144,31 +145,47 @@ end = inds[-1][-1]
 plottable_scan_jet.cut(start=0,end=end)
 
 #add a markersize option or a separate rcparams for plot bot and other scripts
-plot_averaged_scan(ax1,plottable_scan_jet,PlotColor.BLUE,ecolor=PlotColor.RED,marker='d',label = None) 
+plot_averaged_scan(ax1,plottable_scan_jet,PlotColor.BLUE,ecolor=PlotColor.RED,marker='d',label = None)
 plot_averaged_scan(ax2,plottable_scan_drop,PlotColor.BLUE,ecolor=PlotColor.RED,marker='d',label = None)
 
+#Spectrograms
+plot_Spectrogram(axB, plottable_spec_jet, shading='auto')
+axB.set_ylim([0,120])
+
+plot_Spectrogram(axD, plottable_spec_drop, shading='auto')
+axD.set_ylim([0,120])
+
+#Horizontal marker line on droplets spectrogram
+axD.axhline(22, color='w', linestyle='--', linewidth=1)
+
 ax1.set_xlim([-250,220])
+axB.set_xlim([-250,220])
 
 #Enable the grids
-ax1.grid(True) 
+ax1.grid(True)
 ax2.grid(True)
 
 
 #Vertical line on second plot
 x = [-85,-85] #approximate position of dashed line
-y = list(ax2.get_ylim()) 
+y = list(ax2.get_ylim())
 ax2.plot(x,y,'k--',linewidth=1)
 
 
-#(a) (b) placement etc
+#(a) (b) (c) (d) placement etc
 textx = 0.1
 texty = 0.85
 ax1.text(textx, texty, '($\\textbf{a}$)',color='k', horizontalalignment='center', verticalalignment='center', transform=ax1.transAxes)
-ax2.text(textx, texty, '($\\textbf{b}$)',color='k', horizontalalignment='center', verticalalignment='center', transform=ax2.transAxes)
+axB.text(textx, texty, '($\\textbf{b}$)',color='w', horizontalalignment='center', verticalalignment='center', transform=axB.transAxes)
+ax2.text(textx, texty, '($\\textbf{c}$)',color='k', horizontalalignment='center', verticalalignment='center', transform=ax2.transAxes)
+axD.text(textx, texty, '($\\textbf{d}$)',color='w', horizontalalignment='center', verticalalignment='center', transform=axD.transAxes)
+
+ax1.set_xlabel(None)
+axB.set_xlabel(None)
 
 ax1.set_ylabel(r'$\langle \cos^2\theta_{2D}\rangle$')
 ax2.set_ylabel(r'$\langle \cos^2\theta_{2D}\rangle$')
 
-fig1.savefig(savefig1_filename,format='png',dpi=300) 
+fig1.savefig(savefig1_filename,format='pdf',dpi=300)
 plt.show()
 print('Done!')
