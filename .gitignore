@@ -517,3 +517,4 @@ TSWLatexianTemp*
 
 # End of https://www.gitignore.io/api/linux,visualstudiocode,latex
 apps/plot_bot/domain/config.py
+Office_Apps_adm.code-workspace
