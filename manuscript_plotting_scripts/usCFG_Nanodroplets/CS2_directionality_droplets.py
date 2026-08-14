@@ -173,7 +173,7 @@ plottable_scan_2 = calculating(folders_2, configs_2)
 #(a) (b) placement etc
 #Labels
 textx = 0.1
-texty = 0.9
+texty = 0.85
 
 
 
@@ -190,7 +190,7 @@ mainfig, (axs) = plt.subplots(
 a = axs[0]
 plot_averaged_scan(a, plottable_scan_1, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d', label = None,elinewidth=0)
 a.plot(forward.time,forward.signal_scaled,color=PlotColor.RED) #plot theory simulation
-a.text(textx, texty, '($\\textbf{a}$)',color='k', horizontalalignment='center', verticalalignment='center', transform=a.transAxes)
+a.text(textx, texty, '(a)',color='k', family='DejaVu Sans', usetex=False, fontsize=9, horizontalalignment='center', verticalalignment='center', transform=a.transAxes, bbox=dict(boxstyle='round,pad=0.4', facecolor='lightgray', edgecolor='none'))
 
 a.grid()
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
@@ -200,7 +200,7 @@ a.set_xlabel(None)
 a = axs[1]
 plot_averaged_scan(a, plottable_scan_2, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d',label=None,elinewidth=0)
 a.plot(forward.time,reverse.signal_scaled,color=PlotColor.RED) #plot theory simulation
-a.text(textx, texty, '($\\textbf{b}$)',color='k', horizontalalignment='center', verticalalignment='center', transform=a.transAxes)
+a.text(textx, texty, '(b)',color='k', family='DejaVu Sans', usetex=False, fontsize=9, horizontalalignment='center', verticalalignment='center', transform=a.transAxes, bbox=dict(boxstyle='round,pad=0.4', facecolor='lightgray', edgecolor='none'))
 
 a.grid()
 

@@ -175,10 +175,11 @@ ax2.plot(x,y,'k--',linewidth=1)
 #(a) (b) (c) (d) placement etc
 textx = 0.1
 texty = 0.85
-ax1.text(textx, texty, '($\\textbf{a}$)',color='k', horizontalalignment='center', verticalalignment='center', transform=ax1.transAxes)
-axB.text(textx, texty, '($\\textbf{b}$)',color='w', horizontalalignment='center', verticalalignment='center', transform=axB.transAxes)
-ax2.text(textx, texty, '($\\textbf{c}$)',color='k', horizontalalignment='center', verticalalignment='center', transform=ax2.transAxes)
-axD.text(textx, texty, '($\\textbf{d}$)',color='w', horizontalalignment='center', verticalalignment='center', transform=axD.transAxes)
+label_kwargs = dict(color='k', family='DejaVu Sans', usetex=False, fontsize=9, horizontalalignment='center', verticalalignment='center', bbox=dict(boxstyle='round,pad=0.4', facecolor='lightgray', edgecolor='none'))
+ax1.text(textx, texty, '(a)', transform=ax1.transAxes, **label_kwargs)
+axB.text(textx, texty, '(b)', transform=axB.transAxes, **label_kwargs)
+ax2.text(textx, texty, '(c)', transform=ax2.transAxes, **label_kwargs)
+axD.text(textx, texty, '(d)', transform=axD.transAxes, **label_kwargs)
 
 ax1.set_xlabel(None)
 axB.set_xlabel(None)
