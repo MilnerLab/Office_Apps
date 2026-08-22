@@ -119,6 +119,7 @@ a.text(textx, texty, '(a)',color='k', family='DejaVu Sans', usetex=False, fontsi
 
 a = axs[1]
 plot_Spectrogram(a, plottable_spectrogram_1,shading="auto",v_range=Range(0,0.6))
+a.axhline(36, color='w', linestyle='--', linewidth=1)
 a.set_ylim([0,100])
 a.set_ylabel('Oscillation\nFrequency (GHz)')
 a.yaxis.set_label_coords(YLABELX,0.5)
