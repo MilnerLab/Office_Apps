@@ -126,7 +126,7 @@ configs_2.append(IonDataAnalysisConfig(
     delay_center= Length(92.654-POSZEROSHIFT, Prefix.MILLI),
     center=Point(175, 205),
     angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
+    analysis_zone= Range[int](DROPLETRADIUSMIN + 5, 120),
     transform_parameter= 0.75))
 
 # GA=26mm, DA = 15.2mm

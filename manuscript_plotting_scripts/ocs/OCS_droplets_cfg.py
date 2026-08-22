@@ -139,7 +139,7 @@ configs_1: list[IonDataAnalysisConfig] = []
 folders_1: list[Path] = []
 
 ring = Range[int](130, 140)
-folders_1.append(Path(r"202602010\Scan4")) #EXTRA ZERO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+folders_1.append(Path(r"20260210\Scan4")) #EXTRA ZERO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 configs_1.append(IonDataAnalysisConfig(
     delay_center= Length(92.654, Prefix.MILLI),
     center=Point(175, 205),

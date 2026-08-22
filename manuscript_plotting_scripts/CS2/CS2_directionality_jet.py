@@ -121,7 +121,6 @@ configs_2.append(IonDataAnalysisConfig(
 
 #--------------------------------------------------------------------------------------------------
 #Update the matplotlib settings
-plt.style.use(r"stylefiles\compare_c2t_spectrogram.mplstyle")
 
 #Pipeline 
 plottable_scan_1, plottable_spectrogram_1 = calculating(folders_1, configs_1)
