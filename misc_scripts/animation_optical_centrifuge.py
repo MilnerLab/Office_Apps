@@ -929,13 +929,18 @@ class PhysicalOpticalCentrifuge3D(ThreeDScene):
             make_arrow_tip(z_end, z_dir, colors.coordinate_system, radius=cone_radius, height=cone_height),
         )
 
+        # y and z are swapped relative to the arrow variable names above: the
+        # axis that points along the beam-propagation direction (colored
+        # like the cfg) is labeled "z", and the vertical axis is labeled
+        # "y", matching the usual optics convention where z is the
+        # propagation axis.
         x_label = MathTex("x", font_size=72, color=colors.coordinate_system)
-        y_label = MathTex("y", font_size=72, color=colors.cfg)
-        z_label = MathTex("z", font_size=72, color=colors.coordinate_system)
+        z_label = MathTex("z", font_size=72, color=colors.cfg)
+        y_label = MathTex("y", font_size=72, color=colors.coordinate_system)
 
         x_label.move_to(origin + (length + label_shift + cone_height) * x_dir)
-        y_label.move_to(origin + (length + label_shift + cone_height) * y_dir)
-        z_label.move_to(origin + (length + label_shift + cone_height) * z_dir)
+        z_label.move_to(origin + (length + label_shift + cone_height) * y_dir)
+        y_label.move_to(origin + (length + label_shift + cone_height) * z_dir)
 
         return axes, (x_label, y_label, z_label)
 
