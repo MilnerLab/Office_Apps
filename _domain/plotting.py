@@ -22,6 +22,7 @@ def plot_ScanData(ax: Axes, data: ScanDataBase, label:str = None,*, number_of_sc
         color=color,
         marker = marker,
         markersize = 1.0,
+        label = label,
     )
     else:
         ax.errorbar(
@@ -32,11 +33,11 @@ def plot_ScanData(ax: Axes, data: ScanDataBase, label:str = None,*, number_of_sc
             color=color,
             marker = marker,
             markersize = 1.0,
-            elinewidth = elinewidth
+            elinewidth = elinewidth,
+            label = label,
         )
         
     if label is not None:
-        ax.set_label(label)
         ax.legend(loc='upper left')
         
     ax.set_xlabel("Probe Delay (ps)")

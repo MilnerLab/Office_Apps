@@ -12,8 +12,9 @@ class BotConfig:
     INACTIVITY_THRESHOLD = 100
     DYNAMIC_INACTIVITY_MULTIPLIER = 3
 
-    
-    # MTQ0NTkwNjE2Mjg3NTc2MDc5Mw. GRgFDk. utLEQVHiwHTZONkCTbnJv7lytkoWqqZGnlWick   <- remove spaces
-    # $env:DISCORD_TOKEN = "BOT_TOKEN"
+
+    # Set the token in the environment before starting the bot, e.g.
+    #   $env:DISCORD_TOKEN = "<bot token>"
+    # Never commit the token itself.
     DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
     DISCORD_CHANNEL_ID = 1440145408620888114  

@@ -12,9 +12,22 @@ def plot_single_scan(ax: Axes, data: C2TScanData, show_ions: bool = False, data_
     if data.file_path is not None:
         label = f"{data.file_path.stem}"
     else:
-        raise ValueError('Should have a file path.')
+        label = "Calculated Scan"
     
-    plot_ScanData(ax, data, label, show_ions, data_color, ecolor, marker)
+    ax_twin = None
+    if show_ions and data.ions_per_frame is not None:
+        ax_twin = ax.twinx()
+
+    plot_ScanData(
+        ax,
+        data,
+        label,
+        ax_twin=ax_twin,
+        color=data_color,
+        ecolor=ecolor,
+        marker=marker,
+        ion_color=ion_color,
+    )
     
     
     

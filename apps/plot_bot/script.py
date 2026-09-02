@@ -13,6 +13,12 @@ def main() -> None:
     if not config.WATCH_DIR.exists():
         raise RuntimeError(f"WATCH_DIR does not exist: {config.WATCH_DIR}")
 
+    if not config.DISCORD_TOKEN:
+        raise RuntimeError(
+            'DISCORD_TOKEN is not set. Set it before starting the bot, e.g. '
+            '$env:DISCORD_TOKEN = "<bot token>"'
+        )
+
     watcher = DirectoryWatcher(config)
 
     bot = ScanDiscordBot(watcher, config)

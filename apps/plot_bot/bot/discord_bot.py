@@ -138,6 +138,10 @@ class ScanDiscordBot(commands.Bot):
             await self.target_channel.send(msg)
             return
 
+        if png_path is None:
+            print(f"[Watcher] Skipping {file_path.name}: a newer scan file exists.")
+            return
+
         # 2) Optional .txt sidecar
         sidecar_text = self.get_sidecar_text(file_path)
 

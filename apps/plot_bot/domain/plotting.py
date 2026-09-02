@@ -57,11 +57,17 @@ class PlottingBotPlotting:
                 constrained_layout=True,
             )
 
-            plot_single_scan(ax_scan, self.current_scan, True, self.color_cos2, self.color_data_ions)
+            plot_single_scan(
+                ax_scan,
+                self.current_scan,
+                show_ions=True,
+                data_color=self.color_cos2,
+                ion_color=self.color_data_ions,
+            )
             ax_scan.legend(loc="upper right")
 
             averagedScanData = average_scans(self.scans)
-            plot_averaged_scan(ax_avg, averagedScanData, PlotColor.PURPLE)
+            plot_averaged_scan(ax_avg, averagedScanData, PlotColor.PURPLE, label="")
             ax_avg.legend(loc="upper right")
 
             self.add_Spectrogram(ax_spec, self.scans)
@@ -76,11 +82,17 @@ class PlottingBotPlotting:
                 constrained_layout=True,
             )
 
-            plot_single_scan(ax_scan, self.current_scan, True, self.color_cos2, self.color_data_ions)
+            plot_single_scan(
+                ax_scan,
+                self.current_scan,
+                show_ions=True,
+                data_color=self.color_cos2,
+                ion_color=self.color_data_ions,
+            )
             ax_scan.legend(loc="upper right")
 
             averagedScanData = average_scans(self.scans)
-            plot_averaged_scan(ax_avg, averagedScanData)
+            plot_averaged_scan(ax_avg, averagedScanData, PlotColor.PURPLE, label="")
             ax_avg.legend(loc="upper right")
 
         self.end(fig)
@@ -95,7 +107,6 @@ class PlottingBotPlotting:
     '''
 
     def end(self, fig: Figure) -> None:
-        fig.tight_layout()
         fig.savefig(self.output_path, dpi=50)
         plt.close(fig)
     
