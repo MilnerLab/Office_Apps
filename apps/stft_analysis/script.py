@@ -158,26 +158,17 @@ vmi_config: list[IonDataAnalysisConfig] = []
 #     analysis_zone= Range[int](60, 110),
 #     transform_parameter=0.77))
 
-folder_path: list[Path] = []
-#folder_path.append(Path(r"Z:\Droplets\20260504\Scan3")) #earlier times included
-#folder_path.append(Path(r"Z:\Droplets\20260505\Scan2")) #''         ''      ''
-#folder_path.append(Path(r"Z:\Droplets\20260505\Scan3 stabilized only"))
-
- # folder_path.append(Path(r"Z:\Droplets\20260430\Scan3")) #older CS2 droplets accel
-# folder_path.append(Path(r"Z:\Droplets\20260501\Scan1"))
-
 def main() -> None:
-    #folder_path.append(Path(r"Z:/Droplets/20260513/Scan1"))
-    #folder_path.append(Path(r"Z:/Droplets/20260513/Scan2"))
-    folder_path.append(Path(r"Z:/Droplets/20260513/Scan3"))
+    folder_path: list[Path] = []
+    folder_path.append(Path(r"Z:/Droplets/20260903/Scan1_CFG"))
     
     WINDOWSIZE = Time(180,Prefix.PICO)
     vmi_config.append(IonDataAnalysisConfig( #CS2 jet 05/13 config
-    delay_center= Length(93.3, Prefix.MILLI),
-    center=Point(219, 184),
+    delay_center= Length(64.5, Prefix.MILLI),
+    center=Point(162, 220),
     angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](40, 110),
-    transform_parameter=0.77))
+    analysis_zone= Range[int](30, 120),
+    transform_parameter=0.85))
     
     #vmi_config.append(vmi_config[0])
     
@@ -202,13 +193,13 @@ def main() -> None:
     def on_refresh(event):
         files = DatFinder(folder_path,is_full_path=True)
         datafile_paths = files.find_datafiles()
-        num_scans = get_scan_number()
+        num_scans = get_scan_number(folder_path)
         
         raw_scans = load_ion_data(datafile_paths)
         calculated_Scans = run_pipeline(raw_scans, vmi_config)   
         
-        start = Time(-800,prefix=Prefix.PICO)
-        end = Time(800,prefix=Prefix.PICO)
+        start = 0
+        end = 0
         truncated_Scans = [c2tscan.cut(start,end) for c2tscan in calculated_Scans]
 
         stft_config = StftAnalysisConfig(truncated_Scans, WINDOWSIZE)
@@ -222,7 +213,7 @@ def main() -> None:
         ax1_ions.yaxis.tick_right()
         ax1_ions.yaxis.set_label_position("right")
         
-        plot_ScanData(ax1,data=averaged_data,number_of_scans=num_scans,ax_twin=ax1_ions)
+        plot_ScanData(ax1,data=averaged_data,label=str(num_scans),ax_twin=ax1_ions)
         
         ax1.grid(visible=True,which='major',alpha=1.0)
         spectrogram = StftAnalysis(resampled_scans,stft_config).calculate_averaged_spectrogram()
@@ -237,7 +228,7 @@ def main() -> None:
         ax2.grid(visible=True,color='grey',linewidth=0.3,zorder=5)
         
         ax1_ions.tick_params(axis='y',left=False,right=True,labelleft=False)
-        fig.suptitle(date_scan + ': CS2 Jet 120psi, GA=0mm, DA=16.45mm, Decel.', fontsize=12)
+        fig.suptitle(date_scan, fontsize=12)
         fig.canvas.draw_idle()
     
     refresh_button.on_clicked(on_refresh)

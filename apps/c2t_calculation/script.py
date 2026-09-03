@@ -18,7 +18,7 @@ from base_core.fitting.functions import fit_gaussian
 
 POSZEROSHIFT = 0 #millimetres :)
 
-folder_path = Path(r"Z:\Droplets\20260424\Scan2")
+folder_path = Path(r"Z:\Droplets\20260903\Scan1_CFG")
 file_paths = DatFinder(folder_path,is_full_path=True).find_datafiles()
 
 config = IonDataAnalysisConfig(

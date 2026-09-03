@@ -8,7 +8,7 @@ from base_core.quantities.enums import Prefix
 import numpy as np
 
 
-def plot_ScanData(ax: Axes, data: ScanDataBase, label:str = None,*, number_of_scans: int = 1, ax_twin: Axes = None, color: PlotColor = PlotColor.BLUE, ecolor: PlotColor = PlotColor.RED,marker = 'o', ion_color: PlotColor = PlotColor.GRAY, elinewidth:float = 0.5) -> None:
+def plot_ScanData(ax: Axes, data: ScanDataBase, label:str = None,*,ax_twin: Axes = None, color: PlotColor = PlotColor.BLUE, ecolor: PlotColor = PlotColor.RED,marker = 'o', ion_color: PlotColor = PlotColor.GRAY, elinewidth:float = 0.5) -> None:
     x = [time.value(Prefix.PICO) for time in data.delays]
     y = np.array([c.value for c in data.measured_values])
     error = np.array([c.error for c in data.measured_values])
@@ -42,7 +42,7 @@ def plot_ScanData(ax: Axes, data: ScanDataBase, label:str = None,*, number_of_sc
     ax.set_xlabel("Probe Delay (ps)")
     ax.set_ylabel(r"$\langle \cos^2 \theta_\mathrm{2D} \rangle$")
     
-    if ax_twin is not None and (isinstance(data,C2TScanData) or isinstance(data,AveragedScansData)):
+    if ax_twin is not None and (isinstance(data,C2TScanData)):
         ions = np.asarray(data.ions_per_frame)
         
         ax_twin.plot(

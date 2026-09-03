@@ -14,7 +14,7 @@ import numpy as np
 from typing import List
 import numpy as np
 
-def average_scans(scans: List[ScanDataBase], *, key_digits: int = 12) -> AveragedScansData:
+def average_scans(scans: List[ScanDataBase], *, key_digits: int = 12) -> C2TScanData:
     """
     Average scans with possibly different x-axes.
 
@@ -106,11 +106,12 @@ def average_scans(scans: List[ScanDataBase], *, key_digits: int = 12) -> Average
     
     
     if isinstance(scans[0], C2TScanData):
-        return AveragedScansData(
+        return C2TScanData(
+        config = scans[0].config,
         delays=x_union.copy(),
         measured_values=avg_c2t,
-        run_ids=[s.run_id for s in scans],
-        run_id=None,
+        run_id=[s.run_id for s in scans],
+        ions_per_frame=avg_ions_per_frame,
         )
     else:
         return AveragedScansData(
