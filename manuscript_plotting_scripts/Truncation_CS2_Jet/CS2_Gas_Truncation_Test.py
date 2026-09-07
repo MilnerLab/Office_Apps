@@ -34,7 +34,7 @@ LATEST_DELAY_PS = 1550
 POSZEROSHIFT = 0 #millimetres :)
 
 MINRADIUS = 30
-MAXRADIUS = 80
+MAXRADIUS = 60
 
 MAJORTITLEFONTSIZE = 12
 YLABELX = -0.135
@@ -81,6 +81,14 @@ configs: list[IonDataAnalysisConfig] = []
 folders: list[Path] = []
 
 folders.append(Path(r"20260907\Scan2_CFG"))  #15mm truncation with 20260907\Scan2_CFG
+configs.append(IonDataAnalysisConfig(
+    delay_center= Length(64.5-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(162, 220),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= Range[int](MINRADIUS, MAXRADIUS),
+    transform_parameter=0.85))
+
+folders.append(Path(r"20260907\Scan3_CFG"))  #15mm truncation with 20260907\Scan3_CFG
 configs.append(IonDataAnalysisConfig(
     delay_center= Length(64.5-POSZEROSHIFT, Prefix.MILLI),
     center=Point(162, 220),
