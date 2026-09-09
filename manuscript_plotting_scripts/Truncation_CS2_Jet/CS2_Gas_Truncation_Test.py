@@ -138,6 +138,21 @@ configs.append(IonDataAnalysisConfig(
 folders_13p5mm = folders
 configs_13p5mm = configs
 
+#--------------------------------------------------------------------------------------------------------------
+
+configs: list[IonDataAnalysisConfig] = []
+folders: list[Path] = []
+
+folders.append(Path(r"20260907\Scan4_GA"))  #14.5mm truncation with 20260904\Scan4_CFG
+configs.append(IonDataAnalysisConfig(
+    delay_center= Length(64.5-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(162, 220),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= Range[int](MINRADIUS, MAXRADIUS),
+    transform_parameter=0.85))
+
+folders_single = folders
+configs_single = configs
 
 
 
@@ -151,6 +166,7 @@ full  = calculating(folders_full, configs_full)
 trunc_15mm = calculating(folders_15mm, configs_15mm)
 trunc_14p5mm = calculating(folders_14p5mm, configs_14p5mm)
 trunc_13p5mm = calculating(folders_13p5mm, configs_13p5mm)
+single = calculating(folders_single, configs_single)
 
 
 #Main figure
@@ -168,6 +184,7 @@ plot_averaged_scan(a, full, PlotColor.BLACK,ecolor=PlotColor.BLACK,marker='d', l
 plot_averaged_scan(a, trunc_15mm, PlotColor.GREEN,ecolor=PlotColor.GREEN,marker='d', label = "15 mm Truncation",elinewidth=1)
 plot_averaged_scan(a, trunc_14p5mm, PlotColor.RED,ecolor=PlotColor.RED,marker='d', label = "14.5 mm Truncation",elinewidth=1)
 plot_averaged_scan(a, trunc_13p5mm, PlotColor.BLUE,ecolor=PlotColor.BLUE,marker='d', label = "13.5 mm Truncation",elinewidth=1)
+plot_averaged_scan(a, single, PlotColor.GRAY,ecolor=PlotColor.GRAY,marker='d', label = "Single Scan",elinewidth=1)
 a.grid()
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 a.set_xlabel("Probe Delay (ps)")
