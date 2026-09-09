@@ -160,10 +160,10 @@ vmi_config: list[IonDataAnalysisConfig] = []
 
 def main() -> None:
     folder_path: list[Path] = []
-    folder_path.append(Path(r"Z:/Droplets/20260903/Scan1_CFG"))
+    folder_path.append(Path(r"Z:/Droplets/20260904/Scan1_CFG"))
     
     WINDOWSIZE = Time(180,Prefix.PICO)
-    vmi_config.append(IonDataAnalysisConfig( #CS2 jet 05/13 config
+    vmi_config.append(IonDataAnalysisConfig( 
     delay_center= Length(64.5, Prefix.MILLI),
     center=Point(162, 220),
     angle= Angle(12, AngleUnit.DEG),
@@ -193,8 +193,8 @@ def main() -> None:
     def on_refresh(event):
         files = DatFinder(folder_path,is_full_path=True)
         datafile_paths = files.find_datafiles()
-        num_scans = get_scan_number(folder_path)
-        
+        num_scans = get_scan_number()
+        #num_scans = 0
         raw_scans = load_ion_data(datafile_paths)
         calculated_Scans = run_pipeline(raw_scans, vmi_config)   
         
@@ -213,7 +213,8 @@ def main() -> None:
         ax1_ions.yaxis.tick_right()
         ax1_ions.yaxis.set_label_position("right")
         
-        plot_ScanData(ax1,data=averaged_data,label=str(num_scans),ax_twin=ax1_ions)
+        label = str(num_scans) + ' scans averaged'
+        plot_ScanData(ax1,data=averaged_data,label=label,ax_twin=ax1_ions)
         
         ax1.grid(visible=True,which='major',alpha=1.0)
         spectrogram = StftAnalysis(resampled_scans,stft_config).calculate_averaged_spectrogram()
