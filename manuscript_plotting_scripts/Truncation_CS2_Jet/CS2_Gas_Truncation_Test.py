@@ -54,6 +54,13 @@ def calculating(folders: list[Path], configs: list[IonDataAnalysisConfig]) -> tu
 fig_filedir = r"Z:\Droplets\plots" 
 fig_filename = fig_filedir + r"\CS2_JET_TRUNCATION_TEMP.png" #Name the file to save here
 
+#Path to save processed data in
+savedata_filedir = r"Z:\Droplets\exportdata" 
+savedata_filename_1 = savedata_filedir + r"\CSS_jet_full.csv" #Name the file to save here
+savedata_filename_2 = savedata_filedir + r"\CSS_jet_15mm.csv" #Name the file to save here
+savedata_filename_3 = savedata_filedir + r"\CSS_jet_14.5mm.csv" #Name the file to save here
+savedata_filename_4 = savedata_filedir + r"\CSS_jet_13.5mm.csv" #Name the file to save here
+
 
 
 PlotTitle = r"CS$_2$ in jet" 
@@ -171,4 +178,11 @@ a.legend(loc='upper left')
 
 mainfig.savefig(fig_filename,format='png',dpi=300)
 plt.show()
+
+#Save scans
+full.to_csv(savedata_filename_1)
+trunc_15mm.to_csv(savedata_filename_2)
+trunc_14p5mm.to_csv(savedata_filename_3)
+trunc_13p5mm.to_csv(savedata_filename_4)
+
 print('Done!')
