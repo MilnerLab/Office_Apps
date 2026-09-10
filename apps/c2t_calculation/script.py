@@ -22,14 +22,14 @@ def get_scan_number(folder_path: Path = MOST_RECENT_FOLDER) -> int:
         scan_files = DatFinder(folder_path).find_scanfiles()
         return len(scan_files)
 
-folder_path = Path(r"Z:\Droplets\20260904\Scan4_CFG")
+folder_path = Path(r"Z:\Droplets\20260909\Scan13_DA")
 file_paths = DatFinder(folder_path,is_full_path=True).find_datafiles()
 
 config = IonDataAnalysisConfig(
-    delay_center= Length(64.5, Prefix.MILLI),
-    center=Point(162,220),
+    delay_center= Length(139.5, Prefix.MILLI),
+    center=Point(100,100.5),
     angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](30, 120),
+    analysis_zone= Range[int](20, 60),
     transform_parameter=0.85)
 
 raw_scans = load_ion_data(file_paths)
@@ -40,7 +40,7 @@ num_scans = get_scan_number()
 fig,ax = plt.subplots()
 #ax_ions = ax.twinx()
 
-label = str(num_scans) + " scans averaged.\nCenter = (" + str(config.center.x) + ", " + str(config.center.y) + "), Angle = " + str(round(config.angle.Deg,1)) + "\n"\
+label = str(num_scans) + " scans averaged.\nCentre = (" + str(config.center.x) + ", " + str(config.center.y) + "), Angle = " + str(round(config.angle.Deg,1)) + "\n"\
         + "Ring: (" + str(config.analysis_zone.min) + ", " + str(config.analysis_zone.max) + "), ScaleX = " + str(config.transform_parameter)
 #plot_calculated_scan(ax3, calculated_Scan[0],label=label)
 
