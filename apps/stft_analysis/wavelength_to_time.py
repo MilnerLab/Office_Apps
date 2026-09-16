@@ -10,8 +10,13 @@ from base_core.math.models import Range
 from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Time
 
-#At GA_14_5mm
-data = np.loadtxt("Z:\\Droplets\\20260904\\Spectral_Info\\Scan4_CFG_GA_14p5mm.csv",delimiter=',',skiprows=1)
+#folder = r"Z:\Droplets\20260904\Spectral_Info"
+#filename = r"\Scan4_CFG_GA_14p5mm.csv"
+folder = r"Z:\Droplets\20260914\Spectral files"
+#file = r"Z:\Droplets\20260914\Spectral files\spec1_GA=-75_DA=19.csv"
+filename = r"\spec1_GA=-75_DA=19p5.csv"
+file = folder + filename
+data = np.loadtxt(file,delimiter=',',skiprows=1)
 
 c = 3e8 #in m/s
 tau = 320e-12 #in s
@@ -37,5 +42,9 @@ resampled_scans = resample_scans(scan_data,stft_config.axis)
 spectrogram = StftAnalysis(resampled_scans,stft_config).calculate_averaged_spectrogram()
         
 plot_Spectrogram(ax2,spectrogram,v_range=Range(0,1),shading='auto')
-
+ax1.set_xlim(-300,300)
+ax1.set_yticks
+ax2.set_xlim(-300,300)
+title = filename[1:-4] 
+fig.suptitle(title)
 plt.show()

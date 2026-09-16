@@ -51,7 +51,7 @@ def add_labeled_checkbox(
 
 
 def main() -> None:
-    folder_path = Path(r"Z:\Droplets\20260909\Scan1_Probe")
+    folder_path = Path(r"Z:\Droplets\20260915\ProbeOnly")
     file_paths = DatFinder(folder_path,is_full_path=True).find_datafiles()
 
     raw_scans = load_ion_data(file_paths)

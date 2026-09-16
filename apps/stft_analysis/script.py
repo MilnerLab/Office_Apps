@@ -160,15 +160,15 @@ vmi_config: list[IonDataAnalysisConfig] = []
 
 def main() -> None:
     folder_path: list[Path] = []
-    folder_path.append(Path(r"Z:/Droplets/20260904/Scan1_CFG"))
+    folder_path.append(Path(r"Z:/Droplets/20260910/Scan4_CFG"))
     
     WINDOWSIZE = Time(180,Prefix.PICO)
     vmi_config.append(IonDataAnalysisConfig( 
-    delay_center= Length(64.5, Prefix.MILLI),
-    center=Point(162, 220),
+    delay_center= Length(139.5, Prefix.MILLI),
+    center=Point(115, 99),
     angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](30, 120),
-    transform_parameter=0.85))
+    analysis_zone= Range[int](18, 45),
+    transform_parameter=0.87))
     
     #vmi_config.append(vmi_config[0])
     
@@ -214,7 +214,7 @@ def main() -> None:
         ax1_ions.yaxis.set_label_position("right")
         
         label = str(num_scans) + ' scans averaged'
-        plot_ScanData(ax1,data=averaged_data,label=label,ax_twin=ax1_ions)
+        plot_ScanData(ax1,data=averaged_data,label=label,ax_twin=None)
         
         ax1.grid(visible=True,which='major',alpha=1.0)
         spectrogram = StftAnalysis(resampled_scans,stft_config).calculate_averaged_spectrogram()
