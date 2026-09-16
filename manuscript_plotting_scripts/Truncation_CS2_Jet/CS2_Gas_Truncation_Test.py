@@ -127,7 +127,7 @@ configs_14p5mm = configs
 configs: list[IonDataAnalysisConfig] = []
 folders: list[Path] = []
 
-folders.append(Path(r"20260907\Scan1_CFG"))  #13.5mm truncation with 20260904\Scan1_CFG
+folders.append(Path(r"20260907\Scan1_CFG"))  #13.5mm truncation
 configs.append(IonDataAnalysisConfig(
     delay_center= Length(64.5-POSZEROSHIFT, Prefix.MILLI),
     center=Point(162, 220),
@@ -143,7 +143,7 @@ configs_13p5mm = configs
 configs: list[IonDataAnalysisConfig] = []
 folders: list[Path] = []
 
-folders.append(Path(r"20260907\Scan4_GA"))  #14.5mm truncation with 20260904\Scan4_CFG
+folders.append(Path(r"20260907\Scan4_GA"))  
 configs.append(IonDataAnalysisConfig(
     delay_center= Length(64.5-POSZEROSHIFT, Prefix.MILLI),
     center=Point(162, 220),
@@ -189,6 +189,8 @@ a.grid()
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 a.set_xlabel("Probe Delay (ps)")
 a.legend(loc='upper left')
+#a.legend(loc='upper right',labels=["Full Centrifuge","Truncated: 250 GHz @ 250 ps","Truncated: 210 GHz @ 180 ps","Truncated: 160 GHz @ 80 ps","Single Arm"],fontsize=8) #to overwrite labels
+
 
 
 #mainfig.suptitle(PlotTitle,fontsize=MAJORTITLEFONTSIZE,color='black')
