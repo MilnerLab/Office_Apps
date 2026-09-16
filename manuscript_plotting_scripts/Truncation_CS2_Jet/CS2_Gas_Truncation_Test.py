@@ -56,6 +56,7 @@ fig_filename = fig_filedir + r"\CS2_JET_TRUNCATION_TEMP.png" #Name the file to s
 
 #Path to save processed data in
 savedata_filedir = r"Z:\Droplets\exportdata" 
+savedata_filename_0 = savedata_filedir + r"\CSS_jet_oscillations.csv" #Name the file to save here
 savedata_filename_1 = savedata_filedir + r"\CSS_jet_full.csv" #Name the file to save here
 savedata_filename_2 = savedata_filedir + r"\CSS_jet_15mm.csv" #Name the file to save here
 savedata_filename_3 = savedata_filedir + r"\CSS_jet_14.5mm.csv" #Name the file to save here
@@ -65,8 +66,22 @@ savedata_filename_4 = savedata_filedir + r"\CSS_jet_13.5mm.csv" #Name the file t
 
 PlotTitle = r"CS$_2$ in jet" 
 
-
 #--------------------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------------------
+configs: list[IonDataAnalysisConfig] = []
+folders: list[Path] = []
+
+folders.append(Path(r"20260903\Scan2_CFG")) #has oscillations
+configs.append(IonDataAnalysisConfig(
+    delay_center= Length(64.5-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(162, 220),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= Range[int](MINRADIUS, MAXRADIUS),
+    transform_parameter=0.85))
+
+folders_oscillations = folders
+configs_oscillations = configs
+
 #--------------------------------------------------------------------------------------------------------------
 configs: list[IonDataAnalysisConfig] = []
 folders: list[Path] = []
@@ -162,6 +177,7 @@ configs_single = configs
 plt.style.use(r"stylefiles\compare_c2t_spectrogram.mplstyle")
 
 #Pipeline 
+oscillations  = calculating(folders_oscillations, configs_oscillations)
 full  = calculating(folders_full, configs_full)
 trunc_15mm = calculating(folders_15mm, configs_15mm)
 trunc_14p5mm = calculating(folders_14p5mm, configs_14p5mm)
@@ -180,6 +196,7 @@ mainfig, (axs) = plt.subplots(
 
 #Plot first experiment in top row
 a = axs
+plot_averaged_scan(a, oscillations, PlotColor.PURPLE,ecolor=PlotColor.PURPLE,marker='d', label = "Full Centrifuge (osc)",elinewidth=1)
 plot_averaged_scan(a, full, PlotColor.BLACK,ecolor=PlotColor.BLACK,marker='d', label = "Full Centrifuge",elinewidth=1)
 plot_averaged_scan(a, trunc_15mm, PlotColor.GREEN,ecolor=PlotColor.GREEN,marker='d', label = "15 mm Truncation",elinewidth=1)
 plot_averaged_scan(a, trunc_14p5mm, PlotColor.RED,ecolor=PlotColor.RED,marker='d', label = "14.5 mm Truncation",elinewidth=1)
@@ -189,7 +206,7 @@ a.grid()
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 a.set_xlabel("Probe Delay (ps)")
 a.legend(loc='upper left')
-#a.legend(loc='upper right',labels=["Full Centrifuge","Truncated: 250 GHz @ 250 ps","Truncated: 210 GHz @ 180 ps","Truncated: 160 GHz @ 80 ps","Single Arm"],fontsize=8) #to overwrite labels
+#a.legend(loc='upper right',labels=["Full Centrifuge (osc)","Full Centrifuge","Truncated: 250 GHz @ 250 ps","Truncated: 210 GHz @ 180 ps","Truncated: 160 GHz @ 80 ps","Single Arm"],fontsize=8) #to overwrite labels
 
 
 
@@ -199,6 +216,7 @@ mainfig.savefig(fig_filename,format='png',dpi=300)
 plt.show()
 
 #Save scans
+oscillations.to_csv(savedata_filename_0)
 full.to_csv(savedata_filename_1)
 trunc_15mm.to_csv(savedata_filename_2)
 trunc_14p5mm.to_csv(savedata_filename_3)
