@@ -34,7 +34,7 @@ LATEST_DELAY_PS = 1550
 POSZEROSHIFT = 0 #millimetres :)
 
 MINRADIUS = 30
-MAXRADIUS = 60
+MAXRADIUS = 90
 
 MAJORTITLEFONTSIZE = 12
 YLABELX = -0.135
@@ -81,6 +81,22 @@ configs.append(IonDataAnalysisConfig(
 
 folders_oscillations = folders
 configs_oscillations = configs
+
+#--------------------------------------------------------------------------------------------------------------
+configs: list[IonDataAnalysisConfig] = []
+folders: list[Path] = []
+
+folders.append(Path(r"20260917\Scan5_CFG")) #for testing#------------------------------------------------------
+configs.append(IonDataAnalysisConfig(
+    delay_center= Length(62.5-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(215, 186),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= Range[int](MINRADIUS, MAXRADIUS),
+    transform_parameter=0.83))
+
+folders_test = folders
+configs_test = configs
+
 
 #--------------------------------------------------------------------------------------------------------------
 configs: list[IonDataAnalysisConfig] = []
@@ -178,6 +194,7 @@ plt.style.use(r"stylefiles\compare_c2t_spectrogram.mplstyle")
 
 #Pipeline 
 oscillations  = calculating(folders_oscillations, configs_oscillations)
+test  = calculating(folders_test, configs_test)
 full  = calculating(folders_full, configs_full)
 trunc_15mm = calculating(folders_15mm, configs_15mm)
 trunc_14p5mm = calculating(folders_14p5mm, configs_14p5mm)
@@ -196,12 +213,14 @@ mainfig, (axs) = plt.subplots(
 
 #Plot first experiment in top row
 a = axs
-plot_averaged_scan(a, oscillations, PlotColor.PURPLE,ecolor=PlotColor.PURPLE,marker='d', label = "Full Centrifuge (osc)",elinewidth=1)
+#plot_averaged_scan(a, oscillations, PlotColor.PURPLE,ecolor=PlotColor.PURPLE,marker='d', label = "Full Centrifuge (osc)",elinewidth=1)
 plot_averaged_scan(a, full, PlotColor.BLACK,ecolor=PlotColor.BLACK,marker='d', label = "Full Centrifuge",elinewidth=1)
-plot_averaged_scan(a, trunc_15mm, PlotColor.GREEN,ecolor=PlotColor.GREEN,marker='d', label = "15 mm Truncation",elinewidth=1)
-plot_averaged_scan(a, trunc_14p5mm, PlotColor.RED,ecolor=PlotColor.RED,marker='d', label = "14.5 mm Truncation",elinewidth=1)
-plot_averaged_scan(a, trunc_13p5mm, PlotColor.BLUE,ecolor=PlotColor.BLUE,marker='d', label = "13.5 mm Truncation",elinewidth=1)
-plot_averaged_scan(a, single, PlotColor.GRAY,ecolor=PlotColor.GRAY,marker='d', label = "Single Scan",elinewidth=1)
+plot_averaged_scan(a, test, PlotColor.RED,ecolor=PlotColor.RED,marker='d', label = "TODAY test Centrifuge",elinewidth=1)
+
+#plot_averaged_scan(a, trunc_15mm, PlotColor.GREEN,ecolor=PlotColor.GREEN,marker='d', label = "15 mm Truncation",elinewidth=1)
+#plot_averaged_scan(a, trunc_14p5mm, PlotColor.RED,ecolor=PlotColor.RED,marker='d', label = "14.5 mm Truncation",elinewidth=1)
+#plot_averaged_scan(a, trunc_13p5mm, PlotColor.BLUE,ecolor=PlotColor.BLUE,marker='d', label = "13.5 mm Truncation",elinewidth=1)
+#plot_averaged_scan(a, single, PlotColor.GRAY,ecolor=PlotColor.GRAY,marker='d', label = "Single Scan",elinewidth=1)
 a.grid()
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 a.set_xlabel("Probe Delay (ps)")
