@@ -51,7 +51,7 @@ def add_labeled_checkbox(
 
 
 def main() -> None:
-    folder_path = Path(r"Z:/Droplets/20260512/Probe_only")
+    folder_path = Path(r"Z:\Droplets\20260909\Scan1_Probe")
     file_paths = DatFinder(folder_path,is_full_path=True).find_datafiles()
 
     raw_scans = load_ion_data(file_paths)
@@ -230,10 +230,13 @@ def main() -> None:
             file_paths = DatFinder(folder_path,is_full_path=True).find_datafiles()
 
             raw_scans = load_ion_data(file_paths)
-            ion_data: IonData
+            ion_data  = raw_scans[0].ion_datas[0]
+            count = 0
             for raw in raw_scans:
-                for d in raw.ion_datas:
-                    ion_data.points.append_points(d.points)
+                if count > 0: 
+                    for d in raw.ion_datas:
+                        ion_data.points.append_points(d.points)
+                count += 1
                 
             points_before = ion_data.points
             

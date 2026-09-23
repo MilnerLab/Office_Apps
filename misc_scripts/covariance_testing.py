@@ -8,7 +8,8 @@ from _data_io.dat_loader import load_ion_data
 from apps.c2t_calculation.domain.plotting import plot_ions_square
 from base_core.lab_specifics.base_models import IonDataAnalysisConfig
 from base_core.math.enums import AngleUnit
-from base_core.math.models import Angle, AngularCovariance, Point, Range
+from base_core.math.models import Angle, Point, Range
+from base_core.math.special_models import AngularCovariance
 from base_core.plotting.covariance_plotting import plot_covariance
 from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Length
@@ -34,30 +35,29 @@ def main() -> None:
     # Input
     # ============================================================
     folder_path = Path(
-        r"/home/soeren/Downloads/20220124_PCS8_Covariance in Jet/PCS8/PCset_1/DLY_0p0000mm"
-        #r"/mnt/valeryshare/Droplets/20260416/Scan6"
+        r"Z:\Droplets\20260909\Scan1_Probe"
     )
-    file_paths = DatFinder(folder_path, is_full_path=True).find_datafiles()
-    
+    #file_paths = DatFinder(folder_path, is_full_path=True).find_datafiles()
+    file_paths = r"Z:\Droplets\20260909131239.dat"
     
 
     config = IonDataAnalysisConfig(
         delay_center=Length(93.3, Prefix.MILLI),
-        center=Point(99, 107),
+        center=Point(100,100),
         angle=Angle(12, AngleUnit.DEG),
-        analysis_zone=Range[int](60, 100),
+        analysis_zone=Range[int](10, 120),
         #analysis_zone=Range[int](25, 65),
-        transform_parameter=0.95,
+        transform_parameter=0.76,
     )
     
-    config = IonDataAnalysisConfig(
+    ''' config = IonDataAnalysisConfig(
         delay_center=Length(93.3, Prefix.MILLI),
         center=Point(150, 145),
         angle=Angle(12, AngleUnit.DEG),
         analysis_zone=Range[int](40, 90),
         #analysis_zone=Range[int](15, 35),
         transform_parameter=0.9,
-    )
+    )'''
 
     # ============================================================
     # Selection settings
@@ -74,6 +74,18 @@ def main() -> None:
     # ============================================================
     # Load data
     # ============================================================
+    
+    ''' output = IonData(id=0,stage_position=0,ions_per_frame=hits.avg_points_per_marker(),points=hits,)
+                )
+    
+            raw_scans.append(
+                RawScanData(
+                    run_id=output[0].id,
+                    ion_datas=output,
+                    number_of_scans=number_of_scans,
+                )
+            )'''
+    
     raw_scans = load_ion_data(file_paths)
 
     if SCAN_INDEX < 0 or SCAN_INDEX >= len(raw_scans):

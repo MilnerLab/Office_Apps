@@ -1,7 +1,7 @@
 {
   "folders": [
     { "path": ".", "name": "Office_Apps" },
-    { "path": "../Base_Core" },
+    { "path": "../Base_Core" }
   ],
   "launch": {
   "version": "0.2.0",
@@ -21,15 +21,16 @@
   ]
 },
   "settings": {
+    "python.defaultInterpreterPath": "${workspaceFolder:Office_Apps}/.venv_camp06/Scripts/python.exe",
+    "python.terminal.activateEnvInCurrentTerminal": true,
     "python.analysis.indexing": true,
     "python.analysis.autoImportCompletions": true,
-  "python.analysis.extraPaths": [ "${workspaceFolder:Base_Core}"],
-  "python.analysis.packageIndexDepths": [
+    "python.analysis.extraPaths": [ "${workspaceFolder:Base_Core}"],
+    "python.analysis.packageIndexDepths": [
 
   { "name": "base_core", "depth": 5, "includeAllSymbols": true },
-],
-"git-blame.config.inlineBlame.hoverMessage.activeLine": false,
-"git-blame.config.showBlameInline": false
-}
-
+    ],
+    "git-blame.config.inlineBlame.hoverMessage.activeLine": false,
+    "git-blame.config.showBlameInline": false,
+  }
 }
