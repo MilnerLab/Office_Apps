@@ -8,6 +8,12 @@ Reads, under Z:\\Droplets\\shaped_usCFG_paper:
 Stages, in order: traces -> spectra -> seeds -> joint -> scans -> jet -> truncation
 -> jet_reductions (the last reads jet_prediction.json, written by jet). ``--stage all``
 runs the traces..jet chain and truncation concurrently, then jet_reductions.
+
+After ``--stage all`` finishes, regenerate the manuscript's figures by running each of
+the seven figure scripts (each writes its PDF straight into Latex/shaped_usCFG_paper/
+figures/): fig_cfg_arms, fig_char_fitdemo, fig_char_freqtime, fig_char_scans,
+fig_char_truncation, fig_jet_oscillations, fig_jet_truncation -- e.g.
+``python -m manuscript_plotting_scripts.shaped_usCFG_paper.fig_cfg_arms``.
 """
 import argparse
 import threading
