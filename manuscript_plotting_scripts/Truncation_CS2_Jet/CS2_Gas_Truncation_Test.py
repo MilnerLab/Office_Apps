@@ -56,11 +56,13 @@ fig_filename = fig_filedir + r"\CS2_JET_TRUNCATION_TEMP.png" #Name the file to s
 
 #Path to save processed data in
 savedata_filedir = r"Z:\Droplets\exportdata" 
-savedata_filename_0 = savedata_filedir + r"\CSS_jet_oscillations.csv" #Name the file to save here
-savedata_filename_1 = savedata_filedir + r"\CSS_jet_full.csv" #Name the file to save here
-savedata_filename_2 = savedata_filedir + r"\CSS_jet_15mm.csv" #Name the file to save here
-savedata_filename_3 = savedata_filedir + r"\CSS_jet_14.5mm.csv" #Name the file to save here
-savedata_filename_4 = savedata_filedir + r"\CSS_jet_13.5mm.csv" #Name the file to save here
+savedata_full = savedata_filedir + r"\CSS_jet_full.csv" #Name the file to save here
+savedata_13p5mm = savedata_filedir + r"\CSS_jet_13p5mm.csv" #Name the file to save here
+savedata_14p75mm = savedata_filedir + r"\CSS_jet_14p75mm.csv" #Name the file to save here
+
+#savedata_filename_2 = savedata_filedir + r"\CSS_jet_15mm.csv" #Name the file to save here
+#savedata_filename_3 = savedata_filedir + r"\CSS_jet_14.5mm.csv" #Name the file to save here
+#savedata_filename_4 = savedata_filedir + r"\CSS_jet_13.5mm.csv" #Name the file to save here
 
 
 
@@ -98,94 +100,40 @@ folders_test = folders
 configs_test = configs
 
 
+
 #--------------------------------------------------------------------------------------------------------------
 configs: list[IonDataAnalysisConfig] = []
 folders: list[Path] = []
 
-folders.append(Path(r"20260904\Scan3_CFG")) #20260904\Scan3_CFG is full centrifuge
+folders.append(Path(r"20260922\Scan2_CFG")) 
 configs.append(IonDataAnalysisConfig(
     delay_center= Length(64.5-POSZEROSHIFT, Prefix.MILLI),
-    center=Point(162, 220),
+    center=Point(190, 183),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](MINRADIUS, MAXRADIUS),
-    transform_parameter=0.85))
+    transform_parameter=0.83))
 
 folders_full = folders
 configs_full = configs
 
-#--------------------------------------------------------------------------------------------------------------
 
+#--------------------------------------------------------------------------------------------------------------
 configs: list[IonDataAnalysisConfig] = []
 folders: list[Path] = []
 
-folders.append(Path(r"20260907\Scan2_CFG"))  #15mm truncation with 20260907\Scan2_CFG
-configs.append(IonDataAnalysisConfig(
-    delay_center= Length(64.5-POSZEROSHIFT, Prefix.MILLI),
-    center=Point(162, 220),
-    angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](MINRADIUS, MAXRADIUS),
-    transform_parameter=0.85))
+folders.append(Path(r"20260922\Scan3_CFG_Truncated")) #
 
-folders.append(Path(r"20260907\Scan3_CFG"))  #15mm truncation with 20260907\Scan3_CFG
-configs.append(IonDataAnalysisConfig(
-    delay_center= Length(64.5-POSZEROSHIFT, Prefix.MILLI),
-    center=Point(162, 220),
-    angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](MINRADIUS, MAXRADIUS),
-    transform_parameter=0.85))
-
-folders_15mm = folders
-configs_15mm = configs
+folders_13p5mm= folders
+configs_13p5mm = configs_full #using same config
 
 #--------------------------------------------------------------------------------------------------------------
-
 configs: list[IonDataAnalysisConfig] = []
 folders: list[Path] = []
 
-folders.append(Path(r"20260904\Scan4_CFG"))  #14.5mm truncation with 20260904\Scan4_CFG
-configs.append(IonDataAnalysisConfig(
-    delay_center= Length(64.5-POSZEROSHIFT, Prefix.MILLI),
-    center=Point(162, 220),
-    angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](MINRADIUS, MAXRADIUS),
-    transform_parameter=0.85))
+folders.append(Path(r"20260922\Scan4_CFG_Truncated")) #
 
-folders_14p5mm = folders
-configs_14p5mm = configs
-
-#--------------------------------------------------------------------------------------------------------------
-
-configs: list[IonDataAnalysisConfig] = []
-folders: list[Path] = []
-
-folders.append(Path(r"20260907\Scan1_CFG"))  #13.5mm truncation
-configs.append(IonDataAnalysisConfig(
-    delay_center= Length(64.5-POSZEROSHIFT, Prefix.MILLI),
-    center=Point(162, 220),
-    angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](MINRADIUS, MAXRADIUS),
-    transform_parameter=0.85))
-
-folders_13p5mm = folders
-configs_13p5mm = configs
-
-#--------------------------------------------------------------------------------------------------------------
-
-configs: list[IonDataAnalysisConfig] = []
-folders: list[Path] = []
-
-folders.append(Path(r"20260907\Scan4_GA"))  
-configs.append(IonDataAnalysisConfig(
-    delay_center= Length(64.5-POSZEROSHIFT, Prefix.MILLI),
-    center=Point(162, 220),
-    angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](MINRADIUS, MAXRADIUS),
-    transform_parameter=0.85))
-
-folders_single = folders
-configs_single = configs
-
-
+folders_14p75mm= folders
+configs_14p75mm = configs_full #using same config
 
 
 #--------------------------------------------------------------------------------------------------
@@ -194,12 +142,9 @@ plt.style.use(r"stylefiles\compare_c2t_spectrogram.mplstyle")
 
 #Pipeline 
 oscillations  = calculating(folders_oscillations, configs_oscillations)
-test  = calculating(folders_test, configs_test)
 full  = calculating(folders_full, configs_full)
-trunc_15mm = calculating(folders_15mm, configs_15mm)
-trunc_14p5mm = calculating(folders_14p5mm, configs_14p5mm)
 trunc_13p5mm = calculating(folders_13p5mm, configs_13p5mm)
-single = calculating(folders_single, configs_single)
+trunc_14p75mm = calculating(folders_14p75mm, configs_14p75mm)
 
 
 #Main figure
@@ -215,12 +160,9 @@ mainfig, (axs) = plt.subplots(
 a = axs
 #plot_averaged_scan(a, oscillations, PlotColor.PURPLE,ecolor=PlotColor.PURPLE,marker='d', label = "Full Centrifuge (osc)",elinewidth=1)
 plot_averaged_scan(a, full, PlotColor.BLACK,ecolor=PlotColor.BLACK,marker='d', label = "Full Centrifuge",elinewidth=1)
-plot_averaged_scan(a, test, PlotColor.RED,ecolor=PlotColor.RED,marker='d', label = "TODAY test Centrifuge",elinewidth=1)
+plot_averaged_scan(a, trunc_13p5mm, PlotColor.BLUE,ecolor=PlotColor.BLUE,marker='d', label = "13.5 mm Truncation",elinewidth=1)
+plot_averaged_scan(a, trunc_14p75mm, PlotColor.GREEN,ecolor=PlotColor.GREEN,marker='d', label = "14.75 mm Truncation",elinewidth=1)
 
-#plot_averaged_scan(a, trunc_15mm, PlotColor.GREEN,ecolor=PlotColor.GREEN,marker='d', label = "15 mm Truncation",elinewidth=1)
-#plot_averaged_scan(a, trunc_14p5mm, PlotColor.RED,ecolor=PlotColor.RED,marker='d', label = "14.5 mm Truncation",elinewidth=1)
-#plot_averaged_scan(a, trunc_13p5mm, PlotColor.BLUE,ecolor=PlotColor.BLUE,marker='d', label = "13.5 mm Truncation",elinewidth=1)
-#plot_averaged_scan(a, single, PlotColor.GRAY,ecolor=PlotColor.GRAY,marker='d', label = "Single Scan",elinewidth=1)
 a.grid()
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 a.set_xlabel("Probe Delay (ps)")
@@ -235,10 +177,9 @@ mainfig.savefig(fig_filename,format='png',dpi=300)
 plt.show()
 
 #Save scans
-oscillations.to_csv(savedata_filename_0)
-full.to_csv(savedata_filename_1)
-trunc_15mm.to_csv(savedata_filename_2)
-trunc_14p5mm.to_csv(savedata_filename_3)
-trunc_13p5mm.to_csv(savedata_filename_4)
+#oscillations.to_csv(savedata_filename_0)
+full.to_csv(savedata_full)
+trunc_13p5mm.to_csv(savedata_13p5mm)
+trunc_14p75mm.to_csv(savedata_14p75mm)
 
 print('Done!')

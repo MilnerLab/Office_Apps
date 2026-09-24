@@ -18,15 +18,15 @@ from base_core.fitting.functions import fit_gaussian
 
 POSZEROSHIFT = 0 #millimetres :)
 
-folder_path = Path(r"\\phas-researchfs.phas.ubc.ca\ValeryShare\Droplets\20260417\Scan7")
+folder_path = Path(r"Z:\Droplets\20260923\Scan13_Droplets_CFG")
 file_paths = DatFinder(folder_path,is_full_path=True).find_datafiles()
 
 config = IonDataAnalysisConfig(
-    delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
-    center=Point(105, 107),
+    delay_center= Length(165-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(98, 98),
     angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](30, 120),
-    transform_parameter=0.78)
+    analysis_zone= Range[int](20,50),
+    transform_parameter=0.83)
 
 
 raw_scans = load_ion_data(file_paths)
