@@ -55,6 +55,7 @@ from scipy.optimize import least_squares
 from scipy.special import erfc
 
 from base_core.lab_specifics.helpers import calculate_time_delay
+from base_core.math.functions import erfc as step, gaussian
 from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Length
 from manuscript_plotting_scripts.shaped_usCFG_paper import config
@@ -92,10 +93,6 @@ def load_spec(f):
     return a[:, 0], a[:, 1]
 
 
-def gauss(p, l):
-    return p[0] * np.exp(-(l - p[1]) ** 2 / (2 * p[2] ** 2)) + p[3]
-
-
 def fit_spectra():
     files = sorted(glob.glob(str(SPEC_DIR / "*.csv")))
     lam, _ = load_spec(files[0])
@@ -107,7 +104,7 @@ def fit_spectra():
         return I[band] - np.percentile(I, 1)          # dark pedestal: 1st percentile
 
     ref = np.mean([spec(f) for f in files[-6:]], 0)  # prism 16.75 .. 17.00 mm: open
-    pg = least_squares(lambda p: gauss(p, l) - ref, [ref.max(), 802, 4, 0]).x
+    pg = least_squares(lambda p: gaussian(l, *p) - ref, [ref.max(), 802, 4, 0]).x
     rows = []
     for f in files:
         x = float(os.path.basename(f)[:-4])
@@ -115,7 +112,7 @@ def fit_spectra():
         if s.max() < 20:
             rows.append((x, np.nan, np.nan, np.nan, np.nan))
             continue
-        m = lambda p: p[0] * gauss(pg, l) * 0.5 * erfc((p[1] - l) / (np.sqrt(2) * p[2])) + p[3]
+        m = lambda p: p[0] * gaussian(l, *pg) * 0.5 * erfc((p[1] - l) / (np.sqrt(2) * p[2])) + p[3]
         lc0 = l[np.where(s > 0.5 * s.max())[0][0]]
         best = None
         for lc in (lc0 - 1.0, lc0 - 0.3, lc0, lc0 + 0.5):
@@ -161,7 +158,9 @@ def fit_edge(t, y, e):
     scaled by chi2/dof."""
     def model(p, t=t):
         b, A, tc, s = p
-        return b + A * 0.5 * erfc((t - tc) / (np.sqrt(2) * abs(s)))
+        # base_core's erfc is the rising step 0.5 A erf(z) + offset; amplitude -A and
+        # offset b + A/2 make it b + A erfc(z)/2 exactly, in the same parameters.
+        return step(t, -A, tc, abs(s), b + 0.5 * A)
 
     half = t[np.argmin(np.abs(y - 0.5 * (y[:20].mean() + y[-5:].mean())))]
     p0 = [y[-5:].mean(), y[:20].mean() - y[-5:].mean(), half, 3.0]
@@ -195,7 +194,7 @@ def fresnel_1090(gdd_ps2, sigma_rad_ps):
     i90 = np.where(I > 0.9)[0][-1]
     i10 = np.where(I < 0.1)[0][0]
     m = np.abs(tau) < 30
-    r = least_squares(lambda p: p[0] + p[1] * 0.5 * erfc((tau[m] - p[2]) / (np.sqrt(2) * abs(p[3]))) - I[m],
+    r = least_squares(lambda p: step(tau[m], -p[1], p[2], abs(p[3]), p[0] + 0.5 * p[1]) - I[m],
                       [0.0, 1.0, 0.0, 3.0])
     return float(tau[i10] - tau[i90]), float(Lam), float(abs(r.x[3])), float(r.x[2])
 
