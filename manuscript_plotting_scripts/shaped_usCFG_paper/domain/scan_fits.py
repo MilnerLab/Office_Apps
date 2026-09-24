@@ -7,6 +7,11 @@ Every fit has a free zero (slope and origin both free), errors are scaled by
 sqrt(chi2/nu), and the delay axis is referenced to the f0 zero. Both instruments, the
 cross-correlation (``x``) and the mapped spectrometer (``s``), are fitted the same way,
 each weighted by its per-sweep fit standard errors.
+
+Types. The one public function, `run`, takes a directory and has no physical-quantity
+arguments. The fits are numpy on the floats of ``joint_fit.json``, in the units its keys
+name, and so is ``scan_fits.json``: most of what it holds (slopes in GHz/ps, MHz/ps^2 and
+GHz/mm, chi^2) has no base_core type.
 """
 import json
 from pathlib import Path
@@ -17,7 +22,7 @@ from scipy.optimize import least_squares
 from manuscript_plotting_scripts.shaped_usCFG_paper.domain import xcorr_fit as P
 
 
-def linfit(x, y, s=None):
+def _linfit(x, y, s=None):
     """y = a (x - z), both free. chi2-scaled errors when s is given."""
     w = np.ones_like(y) if s is None else 1/np.asarray(s)**2
     A = np.vstack([x, np.ones_like(x)]).T
@@ -40,13 +45,13 @@ def run(out_dir: Path) -> None:
     dt = np.array([x["dt"] for x in d])
     f0 = np.array([x["f0"] for x in d]); sf0 = np.array([x["sf0"] for x in d])
     f0s = np.array([x["f0_s"] for x in d]); sf0s = np.array([x["sf0_s"] for x in d])
-    Bx = linfit(dt, f0, sf0); Bs = linfit(dt, f0s, sf0s)
+    Bx = _linfit(dt, f0, sf0); Bs = _linfit(dt, f0s, sf0s)
     Z = Bx["z"]                                  # the recalibrated delay origin
 
     # ---- chirp, delay scan (gamma0), same recalibrated axis
     ch = np.array([x["chirp"] for x in d]); sch = np.array([x["schirp"] for x in d])
     chs = np.array([x["chirp_s"] for x in d]); schs = np.array([x["schirp_s"] for x in d])
-    Gx = linfit(dt, ch, sch); Gs = linfit(dt, chs, schs)
+    Gx = _linfit(dt, ch, sch); Gs = _linfit(dt, chs, schs)
 
     # ---- bandwidth, grating scan: exact reciprocal law, slope and origin both free
     Lm = np.array([x["L"] for x in L])

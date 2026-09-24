@@ -129,7 +129,7 @@ import re
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Sequence
+from typing import Sequence
 
 import numpy as np
 from scipy.interpolate import CubicSpline
@@ -144,6 +144,7 @@ from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Frequency, Length, Time
 from manuscript_plotting_scripts.shaped_usCFG_paper import config
 from manuscript_plotting_scripts.shaped_usCFG_paper.domain import xcorr_fit as P
+from manuscript_plotting_scripts.shaped_usCFG_paper.domain.typed import TypedLaw
 
 STAGE_ZERO_MM = 64.500             # probe stage position of zero delay
 
@@ -176,28 +177,6 @@ PRED_JSON = config.TEMP_DIR / "jet_prediction.json"
 # --------------------------------------------------------------------------
 # types
 # --------------------------------------------------------------------------
-
-@dataclass(frozen=True)
-class TypedLaw:
-    """A law y(x) between base_core quantities, e.g. a beat frequency against delay.
-
-    Called with a sequence of typed x (``Time``, ``Length``, ...) it returns a list of
-    typed y, converting once at the boundary: x is read in ``x_prefix`` units and y
-    is built as ``y_type(value, y_prefix)``.  With ``y_type=None`` y is a plain float
-    (a signal level).  ``numpy`` is the same law on bare floats in those units; it is
-    what hot loops and dense drawn curves use.
-    """
-    numpy: Callable[[np.ndarray], np.ndarray]
-    x_prefix: Prefix
-    y_type: type | None
-    y_prefix: Prefix = Prefix.NONE
-
-    def __call__(self, xs: Sequence[float]) -> list:
-        y = self.numpy(np.array([x.value(self.x_prefix) for x in xs], dtype=float))
-        if self.y_type is None:
-            return [float(v) for v in y]
-        return [self.y_type(v, self.y_prefix) for v in y]
-
 
 @dataclass(frozen=True)
 class AveragedScan(ScanDataBase):
@@ -379,10 +358,11 @@ def load_accompanying_xcorr() -> tuple[ScanDataBase, TypedLaw, P.FitResult]:
     if not fit.ok:
         raise RuntimeError(f"xcorr fit failed: {fit.status}")
     mu = fit["mu"]
-    beat = TypedLaw(lambda u: 2.0 * P.f_uscfg_ghz(fit, u), Prefix.PICO, Frequency, Prefix.GIGA)
-    scan = ScanDataBase(delays=[Time(u, Prefix.PICO) for u in sc.t_ps - mu],
-                        measured_values=[Measurement(float(v), float(e)) for v, e in zip(sc.y, sc.y_err)],
-                        run_id=None)
+    f_cfg = fit.f_uscfg.numpy
+    beat = TypedLaw(lambda u: 2.0 * f_cfg(u), Prefix.PICO, Frequency, Prefix.GIGA)
+    t, _, _ = sc.to_numpy()
+    scan = ScanDataBase(delays=[Time(u, Prefix.PICO) for u in t - mu],
+                        measured_values=list(sc.measured_values), run_id=None)
     return scan, beat, fit
 
 

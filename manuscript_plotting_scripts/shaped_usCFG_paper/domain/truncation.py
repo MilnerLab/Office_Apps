@@ -281,8 +281,8 @@ def calibrate() -> dict:
     fit = P.full_fit(sc)
     if not fit.ok:
         raise RuntimeError(fit.status)
-    L, dt = sc.L_mm, sc.dt_ps
-    f_of_u = lambda u: P.f_uscfg_ghz(fit, u)
+    L, dt = sc.L.value(Prefix.MILLI), sc.dt.value(Prefix.PICO)
+    f_of_u = fit.f_uscfg.numpy
 
     # 3. map: shaper arm's frame
     lam0 = pg[1]

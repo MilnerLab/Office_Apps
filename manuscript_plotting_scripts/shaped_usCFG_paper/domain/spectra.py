@@ -34,7 +34,17 @@ fixed by `T0 > 0` wherever the arm delay is known to be positive (all of `scan_d
 On `scan_L`, `dt = 0` gives no anchor, so `scan_L` measures `|psi2|` and the sign is
 carried in from `scan_d` by continuity in `L`.
 
-Pure numpy/scipy/h5py. No plotting here.
+No plotting here.
+
+Types
+-----
+The public functions take and return base_core quantities: a `SpecTrace` holds its
+grid as ``AngularFrequency`` and the averaged spectrum as Measurement(mean, standard
+error), with L as ``Length`` and dt as ``Time``; a `SpecFit` gives ``T0`` as ``Time``
+and ``psi2`` as ``GDD`` (``psi3``, ps^3, and the visibility roll-off, ps^-2, have no
+base_core type and stay floats). Each fit converts its trace to numpy once
+(`_arrays`); the underscored steps inside are numpy. The raw exposures stay numpy: a
+setpoint is a 2-D block of thousands of spectra, regridded and phase-aligned as one.
 """
 from __future__ import annotations
 
@@ -44,11 +54,16 @@ from concurrent.futures import ProcessPoolExecutor
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
+from typing import NamedTuple, Sequence
 
 import numpy as np
 from scipy.optimize import least_squares
 from scipy.signal import savgol_filter
 
+from base_core.lab_specifics.base_models import Measurement
+from base_core.quantities.enums import Prefix
+from base_core.quantities.models import Length, Time
+from base_core.quantities.specific_models import GDD, AngularFrequency
 from manuscript_plotting_scripts.shaped_usCFG_paper import config
 from manuscript_plotting_scripts.shaped_usCFG_paper.domain.xcorr_fit import (
     RUNS, load_scans, load_spectra)
@@ -81,24 +96,47 @@ N_GRID = 1024
 #: setpoint's own mean spectrum over the full recorded range.
 PEDESTAL_PCT = 1.0
 
+#: This module's grating axis is ``stage - 30.0 mm``: it *derives* the zero and cannot
+#: reference its axis to its own answer (see ``xcorr_fit.GRATING_ZERO_MM``).
+GRATING_REF = Length(30.0, Prefix.MILLI)
 
-@dataclass
+_RAD_PER_PS = Prefix.TERA          # AngularFrequency prefix: rad/ps = 1e12 rad/s
+
+
+@dataclass(frozen=True)
 class SpecTrace:
-    """One setpoint's averaged spectrum, on the common uniform-omega grid."""
+    """One setpoint's averaged spectrum, on the common uniform-omega grid.
+
+    ``w`` is ascending; ``spectrum`` is Measurement(mean counts with the pedestal
+    removed, standard error of that mean) at each ``w``.
+    """
 
     name: str
     setpoint: int
-    L_mm: float
-    dt_ps: float
+    L: Length                     # grating - GRATING_REF
+    dt: Time                      # arm delay
     n_spectra: int
-    w: np.ndarray          # rad/ps, uniform, ascending
-    s: np.ndarray          # mean counts, pedestal removed
-    s_err: np.ndarray      # standard error of that mean
-    align_gain: float = 1.0   # aligned / unaligned fringe amplitude; see align_phi0
+    w: list[AngularFrequency]
+    spectrum: list[Measurement]
+    align_gain: float = 1.0       # aligned / unaligned fringe amplitude; see _align_phi0
 
-    @property
-    def u(self) -> np.ndarray:
-        return self.w - W0_REF
+    def to_numpy(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """``(w in rad/ps, counts, standard error)`` as numpy arrays."""
+        return (np.array([v.value(_RAD_PER_PS) for v in self.w], dtype=float),
+                np.array([m.value for m in self.spectrum], dtype=float),
+                np.array([m.error for m in self.spectrum], dtype=float))
+
+
+class _Arrays(NamedTuple):
+    """A `SpecTrace` as the fits use it: ``u = w - W0_REF`` (rad/ps), counts, error."""
+    u: np.ndarray
+    s: np.ndarray
+    s_err: np.ndarray
+
+
+def _arrays(tr: SpecTrace) -> _Arrays:
+    w, s, e = tr.to_numpy()
+    return _Arrays(w - W0_REF, s, e)
 
 
 #: Power-iteration sweeps used to strip each exposure's own `phi0` before averaging.
@@ -123,8 +161,10 @@ def _analytic_fringe(N: np.ndarray, du: float, t_min: float = ALIGN_T_MIN):
     return 2.0 * np.fft.ifft(F, axis=1)
 
 
-def align_phi0(N: np.ndarray, du: float, iters: int = ALIGN_ITERS):
+def _align_phi0(N: np.ndarray, du: float, iters: int = ALIGN_ITERS):
     """Strip each exposure's own `phi0`, then average. -> `(mean, sem, phi0, gain)`.
+
+    A step of `load_traces` on the 2-D block of one setpoint's exposures (numpy).
 
     **Why this exists** (Kevin, 2026-08-31). Interferometric drift moves `phi0` from
     exposure to exposure. Averaging the raw spectra first leaves `T0` and `psi2`
@@ -170,16 +210,25 @@ def save_traces(traces: list[SpecTrace], dest) -> None:
     """Persist averaged traces so a rerun skips the ~12 s/run regrid+align."""
     import pathlib as _pl
     dest = _pl.Path(dest); dest.parent.mkdir(parents=True, exist_ok=True)
+    arr = [tr.to_numpy() for tr in traces]
     np.savez_compressed(
-        dest, w=traces[0].w,
-        s=np.array([t.s for t in traces]), s_err=np.array([t.s_err for t in traces]),
+        dest, w=arr[0][0],
+        s=np.array([a[1] for a in arr]), s_err=np.array([a[2] for a in arr]),
         name=np.array([t.name for t in traces]),
         setpoint=np.array([t.setpoint for t in traces]),
-        L_mm=np.array([t.L_mm for t in traces]),
-        dt_ps=np.array([t.dt_ps for t in traces]),
+        L_mm=np.array([t.L.value(Prefix.MILLI) for t in traces]),
+        dt_ps=np.array([t.dt.value(Prefix.PICO) for t in traces]),
         n_spectra=np.array([t.n_spectra for t in traces]),
         align_gain=np.array([t.align_gain for t in traces]),
         band=np.array([W_LO, W_HI, N_GRID]))
+
+
+def _trace(name, setpoint, L: Length, dt: Time, n_spectra, w: list[AngularFrequency],
+           s, s_err, align_gain) -> SpecTrace:
+    return SpecTrace(name=str(name), setpoint=int(setpoint), L=L, dt=dt,
+                     n_spectra=int(n_spectra), w=w,
+                     spectrum=[Measurement(float(v), float(e)) for v, e in zip(s, s_err)],
+                     align_gain=float(align_gain))
 
 
 def restore_traces(src) -> list[SpecTrace] | None:
@@ -191,15 +240,15 @@ def restore_traces(src) -> list[SpecTrace] | None:
     z = np.load(src, allow_pickle=False)
     if not np.allclose(z["band"], [W_LO, W_HI, N_GRID]):
         return None                      # band changed: the cache is stale, refuse it
-    return [SpecTrace(name=str(z["name"][i]), setpoint=int(z["setpoint"][i]),
-                      L_mm=float(z["L_mm"][i]), dt_ps=float(z["dt_ps"][i]),
-                      n_spectra=int(z["n_spectra"][i]), w=z["w"],
-                      s=z["s"][i], s_err=z["s_err"][i],
-                      align_gain=float(z["align_gain"][i]))
+    w = [AngularFrequency(float(v), _RAD_PER_PS) for v in z["w"]]
+    return [_trace(z["name"][i], z["setpoint"][i],
+                   Length(float(z["L_mm"][i]), Prefix.MILLI),
+                   Time(float(z["dt_ps"][i]), Prefix.PICO),
+                   z["n_spectra"][i], w, z["s"][i], z["s_err"][i], z["align_gain"][i])
             for i in range(len(z["setpoint"]))]
 
 
-def load_traces(path, grating_zero_mm: float = 30.0, align: bool = True,
+def load_traces(path, grating_zero: Length = GRATING_REF, align: bool = True,
                 cache: bool = True) -> list[SpecTrace]:
     """Average every setpoint's spectra onto the common grid.
 
@@ -212,12 +261,14 @@ def load_traces(path, grating_zero_mm: float = 30.0, align: bool = True,
         if got is not None:
             return got
     lam, counts, sidx = load_spectra(path)
-    scans = {s.setpoint: s for s in load_scans(path, grating_zero_mm)}
+    scans = {s.setpoint: s for s in load_scans(path, grating_zero)}
 
-    w_raw = 2.0 * np.pi * C_NM_PER_PS / lam
+    lam_nm = np.array([v.value(Prefix.NANO) for v in lam], dtype=float)
+    w_raw = 2.0 * np.pi * C_NM_PER_PS / lam_nm
     order = np.argsort(w_raw)
     w_sorted = w_raw[order]
     wg = np.linspace(W_LO, W_HI, N_GRID)
+    w_typed = [AngularFrequency(float(v), _RAD_PER_PS) for v in wg]
 
     du = float(wg[1] - wg[0])
     out: list[SpecTrace] = []
@@ -236,12 +287,9 @@ def load_traces(path, grating_zero_mm: float = 30.0, align: bool = True,
             # regrid every exposure, then align on phi0 before averaging
             G = np.array([np.interp(wg, w_sorted, r) for r in block]) - ped
             env = np.maximum(_smooth_env(G.mean(axis=0), 401), 1e-6)
-            fr, fr_e, _, gain = align_phi0(G / env - 1.0, du)
+            fr, fr_e, _, gain = _align_phi0(G / env - 1.0, du)
             s_g, e_g = env * (1.0 + fr), env * fr_e
-        out.append(SpecTrace(
-            name=sc.name, setpoint=k, L_mm=sc.L_mm, dt_ps=sc.dt_ps,
-            n_spectra=len(block), w=wg, s=s_g, s_err=e_g, align_gain=float(gain),
-        ))
+        out.append(_trace(sc.name, k, sc.L, sc.dt, len(block), w_typed, s_g, e_g, gain))
     if cache:
         save_traces(out, cache_path(path, align))
     return out
@@ -254,8 +302,8 @@ def _smooth_env(s: np.ndarray, win: int) -> np.ndarray:
     return savgol_filter(s, min(win, len(s) - 1), 2)
 
 
-def chirp_matched_filter(u: np.ndarray, y: np.ndarray, psi2_grid: np.ndarray,
-                         t_min: float = 0.05):
+def _chirp_matched_filter(u: np.ndarray, y: np.ndarray, psi2_grid: np.ndarray,
+                          t_min: float = 0.05):
     """Peak of |FT{ y . exp(-i psi2 u^2 / 2) }| over a grid of `psi2`.
 
     A quadratic spectral phase spreads the fringe over a range of group delays; the
@@ -280,20 +328,21 @@ def chirp_matched_filter(u: np.ndarray, y: np.ndarray, psi2_grid: np.ndarray,
 
 # --------------------------------------------------------------------- the fit
 
-@dataclass
+@dataclass(frozen=True)
 class SpecFit:
     ok: bool
     reason: str
-    T0: float               # ps      group delay at W0_REF = the arm delay
-    psi2: float             # ps^2    d(group delay)/dw = the arms' chirp mismatch
-    psi3: float             # ps^3
+    T0: Time                # group delay at W0_REF = the arm delay
+    T0_err: Time
+    psi2: GDD               # d(group delay)/dw = the arms' chirp mismatch
+    psi2_err: GDD
+    psi3: float             # ps^3 (no base_core type)
     phi0: float             # rad
     vis: float              # fringe visibility at W0_REF
-    vis_decay: float        # ps^-2, visibility roll-off in local group delay
+    vis_decay: float        # ps^-2, visibility roll-off in local group delay (no type)
     env: np.ndarray         # log-envelope polynomial coefficients (numpy order)
     sse: float
     rms: float              # rms residual as a fraction of the envelope
-    sigma: dict             # 1-sigma from the covariance, per named parameter
     model: np.ndarray
 
 
@@ -314,7 +363,13 @@ def _spec_model(th, u):
     return env * (1.0 + v * np.cos(phase)), env
 
 
-def fit_spectrum(tr: SpecTrace, seed_psi2: float, seed_T0: float,
+def _failed(reason: str) -> SpecFit:
+    nan_t, nan_g = Time(np.nan), GDD(np.nan)
+    return SpecFit(False, reason, nan_t, nan_t, nan_g, nan_g, *([np.nan] * 4),
+                   np.array([]), np.nan, np.nan, np.array([]))
+
+
+def fit_spectrum(tr: SpecTrace, seed_psi2: GDD, seed_T0: Time,
                  seed_vdec: float = 0.02, anchor: str = "T0",
                  fix_psi2: bool = False, max_nfev: int = 20000) -> SpecFit:
     """Full nonlinear fit of the interferogram, envelope and fringe together.
@@ -325,9 +380,17 @@ def fit_spectrum(tr: SpecTrace, seed_psi2: float, seed_T0: float,
     to fall off with the local group delay, which is the spectrometer's finite
     resolution: a fringe of period `2 pi / T` washes out as `T` approaches the
     instrument's limit. Without it the wings of the `L` scan, where the fringe runs
-    fastest, would pull the envelope instead.
+    fastest, would pull the envelope instead. ``seed_vdec`` is in ps^-2.
     """
-    u, s = tr.u, tr.s
+    return _fit_spectrum(_arrays(tr), seed_psi2.value(Prefix.PICO),
+                         seed_T0.value(Prefix.PICO), seed_vdec, anchor, fix_psi2, max_nfev)
+
+
+def _fit_spectrum(a: _Arrays, seed_psi2: float, seed_T0: float,
+                  seed_vdec: float = 0.02, anchor: str = "T0",
+                  fix_psi2: bool = False, max_nfev: int = 20000) -> SpecFit:
+    """:func:`fit_spectrum` on numpy arrays, seeds in ps^2 and ps."""
+    u, s = a.u, a.s
     ec0 = np.polyfit(u, np.log(np.maximum(_smooth_env(s, 201), 1e-6)), _ENV_DEG)
     th0 = np.r_[ec0, 0.0, seed_T0, seed_psi2, 0.0, 0.3, seed_vdec]
 
@@ -340,14 +403,13 @@ def fit_spectrum(tr: SpecTrace, seed_psi2: float, seed_T0: float,
         hi[_ENV_DEG + 3] = seed_psi2 + 1e-9
 
     def resid(th):
-        return (_spec_model(th, u)[0] - s) / np.maximum(tr.s_err, 1e-9)
+        return (_spec_model(th, u)[0] - s) / np.maximum(a.s_err, 1e-9)
 
     try:
         r = least_squares(resid, th0, bounds=(lo, hi), x_scale=scale,
                           max_nfev=max_nfev)
     except Exception as exc:                                   # pragma: no cover
-        return SpecFit(False, f"solver: {exc}", *([np.nan] * 6), np.array([]),
-                       np.nan, np.nan, {}, np.array([]))
+        return _failed(f"solver: {exc}")
 
     th = r.x.copy()
     sse = float(np.sum(r.fun ** 2))
@@ -371,9 +433,10 @@ def fit_spectrum(tr: SpecTrace, seed_psi2: float, seed_T0: float,
 
     mod, env = _spec_model(th, u)
     ec, (phi0, T0, psi2, psi3, vis, vdec) = _unpack(th)
-    return SpecFit(True, "ok", float(T0), float(psi2), float(psi3), float(phi0),
-                   float(vis), float(vdec), ec, sse,
-                   float(np.std((mod - s) / env)), sig, mod)
+    ps, ps2 = (lambda v: Time(float(v), Prefix.PICO)), (lambda v: GDD(float(v), Prefix.PICO))
+    return SpecFit(True, "ok", ps(T0), ps(sig["T0"]), ps2(psi2), ps2(sig["psi2"]),
+                   float(psi3), float(phi0), float(vis), float(vdec), ec, sse,
+                   float(np.std((mod - s) / env)), mod)
 
 
 #: Visibility-roll-off starts to try. The roll-off and the envelope trade against
@@ -386,12 +449,20 @@ VDEC_STARTS = (0.0, 0.03)
 PROFILE_NFEV = 2000
 
 
-def profile_psi2(tr: SpecTrace, psi2_grid: np.ndarray, anchor: str = "T0",
-                 t_min: float = 0.05):
+def _gdd_list(g: np.ndarray) -> list[GDD]:
+    return [GDD(float(v), Prefix.PICO) for v in g]
+
+
+def _ps2(g: Sequence[GDD]) -> np.ndarray:
+    return np.array([v.value(Prefix.PICO) for v in g], dtype=float)
+
+
+def profile_psi2(tr: SpecTrace, psi2_grid: Sequence[GDD], anchor: str = "T0",
+                 t_min: float = 0.05) -> tuple[list[GDD], np.ndarray]:
     """Cost of the best fit with `psi2` pinned, at each point of the grid.
 
     This is the honest seed search and the honest identifiability statement in one.
-    The matched filter (:func:`chirp_matched_filter`) is a linear statistic and can be fooled
+    The matched filter (:func:`_chirp_matched_filter`) is a linear statistic and can be fooled
     where the fringe is slow -- on the `L` scan below |L| ~ 70 mm the fringe period
     approaches the width of the whole band, and the filter's peak lands at
     `psi2 = 0`, where the "fringe" is absorbed into the envelope. Refitting
@@ -400,37 +471,48 @@ def profile_psi2(tr: SpecTrace, psi2_grid: np.ndarray, anchor: str = "T0",
 
     `T0` is seeded from the matched filter at that same `psi2` -- from the data, not
     from the commanded stage position, which is itself one of the things under test.
+    ``t_min`` is in ps.
 
     Returns `(psi2_grid, sse)`.
     """
-    T0s = _profile_T0s(tr, psi2_grid, t_min)
+    g, sse = _profile_psi2(tr, _ps2(psi2_grid), anchor, t_min)
+    return _gdd_list(g), sse
+
+
+def _profile_psi2(tr: SpecTrace, psi2_grid: np.ndarray, anchor: str, t_min: float):
+    """:func:`profile_psi2` on a numpy grid in ps^2."""
+    a = _arrays(tr)
+    T0s = _profile_T0s(a, psi2_grid, t_min)
     sse = np.empty(len(psi2_grid))
     for i, p2 in enumerate(psi2_grid):
-        sse[i] = _profile_point(tr, p2, float(T0s[i]), anchor)
+        sse[i] = _profile_point_np(a, p2, float(T0s[i]), anchor)
     return np.asarray(psi2_grid, float), sse
 
 
-def _profile_T0s(tr: SpecTrace, psi2_grid: np.ndarray, t_min: float) -> np.ndarray:
+def _profile_T0s(a: _Arrays, psi2_grid: np.ndarray, t_min: float) -> np.ndarray:
     """Matched-filter `T0` seed at each `psi2` of the grid (see :func:`profile_psi2`)."""
-    _, T0s, _ = chirp_matched_filter(
-        tr.u, tr.s / np.maximum(_smooth_env(tr.s, 201), 1e-9) - 1.0,
+    _, T0s, _ = _chirp_matched_filter(
+        a.u, a.s / np.maximum(_smooth_env(a.s, 201), 1e-9) - 1.0,
         psi2_grid, t_min)
     return T0s
 
 
-def _profile_point(tr: SpecTrace, p2, t0_seed: float, anchor: str) -> float:
-    """One point of the profile: the lowest cost over the starts, with `psi2` pinned.
-
-    Top-level so a process pool can run it (see :func:`fit_all`).
-    """
+def _profile_point_np(a: _Arrays, p2, t0_seed: float, anchor: str) -> float:
+    """One point of the profile: the lowest cost over the starts, with `psi2` pinned."""
     best = np.inf
     for t0 in (t0_seed, 0.0):
         for v0 in VDEC_STARTS:
-            f = fit_spectrum(tr, p2, t0, seed_vdec=v0, anchor=anchor,
-                             fix_psi2=True, max_nfev=PROFILE_NFEV)
+            f = _fit_spectrum(a, p2, t0, seed_vdec=v0, anchor=anchor,
+                              fix_psi2=True, max_nfev=PROFILE_NFEV)
             if f.ok:
                 best = min(best, f.sse)
     return best
+
+
+def _profile_point(tr: SpecTrace, p2, t0_seed: float, anchor: str) -> float:
+    """:func:`_profile_point_np` on a trace. Top-level so a process pool can run it
+    (see :func:`fit_all`); the worker converts its trace once."""
+    return _profile_point_np(_arrays(tr), p2, t0_seed, anchor)
 
 
 def _fine_grid(g: np.ndarray, sse: np.ndarray, refine: int) -> np.ndarray:
@@ -440,15 +522,15 @@ def _fine_grid(g: np.ndarray, sse: np.ndarray, refine: int) -> np.ndarray:
     return np.linspace(g[j] - step, g[j] + step, refine)
 
 
-def _final_starts(tr: SpecTrace, p2: float, t_min: float):
+def _final_starts(a: _Arrays, p2: float, t_min: float):
     """The `(T0, vis_decay)` starts of the free fit released at `p2`, in order."""
-    T0s = _profile_T0s(tr, np.array([p2]), t_min)
+    T0s = _profile_T0s(a, np.array([p2]), t_min)
     return [(t0, v0) for t0 in (float(T0s[0]), 0.0) for v0 in VDEC_STARTS]
 
 
 def _final_fit(tr: SpecTrace, p2: float, t0: float, v0: float, anchor: str) -> SpecFit:
     """One start of the free fit. Top-level so a process pool can run it."""
-    return fit_spectrum(tr, p2, t0, seed_vdec=v0, anchor=anchor)
+    return _fit_spectrum(_arrays(tr), p2, t0, seed_vdec=v0, anchor=anchor)
 
 
 def _pick_best(fits) -> SpecFit | None:
@@ -460,19 +542,28 @@ def _pick_best(fits) -> SpecFit | None:
     return best
 
 
-def best_fit(tr: SpecTrace, psi2_grid: np.ndarray, anchor: str = "T0",
+def best_fit(tr: SpecTrace, psi2_grid: Sequence[GDD], anchor: str = "T0",
              refine: int = 9, t_min: float = 0.05):
     """Profile `psi2` over the grid, then release it from the best point.
 
     `psi2_grid` should be coarse (the profile is a full refit per point); the
     minimum is then refined on a grid one step wide before the final free fit.
     Nothing is seeded from any across-trace trend -- each setpoint stands alone.
+    Returns ``(fit, (psi2_grid, sse))``.
     """
-    g, sse = profile_psi2(tr, psi2_grid, anchor, t_min)
-    g2, sse2 = profile_psi2(tr, _fine_grid(g, sse, refine), anchor, t_min)
+    f, (g, sse) = _best_fit(tr, _ps2(psi2_grid), anchor, refine, t_min)
+    return f, (_gdd_list(g), sse)
+
+
+def _best_fit(tr: SpecTrace, psi2_grid: np.ndarray, anchor: str = "T0",
+              refine: int = 9, t_min: float = 0.05):
+    """:func:`best_fit` on a numpy grid in ps^2; the profile comes back numpy."""
+    g, sse = _profile_psi2(tr, psi2_grid, anchor, t_min)
+    g2, sse2 = _profile_psi2(tr, _fine_grid(g, sse, refine), anchor, t_min)
     p2 = float(g2[int(np.argmin(sse2))])
-    best = _pick_best(_final_fit(tr, p2, t0, v0, anchor)
-                      for t0, v0 in _final_starts(tr, p2, t_min))
+    a = _arrays(tr)
+    best = _pick_best(_fit_spectrum(a, p2, t0, seed_vdec=v0, anchor=anchor)
+                      for t0, v0 in _final_starts(a, p2, t_min))
     return best, (g, sse)
 
 
@@ -505,7 +596,7 @@ SEED_N = 3
 
 
 def _prior_grid(path: Path):
-    """{(run, setpoint): psi2} from a previous `spec_fits.csv`, or None."""
+    """{(run, setpoint): psi2 in ps^2} from a previous `spec_fits.csv`, or None."""
     if not path.exists():
         return None
     return {(r["run"], int(r["setpoint"])): float(r["psi2_ps2"])
@@ -545,8 +636,12 @@ def _pool(workers: int):
                 os.environ[k] = v
 
 
+# Each pool task carries its `SpecTrace` (typed) and converts it once, like any fit.
+# Pickling the typed trace costs 1.8 ms per task against 0.01 ms for bare arrays, which
+# is 1.05x on the whole pool (42.9 s typed, 40.6 s numpy payload), so the tasks stay typed.
+
 def _profiles_parallel(ex, items, t_min: float):
-    """:func:`profile_psi2` for every `(trace, grid, anchor)` of `items` at once.
+    """:func:`_profile_psi2` for every `(trace, grid, anchor)` of `items` at once.
 
     One task per grid point, so the long blind profiles of `scan_d` and the short
     warm-started brackets of `scan_L` share the workers evenly. The `T0` seeds are
@@ -555,7 +650,7 @@ def _profiles_parallel(ex, items, t_min: float):
     """
     futs = []
     for tr, grid, anchor in items:
-        T0s = _profile_T0s(tr, grid, t_min)
+        T0s = _profile_T0s(_arrays(tr), grid, t_min)
         futs.append([ex.submit(_profile_point, tr, p2, float(T0s[i]), anchor)
                      for i, p2 in enumerate(grid)])
     out = []
@@ -568,9 +663,9 @@ def _profiles_parallel(ex, items, t_min: float):
 
 
 def _best_fits_parallel(jobs, workers: int, refine: int = 9, t_min: float = 0.05):
-    """:func:`best_fit` for every `(tag, trace, grid)` of `jobs`, on a process pool.
+    """:func:`_best_fit` for every `(tag, trace, grid)` of `jobs`, on a process pool.
 
-    The same three steps as :func:`best_fit` -- coarse profile, fine profile around
+    The same three steps as :func:`_best_fit` -- coarse profile, fine profile around
     its minimum, free fit from the fine minimum -- each spread over all traces at
     once, with the same selection at every step. Results come back in `jobs` order.
     """
@@ -584,25 +679,28 @@ def _best_fits_parallel(jobs, workers: int, refine: int = 9, t_min: float = 0.05
         for (tag, tr, _), (g2, sse2) in zip(jobs, fine):
             p2 = float(g2[int(np.argmin(sse2))])
             finals.append([ex.submit(_final_fit, tr, p2, t0, v0, ANCHOR[tag])
-                           for t0, v0 in _final_starts(tr, p2, t_min)])
+                           for t0, v0 in _final_starts(_arrays(tr), p2, t_min)])
         return [(_pick_best(fu.result() for fu in fl), prof)
                 for fl, prof in zip(finals, coarse)]
 
 
 def _report(tag, tr, f, prior) -> None:
-    x = tr.dt_ps if tag == "scan_d" else tr.L_mm
+    x = tr.dt.value(Prefix.PICO) if tag == "scan_d" else tr.L.value(Prefix.MILLI)
+    psi2 = f.psi2.value(Prefix.PICO)
     pin = ""
     if prior is not None and (tag, tr.setpoint) in prior:
-        if abs(f.psi2 - prior[(tag, tr.setpoint)]) > 0.95 * SEED_HALFWIDTH:
+        if abs(psi2 - prior[(tag, tr.setpoint)]) > 0.95 * SEED_HALFWIDTH:
             pin = "   PINNED AT BRACKET EDGE — recheck blind"
-    print(f"  {tag} {x:8.3f}  T0 {f.T0:+8.4f}  psi2 {f.psi2:+9.5f}"
+    print(f"  {tag} {x:8.3f}  T0 {f.T0.value(Prefix.PICO):+8.4f}  psi2 {psi2:+9.5f}"
           f"  rms {f.rms:.4f}  gain {tr.align_gain:.3f}{pin}", flush=True)
 
 
 def fit_all(prior=None, workers: int | None = None):
-    """Fit every setpoint of both runs. -> ``{run: [(trace, fit, profile), ...]}``.
+    """Fit every setpoint of both runs. -> ``{run: [(trace, fit, profile), ...]}``,
+    ``profile`` being ``(psi2 grid as list[GDD], sse)``.
 
-    ``workers`` processes share the fits (default: the ``SHAPED_USCFG_SPECTRA_WORKERS``
+    ``prior`` is ``{(run, setpoint): psi2 in ps^2}`` (see `_prior_grid`). ``workers``
+    processes share the fits (default: the ``SHAPED_USCFG_SPECTRA_WORKERS``
     environment variable, else one per CPU); ``1`` runs them serially in this
     process. Both paths make the same fits and the same choices, in the same order.
     """
@@ -618,20 +716,18 @@ def fit_all(prior=None, workers: int | None = None):
     workers = _n_workers(workers)
     out = {tag: [] for tag in RUNS}
     if workers == 1:
-        for tag, tr, grid in jobs:
-            f, prof = best_fit(tr, grid, anchor=ANCHOR[tag])
-            out[tag].append((tr, f, prof))
-            _report(tag, tr, f, prior)
-        return out
-
-    for (tag, tr, _), (f, prof) in zip(jobs, _best_fits_parallel(jobs, workers)):
-        out[tag].append((tr, f, prof))
+        results = [_best_fit(tr, grid, anchor=ANCHOR[tag]) for tag, tr, grid in jobs]
+    else:
+        results = _best_fits_parallel(jobs, workers)
+    for (tag, tr, _), (f, (g, sse)) in zip(jobs, results):
+        out[tag].append((tr, f, (_gdd_list(g), sse)))
         _report(tag, tr, f, prior)
     return out
 
 
 def write_csv(res, path: Path):
     """``spec_fits.csv``: one row per setpoint."""
+    ps, ps2 = (lambda v: v.value(Prefix.PICO)), (lambda v: v.value(Prefix.PICO))
     with open(path, "w", newline="", encoding="utf8") as fh:
         w = csv.writer(fh)
         w.writerow(["run", "setpoint", "group", "L_mm", "dt_ps", "n_spectra",
@@ -639,10 +735,10 @@ def write_csv(res, path: Path):
                     "psi3_ps3", "visibility", "vis_decay", "rms_frac", "sse"])
         for tag, rows in res.items():
             for tr, f, _ in rows:
-                w.writerow([tag, tr.setpoint, tr.name, f"{tr.L_mm:.4g}",
-                            f"{tr.dt_ps:.6g}", tr.n_spectra,
-                            f"{f.T0:.6g}", f"{f.sigma['T0']:.3g}",
-                            f"{f.psi2:.6g}", f"{f.sigma['psi2']:.3g}",
+                w.writerow([tag, tr.setpoint, tr.name, f"{tr.L.value(Prefix.MILLI):.4g}",
+                            f"{tr.dt.value(Prefix.PICO):.6g}", tr.n_spectra,
+                            f"{ps(f.T0):.6g}", f"{ps(f.T0_err):.3g}",
+                            f"{ps2(f.psi2):.6g}", f"{ps2(f.psi2_err):.3g}",
                             f"{f.psi3:.4g}", f"{f.vis:.4g}", f"{f.vis_decay:.4g}",
                             f"{f.rms:.4g}", f"{f.sse:.6g}"])
 

@@ -15,7 +15,7 @@ true fringe frequency passes through zero at the pulse centre — what comes bac
 |f(t)|, a V. Fitting a plain quadratic to that V produces a strong, entirely spurious
 curvature, and the recovered phase is wrong on one side of the vertex. The correct
 form is the *weakly* quadratic absolute value |p0 + p1 u + p2 u²| with p2 small: a
-folded straight line. `fit_folded` enumerates the vertex position, which is the only
+folded straight line. `_fit_folded` enumerates the vertex position, which is the only
 non-convex part, and is exact once the vertex is fixed.
 
 Conventions, all fixed by Kevin 2026-08-30:
@@ -34,7 +34,18 @@ Conventions, all fixed by Kevin 2026-08-30:
   out of `dDelta beta/d|L|` (`Delta f` is proportional to tau and is then divided by
   it), so changing it rescales the reported `Delta f` and nothing else.
 
-Pure numpy/scipy/h5py. No plotting here.
+No plotting here.
+
+Types
+-----
+The public functions take and return base_core quantities: a sweep is a `Scan`
+(``ScanDataBase``: delays as ``Time``, Measurement(v_mean_pos, v_std); L as ``Length``,
+dt as ``Time``), and a `FitResult` reads out ``f0``/``df`` as ``Frequency``, the chirp as
+``AngularChirp`` and f_usCFG(u) as a `TypedLaw`. `full_fit` converts its `Scan` to numpy
+once (`Scan.to_numpy`). Everything it runs inside is numpy: the underscored seed steps
+(`_gaussian_envelope_seed`, `_core_fft_peak`, `_stft_seeds`, `_fit_folded`, ...) and the
+least-squares residuals. The nine fit parameters (`PARAMS`) stay one numpy vector: they
+are in mixed units (V, ps, rad/ps^n) and the covariance is taken over all of them.
 """
 from __future__ import annotations
 
@@ -46,7 +57,13 @@ import h5py
 import numpy as np
 from scipy.optimize import least_squares
 
+from base_core.lab_specifics.base_models import Measurement, ScanDataBase
+from base_core.lab_specifics.helpers import calculate_time_delay
+from base_core.quantities.enums import Prefix
+from base_core.quantities.models import Frequency, Length, Time
+from base_core.quantities.specific_models import AngularChirp
 from manuscript_plotting_scripts.shaped_usCFG_paper import config
+from manuscript_plotting_scripts.shaped_usCFG_paper.domain.typed import TypedLaw
 
 #: The cut scan is 08-25; the delay scan is the 08-31 re-take at the true zero. The
 #: 08-25 delay scan sat at 30.00 mm -- L = +1.9 mm -- so it was never an L = 0 scan,
@@ -68,6 +85,7 @@ C_MM_PER_PS = 0.299792458
 #: flat. So the measured width at stage -20.0 mm IS the width at the operating point,
 #: and the error bar is the fit's own +-3 ps, not +-8. See NOTES-2026-08-31.md 8.1.
 TAU_PS = 306.0
+TAU = Time(TAU_PS, Prefix.PICO)
 
 #: The detector's cos^2 doubling: f_observed = FRINGE_PER_USCFG * f_usCFG.
 FRINGE_PER_USCFG = 2.0
@@ -107,67 +125,84 @@ FOLD_L_MM = 3.0
 
 # --------------------------------------------------------------------------- io
 
-@dataclass
-class Scan:
-    """One probe sweep, in the units the analysis works in."""
+@dataclass(frozen=True)
+class Scan(ScanDataBase):
+    """One probe sweep. ``delays`` is the probe delay ``2 (probe - probe_offset) / c``,
+    zero at the scan's own window start; ``measured_values`` are
+    Measurement(v_mean_pos, v_std). ``run_id`` is the file's run id (a string)."""
+    name: str = ""
+    setpoint: int = 0
+    L: Length | None = None               # grating - grating_zero
+    dt: Time | None = None                # arm delay, 2 delay_base / c
+    probe: list[Length] | None = None     # probe stage position per point
+    probe_offset: Length | None = None
 
-    run_id: str
-    name: str
-    setpoint: int
-    L_mm: float
-    dt_ps: float
-    t_ps: np.ndarray          # probe delay, zero at the scan's own window start
-    y: np.ndarray             # v_mean_pos
-    y_err: np.ndarray         # v_std
-    probe_mm: np.ndarray
-    probe_offset_mm: float
+    def to_numpy(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """``(delay in ps, v_mean_pos, v_std)`` as numpy arrays: a fit's one conversion."""
+        return (np.array([d.value(Prefix.PICO) for d in self.delays], dtype=float),
+                np.array([m.value for m in self.measured_values], dtype=float),
+                np.array([m.error for m in self.measured_values], dtype=float))
 
     @property
-    def dt_sample_ps(self) -> float:
-        return float(np.median(np.diff(self.t_ps)))
+    def dt_sample(self) -> Time:
+        """Median probe-delay step."""
+        t = np.array([d.value(Prefix.PICO) for d in self.delays], dtype=float)
+        return Time(float(np.median(np.diff(t))), Prefix.PICO)
 
     @property
-    def nyquist_ghz(self) -> float:
-        return 0.5e3 / self.dt_sample_ps
+    def nyquist(self) -> Frequency:
+        """Nyquist frequency of the median step."""
+        return Frequency(0.5e3 / self.dt_sample.value(Prefix.PICO), Prefix.GIGA)
 
 
-def load_scans(path, grating_zero_mm: float = GRATING_ZERO_MM) -> list[Scan]:
+def load_scans(path, grating_zero: Length = Length(GRATING_ZERO_MM, Prefix.MILLI)) -> list[Scan]:
     """Every scan group of one run file, in setpoint order."""
     out: list[Scan] = []
+    mm = lambda v: Length(float(v), Prefix.MILLI)
+    zero_mm = grating_zero.value(Prefix.MILLI)
     with h5py.File(str(path), "r") as f:
         run_id = str(f.attrs["run_id"])
         for i, name in enumerate(sorted(f["scans"].keys())):
             g = f["scans"][name]
             a = g.attrs
-            probe = np.asarray(g["probe_mm"][:], float)
-            off = float(a["probe_offset_mm"])
+            probe = [mm(p) for p in g["probe_mm"][:]]
+            off = mm(a["probe_offset_mm"])
             out.append(Scan(
+                delays=[calculate_time_delay(p, off) for p in probe],
+                measured_values=[Measurement(float(v), float(e))
+                                 for v, e in zip(g["v_mean_pos"][:], g["v_std"][:])],
                 run_id=run_id,
                 name=name,
                 setpoint=i,
-                L_mm=float(a["grating_mm"]) - grating_zero_mm,
-                dt_ps=2.0 * float(a["delay_base_mm"]) / C_MM_PER_PS,
-                t_ps=2.0 * (probe - off) / C_MM_PER_PS,
-                y=np.asarray(g["v_mean_pos"][:], float),
-                y_err=np.asarray(g["v_std"][:], float),
-                probe_mm=probe,
-                probe_offset_mm=off,
+                L=mm(float(a["grating_mm"]) - zero_mm),
+                dt=calculate_time_delay(mm(a["delay_base_mm"]), Length(0.0)),
+                probe=probe,
+                probe_offset=off,
             ))
     return out
 
 
-def load_spectra(path):
-    """The spectrometer block: (wavelength_nm, counts, setpoint_index)."""
+def load_spectra(path) -> tuple[list[Length], np.ndarray, np.ndarray]:
+    """The spectrometer block: ``(wavelength, counts, setpoint_index)``.
+
+    ``counts`` (one row per exposure, thousands of rows over the pixel axis) and the
+    setpoint index of each row stay numpy: a 2-D block with no per-element meaning.
+    """
     with h5py.File(str(path), "r") as f:
         sp = f["spectra"]
-        return (np.asarray(sp["wavelength_nm"][:], float),
+        return ([Length(float(v), Prefix.NANO) for v in sp["wavelength_nm"][:]],
                 np.asarray(sp["counts"][:], float),
                 np.asarray(sp["setpoint_index"][:], int))
 
 
 # ------------------------------------------------------------- step 1: envelope
 
-def sliding_envelope(y: np.ndarray, half_width: int):
+# Steps 1-4 below are private steps of `full_fit`, on the numpy arrays it takes from its
+# `Scan` once; `full_fit` is their typed boundary. They are numpy by design (one
+# conversion per fit), not for speed: reading the typed delays inside every residual
+# evaluation instead would cost 1.9x (17 sweeps, 24.8 s numpy, 48.0 s typed).
+
+def _sliding_envelope(y: np.ndarray, half_width: int):
     """Crude upper/lower envelope by sliding max/min. Seeds everything downstream."""
     n = len(y)
     w = max(2, int(half_width))
@@ -180,11 +215,11 @@ def sliding_envelope(y: np.ndarray, half_width: int):
     return up, lo
 
 
-def gaussian_envelope_seed(t: np.ndarray, y: np.ndarray):
+def _gaussian_envelope_seed(t: np.ndarray, y: np.ndarray):
     """(base, amp, mu, sigma) for the Gaussian under the fringe crests."""
     base = float(np.percentile(y, 3))
     w = max(3, len(y) // 40)
-    up, _ = sliding_envelope(y, w)
+    up, _ = _sliding_envelope(y, w)
     p = np.clip(up - base, 0.0, None)
     tot = p.sum()
     mu = float((t * p).sum() / tot)
@@ -194,7 +229,7 @@ def gaussian_envelope_seed(t: np.ndarray, y: np.ndarray):
 
 # ---------------------------------------------------- step 3: folded (|.|) seed
 
-def fit_folded(u: np.ndarray, f_abs: np.ndarray, deg: int = 1,
+def _fit_folded(u: np.ndarray, f_abs: np.ndarray, deg: int = 1,
                n_vertex: int = 121, irls: int = 4, w: np.ndarray | None = None,
                fold: bool = True):
     """Fit ``|p(u)|`` to a non-negative frequency curve. Returns signed ``p``.
@@ -244,7 +279,7 @@ def fit_folded(u: np.ndarray, f_abs: np.ndarray, deg: int = 1,
     return p, uv, cost
 
 
-def seed_phase_coeffs(p_ghz: np.ndarray) -> np.ndarray:
+def _seed_phase_coeffs(p_ghz: np.ndarray) -> np.ndarray:
     """Signed frequency polynomial (GHz, ascending powers of u) -> phase c1..c3.
 
     ``f(u) = p0 + p1 u + p2 u²`` in GHz and ``Phi(u) = c0 + c1 u + c2 u² + c3 u³`` in
@@ -270,7 +305,7 @@ def _model(th, t):
     return base + env * (1.0 + vis * np.cos(phi))
 
 
-def core_fft_peak(t, y, base, amp, mu, sigma, keep=1.5):
+def _core_fft_peak(t, y, base, amp, mu, sigma, keep=1.5):
     """Crude fringe frequency of the normalised core, GHz. Sets the SavGol window."""
     m = np.abs(t - mu) <= keep * sigma
     tc, yc = t[m], y[m]
@@ -285,6 +320,14 @@ def core_fft_peak(t, y, base, amp, mu, sigma, keep=1.5):
 
 @dataclass
 class FitResult:
+    """The nine-parameter fit of one sweep.
+
+    ``theta``, ``cov``, ``seed_theta`` and ``resid`` are numpy: the parameter vector
+    (`PARAMS`) is in mixed units (V, ps, rad/ps^n), and ``fit["mu"]`` etc. read it
+    raw, in those units. The physical readouts are typed properties: ``mu``,
+    ``sigma`` (``Time``), ``f0``, ``df`` (``Frequency``), ``chirp`` (``AngularChirp``)
+    and ``f_uscfg`` (a `TypedLaw`).
+    """
     ok: bool
     status: str
     theta: np.ndarray = field(default_factory=lambda: np.zeros(9))
@@ -297,18 +340,54 @@ class FitResult:
     seed_name: str = ""
     #: True when the no-zero-crossing constraint had to be imposed (L = 0 only).
     constrained: bool = False
-    f_hint_ghz: float = float("nan")
+    #: crude fringe frequency of the core; sets the fit's parameter scales
+    f_hint: Frequency = Frequency(float("nan"))
     resid: np.ndarray = field(default_factory=lambda: np.empty(0))
 
     def __getitem__(self, key):
         return self.theta[PARAMS.index(key)]
+
+    @property
+    def mu(self) -> Time:
+        """Envelope centre, on the scan's delay axis."""
+        return Time(float(self["mu"]), Prefix.PICO)
+
+    @property
+    def sigma(self) -> Time:
+        """Envelope rms width."""
+        return Time(float(self["sigma"]), Prefix.PICO)
+
+    @property
+    def f0(self) -> Frequency:
+        """f_usCFG at the envelope centre."""
+        return readouts(self)[0]
+
+    @property
+    def df(self) -> Frequency:
+        """Swept bandwidth ``f_usCFG(tau/2) - f_usCFG(-tau/2)``, at `TAU`."""
+        return readouts(self)[2]
+
+    @property
+    def chirp(self) -> AngularChirp:
+        """d(2 pi f_usCFG)/dt at the envelope centre.
+
+        The chirp in GHz/ps has no base_core type; ``AngularChirp`` (rad/s^2) is the same
+        quantity with the 2 pi: ``chirp.value(Prefix.PICO) * 1e3 / (2 pi)`` is GHz/ps.
+        It is exactly ``c2``, the observed fringe's ``2 c2`` halved.
+        """
+        return AngularChirp(float(self["c2"]), Prefix.PICO)
+
+    @property
+    def f_uscfg(self) -> TypedLaw:
+        """f_usCFG(u), u = t - mu: ``Time`` -> ``Frequency``. See `f_uscfg`."""
+        return f_uscfg(self)
 
 
 #: STFT window lengths, as fractions of the record, that compete as seeds.
 STFT_FRACS = (0.08, 0.12, 0.16, 0.24)
 
 
-def stft_ridge_n(u, n, frac: float, nseg: int = 31):
+def _stft_ridge_n(u, n, frac: float, nseg: int = 31):
     """Peak fringe frequency of an already-normalised fringe ``n(u)``. → ``(u, f_ghz)``.
 
     Works on unevenly sampled ``u``: the peak is found in cycles per sample and
@@ -332,7 +411,7 @@ def stft_ridge_n(u, n, frac: float, nseg: int = 31):
     return np.asarray(out_u), np.asarray(out_f)
 
 
-def stft_seeds(u, n, sigma, fold: bool):
+def _stft_seeds(u, n, sigma, fold: bool):
     """The STFT seed set: every window length, each fitted with a V and a quadratic.
 
     ``|f|`` is read straight off the spectrogram, so there is no phase to unwrap and
@@ -345,10 +424,10 @@ def stft_seeds(u, n, sigma, fold: bool):
     w_all = np.exp(-u ** 2 / (2.0 * sigma ** 2))
     out = []
     for frac in STFT_FRACS:
-        us, fs = stft_ridge_n(u, n, frac)
+        us, fs = _stft_ridge_n(u, n, frac)
         w = np.interp(us, u, w_all)
         for deg in (1, 2):
-            p, _, _ = fit_folded(us, fs, deg=deg, irls=2, w=w, fold=fold)
+            p, _, _ = _fit_folded(us, fs, deg=deg, irls=2, w=w, fold=fold)
             out.append((f"stft {frac:.2f} deg{deg}", p))
     return out
 
@@ -434,25 +513,25 @@ def full_fit(scan: Scan, keep: float = KEEP_SIGMA,
     ``fold=None`` picks by ``|L|``; pass a bool to override.
 
     **Seeds are STFT only** (Kevin, 2026-09-22). The phase fit starts from every entry
-    of :func:`stft_seeds`. The earlier competition of the Hilbert phase, the Hilbert
+    of :func:`_stft_seeds`. The earlier competition of the Hilbert phase, the Hilbert
     frequency and one STFT ridge is gone: that Hilbert-phase seed alone lands in the
     wrong basin on most of the L scan, and it slips cycles wherever the fringe is
     off-centre in its envelope. Hilbert is the right tool when the phase itself is
     wanted fast, e.g. for active stabilization, not for seeding an offline fit.
     """
     if fold is None:
-        fold = abs(scan.L_mm) > FOLD_L_MM
-    t, y = scan.t_ps, scan.y
-    base, amp, mu, sigma = gaussian_envelope_seed(t, y)
+        fold = abs(scan.L.value(Prefix.MILLI)) > FOLD_L_MM
+    t, y, _ = scan.to_numpy()
+    base, amp, mu, sigma = _gaussian_envelope_seed(t, y)
     try:
-        f_hint = core_fft_peak(t, y, base, amp, mu, sigma)
+        f_hint = _core_fft_peak(t, y, base, amp, mu, sigma)
         m = np.abs(t - mu) <= keep * sigma
         env = amp * np.exp(-(t[m] - mu) ** 2 / (2.0 * sigma ** 2))
         n_c = np.clip((y[m] - base - env) / env, -3.0, 3.0)
-        cands = stft_seeds(t[m] - mu, n_c, sigma, fold)
+        cands = _stft_seeds(t[m] - mu, n_c, sigma, fold)
     except Exception as exc:                                   # pragma: no cover
         return FitResult(False, f"seed failed: {exc}")
-    extra = dict(p_seeds=cands, f_hint_ghz=f_hint)
+    extra = dict(p_seeds=cands, f_hint=Frequency(f_hint, Prefix.GIGA))
 
     env_th = (base, amp, mu, sigma)
     span = max(3.0 * sigma, 1.0)
@@ -468,7 +547,7 @@ def full_fit(scan: Scan, keep: float = KEEP_SIGMA,
         g = ug if pen_scale > 0 else None
         stage1, which = None, ""
         for name, pp in cands:
-            r = _fit_phase_fixed_env(t, y, env_th, seed_phase_coeffs(pp), f_hint,
+            r = _fit_phase_fixed_env(t, y, env_th, _seed_phase_coeffs(pp), f_hint,
                                      ug=g, pen_scale=pen_scale)
             if r is not None and (stage1 is None or r.cost < stage1.cost):
                 stage1, which = r, name
@@ -545,16 +624,22 @@ def full_fit(scan: Scan, keep: float = KEEP_SIGMA,
 
 # ------------------------------------------------------------------- readouts
 
-def f_uscfg_ghz(fit: FitResult, u):
-    """usCFG frequency at ``u = t - mu``, GHz. Halves the detector's cos^2 doubling."""
+def f_uscfg(fit: FitResult) -> TypedLaw:
+    """usCFG frequency against ``u = t - mu``: ``Time`` -> ``Frequency``. Halves the
+    detector's cos^2 doubling. ``.numpy`` is the same law, ps -> GHz, for dense curves
+    and hot loops."""
     _, _, _, _, _, _, c1, c2, c3 = fit.theta
-    u = np.asarray(u, float)
-    f_obs = (c1 + 2.0 * c2 * u + 3.0 * c3 * u ** 2) / (2.0 * np.pi) * 1e3
-    return f_obs / FRINGE_PER_USCFG
+
+    def law(u):
+        u = np.asarray(u, float)
+        f_obs = (c1 + 2.0 * c2 * u + 3.0 * c3 * u ** 2) / (2.0 * np.pi) * 1e3
+        return f_obs / FRINGE_PER_USCFG
+
+    return TypedLaw(law, Prefix.PICO, Frequency, Prefix.GIGA)
 
 
-def readouts(fit: FitResult, tau_ps: float = TAU_PS):
-    """``(f0, sigma_f0, dfus, sigma_dfus)`` in GHz, at the envelope centre.
+def readouts(fit: FitResult, tau: Time = TAU) -> tuple[Frequency, Frequency, Frequency, Frequency]:
+    """``(f0, sigma_f0, dfus, sigma_dfus)`` at the envelope centre.
 
     ``f0 = f_usCFG(0)`` and ``dfus = f_usCFG(tau/2) - f_usCFG(-tau/2)``. Both are
     linear in the phase coefficients, so their sigmas come straight from the fit
@@ -564,19 +649,21 @@ def readouts(fit: FitResult, tau_ps: float = TAU_PS):
     k = 1e3 / (2.0 * np.pi) / FRINGE_PER_USCFG
     i1, i2 = PARAMS.index("c1"), PARAMS.index("c2")
     g0 = np.zeros(9); g0[i1] = k
-    gd = np.zeros(9); gd[i2] = 2.0 * k * tau_ps
+    gd = np.zeros(9); gd[i2] = 2.0 * k * tau.value(Prefix.PICO)
     f0 = float(g0 @ fit.theta)
     df = float(gd @ fit.theta)
     def sig(g):
         v = float(g @ fit.cov @ g)
         return float(np.sqrt(v)) if np.isfinite(v) and v >= 0 else float("nan")
-    return f0, sig(g0), df, sig(gd)
+    ghz = lambda v: Frequency(v, Prefix.GIGA)
+    return ghz(f0), ghz(sig(g0)), ghz(df), ghz(sig(gd))
 
 
 # ------------------------------------------------------------ the whole dataset
 
 def fit_all():
-    """Fit every sweep of both runs. → ``{run: [(scan, fit, f0, sf0, df, sdf), ...]}``.
+    """Fit every sweep of both runs. → ``{run: [(scan, fit, f0, sf0, df, sdf), ...]}``,
+    the readouts as ``Frequency`` (NaN where the fit failed).
 
     Per-trace only. There is deliberately **no** across-trace ("global") stage: no
     model-seeded refit, no robust re-weighting, no outlier correction.
@@ -587,7 +674,7 @@ def fit_all():
         rows = []
         for s in scans:
             r = full_fit(s)
-            f0, sf0, df, sdf = readouts(r) if r.ok else (np.nan,) * 4
+            f0, sf0, df, sdf = readouts(r) if r.ok else (Frequency(np.nan),) * 4
             rows.append((s, r, f0, sf0, df, sdf))
         out[tag] = rows
     return out
@@ -603,15 +690,16 @@ def write_csv(res, path: Path):
                     "t_mu_ps", "sigma_env_ps", "fwhm_env_ps", "visibility",
                     "baseline_v", "amp_v", "nyquist_ghz", "f_obs_at_mu_ghz"])
         for tag, rows in res.items():
-            for s, r, f0, sf0, df, sdf in rows:
-                w.writerow([tag, s.setpoint, s.name, f"{s.L_mm:.4g}",
-                            f"{s.dt_ps:.6g}", len(s.t_ps), r.ok, r.seed_name,
+            for s, r, *fr in rows:
+                f0, sf0, df, sdf = (v.value(Prefix.GIGA) for v in fr)
+                w.writerow([tag, s.setpoint, s.name, f"{s.L.value(Prefix.MILLI):.4g}",
+                            f"{s.dt.value(Prefix.PICO):.6g}", len(s.delays), r.ok, r.seed_name,
                             f"{r.rho2:.4f}", f"{f0:.4f}", f"{sf0:.4f}",
                             f"{df:.4f}", f"{sdf:.4f}", f"{df / TAU_PS:.6g}",
                             f"{r['mu']:.3f}", f"{r['sigma']:.3f}",
                             f"{2.3548 * r['sigma']:.3f}", f"{r['vis']:.4f}",
                             f"{r['base']:.5f}", f"{r['amp']:.5f}",
-                            f"{s.nyquist_ghz:.2f}",
+                            f"{s.nyquist.value(Prefix.GIGA):.2f}",
                             f"{f0 * FRINGE_PER_USCFG:.4f}"])
 
 

@@ -45,6 +45,13 @@ scratchpad pingal3.py, later the paper repo's ``analysis/xcorr/joint/joint_fit.p
 
 Knobs read from the environment exist only for experiments, and their defaults are the
 published run: ``TAUS`` (0.95), ``DGAMMA`` (1), ``DBAR`` (0).
+
+Types. The inputs come in typed: the sweeps as ``xcorr_fit.Scan`` and the averaged
+spectra as ``spectra.SpecTrace`` (read back through ``spectra.restore_traces``). Each is
+converted to numpy once, where it is loaded; `refit_normalised` takes a `Scan` and a
+``FitResult``. The fitting inside (the pinball envelopes, the cubic-phase fits, the
+lambda -> t map) is numpy, and the two outputs keep their file formats (floats in the
+units the keys name).
 """
 import csv
 import json
@@ -54,7 +61,9 @@ from pathlib import Path
 import numpy as np
 from scipy.optimize import least_squares, curve_fit, minimize, minimize_scalar
 
+from base_core.quantities.enums import Prefix
 from manuscript_plotting_scripts.shaped_usCFG_paper import config
+from manuscript_plotting_scripts.shaped_usCFG_paper.domain import spectra
 from manuscript_plotting_scripts.shaped_usCFG_paper.domain import xcorr_fit as P
 from manuscript_plotting_scripts.shaped_usCFG_paper.domain.xcorr_fit import RUNS, fit_all, _n_fringes
 
@@ -62,7 +71,7 @@ K = 1e6 / (2.0 * np.pi)
 
 
 # ================================================================== seeds
-def weights(theta, t):
+def _weights(theta, t):
     """w = 1/env, floored at the envelope's value at KEEP_SIGMA. Fixed during the fit."""
     base, amp, mu, sigma = theta[:4]
     env = amp * np.exp(-(t - mu) ** 2 / (2.0 * sigma ** 2))
@@ -70,23 +79,27 @@ def weights(theta, t):
     return 1.0 / np.maximum(env, floor)
 
 
-def refit_normalised(scan, r):
-    """Re-polish on the normalised fringe. Multi-start, exactly as full_fit does."""
-    t, y = scan.t_ps, scan.y
-    w = weights(r.theta, t)
+def refit_normalised(scan: P.Scan, r: P.FitResult) -> tuple[np.ndarray, float]:
+    """Re-polish on the normalised fringe. Multi-start, exactly as full_fit does.
+
+    Returns the nine parameters (numpy, in `xcorr_fit.PARAMS` order and units, like
+    ``FitResult.theta``) and the weighted chi^2.
+    """
+    t, y, _ = scan.to_numpy()
+    w = _weights(r.theta, t)
 
     def resid(th):
         return (P._model(th, t) - y) * w
 
     span = max(3.0 * r["sigma"], 1.0)
-    w1 = 2.0 * np.pi * max(r.f_hint_ghz, 1.0) / 1e3
+    w1 = 2.0 * np.pi * max(r.f_hint.value(Prefix.GIGA), 1.0) / 1e3
     scale = np.array([1.0, 1.0, span, span, 1.0, 1.0, w1, w1 / span, w1 / span ** 2])
 
     starts = [r.theta.copy()]
     # the same STFT seeds the stock fit chooses between, so no basin is privileged
     for _, pp in r.p_seeds:
         try:
-            c = P.seed_phase_coeffs(pp)
+            c = P._seed_phase_coeffs(pp)
             th = r.theta.copy()
             th[6], th[7], th[8] = c
             starts.append(th)
@@ -108,7 +121,7 @@ def refit_normalised(scan, r):
     return th, 2.0 * best.cost
 
 
-def origin(x, y):
+def _origin(x, y):
     return float(np.sum(x * y) / np.sum(x * x))
 
 
@@ -124,8 +137,9 @@ def run_seeds(out_dir: Path) -> None:
             k = 1e3 / (2.0 * np.pi) / P.FRINGE_PER_USCFG
             f0_new = th[6] * k
             df_new = 2.0 * k * P.TAU_PS * th[7]
-            f0_old, _, df_old, _ = P.readouts(r)
-            rows.append(dict(tag=tag, idx=idx, dt=scan.dt_ps, L=scan.L_mm,
+            f0_old, _, df_old, _ = (v.value(Prefix.GIGA) for v in P.readouts(r))
+            rows.append(dict(tag=tag, idx=idx, dt=scan.dt.value(Prefix.PICO),
+                             L=scan.L.value(Prefix.MILLI),
                              nf=_n_fringes(r),
                              chirp_old=r["c2"] * K, chirp_new=th[7] * K,
                              f0_old=f0_old, f0_new=f0_new,
@@ -153,25 +167,29 @@ def run_seeds(out_dir: Path) -> None:
 
     print("\n--- beta0 from f0 vs dt (GHz/ps) ---")
     for k_ in ("f0_old", "f0_new"):
-        v = np.array([r[k_] for r in d]); s = origin(dt, v)
+        v = np.array([r[k_] for r in d]); s = _origin(dt, v)
         print(f"  {k_}:  {s:.4f}   resid rms {np.std(v - s*dt, ddof=1):.4f} GHz")
 
     print("--- gamma0 from chirp vs dt (MHz/ps^2) ---")
     for k_ in ("chirp_old", "chirp_new"):
-        v = np.array([r[k_] for r in d]); s = origin(dt, v)
+        v = np.array([r[k_] for r in d]); s = _origin(dt, v)
         p = np.polyfit(dt, v, 1)
         print(f"  {k_}:  origin {s:.4f}   free {p[0]:.4f}·Δt {p[1]:+.3f}   "
               f"resid rms {np.std(v - s*dt, ddof=1):.3f} MHz/ps")
 
     print("--- dbeta from df vs |L| (GHz/mm) ---")
     for k_ in ("df_old", "df_new"):
-        v = np.abs(np.array([r[k_] for r in L])); s = origin(Lm, v)
+        v = np.abs(np.array([r[k_] for r in L])); s = _origin(Lm, v)
         p = np.polyfit(Lm, v, 1)
         print(f"  {k_}:  origin {s:.4f}   free zero at L = {-p[1]/p[0]:+.2f} mm   "
               f"resid rms {np.std(v - s*Lm, ddof=1):.3f} GHz")
 
 
 # ================================================================== joint fit
+# The fits below (pinball envelopes by Nelder-Mead, cubic-phase least squares) run on the
+# numpy arrays `run_joint` takes from its typed inputs once. Numpy by design, not for
+# speed: reading typed delays in every loss evaluation instead would cost 2.1x
+# (run_joint 26.7 s numpy, 56.2 s typed).
 KF = 1e3 / (2*np.pi) / P.FRINGE_PER_USCFG
 S_GHZ_PER_MM = 0.6996        # dbeta slope for the map, 2026-09-15 forced-zero fit
 KL = 2.0 * 0.00486 / P.C_MM_PER_PS            # ps of centre per mm of L
@@ -192,7 +210,7 @@ def _gauss(x, a, mu, sig, off):
     return a*np.exp(-0.5*((x-mu)/sig)**2) + off
 
 
-def phase_fit(u, n, mask, seed, tag):
+def _phase_fit(u, n, mask, seed, tag):
     def resid(c):
         return (np.cos(c[0] + c[1]*u + c[2]*u**2 + c[3]*u**3) - n)[mask]
     best = None
@@ -210,11 +228,11 @@ def phase_fit(u, n, mask, seed, tag):
 
 
 # ------------------------------------------------------------------ joint pinball envelopes
-def pin_loss(r, tau=TAU):
+def _pin_loss(r, tau=TAU):
     return float(np.sum(np.where(r > 0, tau*r, (tau - 1.0)*r)))
 
 
-def upper_pinned(x, y, mu, sig0, p0=None, tau=TAU):
+def _upper_pinned(x, y, mu, sig0, p0=None, tau=TAU):
     g = lambda xx, a, s, off: _gauss(xx, a, mu, s, off)
     if p0 is None:
         off0 = float(np.median(y)); i = int(np.argmax(y))
@@ -223,12 +241,12 @@ def upper_pinned(x, y, mu, sig0, p0=None, tau=TAU):
             p0, _ = curve_fit(g, x, y, p0=p0, maxfev=10000)
         except RuntimeError:
             pass
-    r = minimize(lambda p: pin_loss(y - g(x, *p), tau), p0, method="Nelder-Mead",
+    r = minimize(lambda p: _pin_loss(y - g(x, *p), tau), p0, method="Nelder-Mead",
                  options=dict(maxiter=20000, maxfev=20000, xatol=1e-4, fatol=1e-4))
     return r.x, r.fun
 
 
-def upper_free(x, y, sig0, p0=None, tau=TAU):
+def _upper_free(x, y, sig0, p0=None, tau=TAU):
     """Gap Gaussian: no constraint on its centre."""
     if p0 is None:
         off0 = float(np.median(y)); i = int(np.argmax(y))
@@ -237,26 +255,26 @@ def upper_free(x, y, sig0, p0=None, tau=TAU):
             p0, _ = curve_fit(_gauss, x, y, p0=p0, maxfev=10000)
         except RuntimeError:
             pass
-    r = minimize(lambda p: pin_loss(y - _gauss(x, *p), tau), p0, method="Nelder-Mead",
+    r = minimize(lambda p: _pin_loss(y - _gauss(x, *p), tau), p0, method="Nelder-Mead",
                  options=dict(maxiter=20000, maxfev=20000, xatol=1e-4, fatol=1e-4))
     return r.x, r.fun
 
 
-def env_at(tr, mu, warm=None, kx="t", ky="y"):
+def _env_at(tr, mu, warm=None, kx="t", ky="y"):
     t, y, sig0 = tr[kx], tr[ky], tr["sig0"]
     wU, wL = (warm or (None, None))
     tau = TAU if ky == "y" else TAU_S
-    pU, lU = upper_pinned(t, y, mu, sig0, wU, tau)
+    pU, lU = _upper_pinned(t, y, mu, sig0, wU, tau)
     res = -(y - _gauss(t, pU[0], mu, pU[1], pU[2]))
-    pL, lL = upper_free(t, res, sig0, wL, tau)
+    pL, lL = _upper_free(t, res, sig0, wL, tau)
     return pU, pL, (lU + lL) / tr["span" if ky == "y" else "span_s"]
 
 
-def reexpand3(c1, c2, c3, d):
+def _reexpand3(c1, c2, c3, d):
     return c1 + 2*c2*d + 3*c3*d*d, c2 + 3*c3*d, c3
 
 
-def label(x):
+def _label(x):
     return (f"Δt = {x['dt']:.2f} ps" if x["tag"] == "scan_d" else f"L = {x['L']:.2f} mm")
 
 
@@ -309,8 +327,16 @@ def run_joint(out_dir: Path) -> None:
                 t = t - np.clip(f/np.where(np.abs(fp) < 1e-12, 1e-12, fp), -20.0, 20.0)
         return t
 
-    NPZ = {"scan_d": np.load(config.TEMP_DIR/"_spec_aligned_XCORR_scan_d_20260831_131421.npz"),
-           "scan_L": np.load(config.TEMP_DIR/"_spec_aligned_XCORR_scan_L_20260825_200235.npz")}
+    def spec_block(tag):
+        """The spectra stage's averaged, aligned traces of one run, as numpy."""
+        trs = spectra.restore_traces(spectra.cache_path(RUNS[tag], True))
+        if trs is None:
+            raise FileNotFoundError(spectra.cache_path(RUNS[tag], True))
+        arr = [tr.to_numpy() for tr in trs]
+        return dict(w=arr[0][0], s=np.array([a[1] for a in arr]),
+                    setpoint=np.array([tr.setpoint for tr in trs]))
+
+    NPZ = {"scan_d": spec_block("scan_d"), "scan_L": spec_block("scan_L")}
     _allw = NPZ["scan_d"]["w"]
     _smean = np.mean(np.vstack([NPZ["scan_d"]["s"], NPZ["scan_L"]["s"]]), axis=0)
     _p, _ = curve_fit(_gauss, _allw, _smean,
@@ -328,7 +354,7 @@ def run_joint(out_dir: Path) -> None:
                 return cache[key][0]
             tot, fits = 0.0, []
             for i, tr in enumerate(TR):
-                pU, pL, l = env_at(tr, mu0 + g[i], warm[i], kx, ky)
+                pU, pL, l = _env_at(tr, mu0 + g[i], warm[i], kx, ky)
                 warm[i] = (pU, pL); tot += l; fits.append((pU, pL))
             cache[key] = (tot, fits)
             return tot
@@ -347,11 +373,12 @@ def run_joint(out_dir: Path) -> None:
     for tag in traces:
         scans = P.load_scans(RUNS[tag])
         for sc, r in zip(scans, [q for q in NF if q["tag"] == tag]):
-            y = sc.y
-            traces[tag].append(dict(tag=tag, idx=sc.setpoint, scan=sc, t=sc.t_ps, y=y, nf_row=r,
+            t, y, _ = sc.to_numpy()
+            traces[tag].append(dict(tag=tag, idx=sc.setpoint, scan=sc, t=t, y=y, nf_row=r,
                                     sig0=float(r["theta_new"][3]),
                                     span=float(np.percentile(y, 99.5) - np.percentile(y, 0.5)),
-                                    dt=float(sc.dt_ps), L=float(sc.L_mm)))
+                                    dt=float(sc.dt.value(Prefix.PICO)),
+                                    L=float(sc.L.value(Prefix.MILLI))))
 
     print("dpsi3/dL = %.4g ps^3/mm" % calibrate_dgamma([tr["L"] for tr in traces["scan_L"]]), flush=True)
 
@@ -387,7 +414,7 @@ def run_joint(out_dir: Path) -> None:
         print(f"{tag}: spectrometer mu0 = {mu0s:.3f} ps", flush=True)
 
     def do_one(tr):
-        tag, idx, scan = tr["tag"], tr["idx"], tr["scan"]
+        tag, idx = tr["tag"], tr["idx"]
         th = np.array(tr["nf_row"]["theta_new"], float)
         th_old = np.array(tr["nf_row"]["theta_old"], float)
         t, y = tr["t"], tr["y"]
@@ -401,7 +428,7 @@ def run_joint(out_dir: Path) -> None:
         Ld = Ud - G; mid = (Ud + Ld)/2.0; half = G/2.0
         hs = np.maximum(half, 1e-3*float(half.max()))
         n = (y - mid)/hs
-        c, best = phase_fit(u, n, m, reexpand3(th[6], th[7], th[8], mu - th[2]), tag)
+        c, best = _phase_fit(u, n, m, _reexpand3(th[6], th[7], th[8], mu - th[2]), tag)
         phi = c[0] + c[1]*u + c[2]*u**2 + c[3]*u**3
         dd, mm = (y-mid)[m], (half*np.cos(phi))[m]
         den = float(np.sum(dd**2)*np.sum(mm**2))
@@ -444,15 +471,15 @@ def run_joint(out_dir: Path) -> None:
         # every window length, V and quadratic |f|, no zero crossing on the delay scan.
         # The best fit to this trace wins. Nothing is taken from the cross-correlation.
         cs, bs = None, None
-        for _, pp in P.stft_seeds(us, np.clip(ns, -3, 3), sigma, fold=(tag == "scan_L")):
-            cc, bb = phase_fit(us, ns, np.ones_like(us, bool), tuple(P.seed_phase_coeffs(pp)), tag)
+        for _, pp in P._stft_seeds(us, np.clip(ns, -3, 3), sigma, fold=(tag == "scan_L")):
+            cc, bb = _phase_fit(us, ns, np.ones_like(us, bool), tuple(P._seed_phase_coeffs(pp)), tag)
             if bs is None or bb.cost < bs.cost:
                 cs, bs = cc, bb
         # same standard errors as the cross-correlation: (J^T J)^-1 * RSS/(N-4)
         covs = np.linalg.inv(bs.jac.T@bs.jac) * float(np.sum(bs.fun**2))/max(len(bs.fun)-4, 1)
 
         nf = int(abs(th_old[6]) / (2.0*np.pi) * 2.0 * P.KEEP_SIGMA * th_old[3])
-        return dict(tag=tag, idx=idx, dt=float(scan.dt_ps), L=float(scan.L_mm), nf=nf,
+        return dict(tag=tag, idx=idx, dt=tr["dt"], L=tr["L"], nf=nf,
                     mu=float(mu), sigma=float(sigma), rho2=rho2,
                     f0=float(c[1]*KF), sf0=float(np.sqrt(cov[1, 1])*KF),
                     chirp=float(c[2]*K), schirp=float(np.sqrt(cov[2, 2])*K),
@@ -487,7 +514,7 @@ def run_joint(out_dir: Path) -> None:
     for x in rows:
         pv = PREV[(x["tag"], x["idx"])]
         print("%-20s | %5.3f -> %5.3f | %6.3f -> %6.3f | %8.2f %8.2f | %8.1f %8.1f | curv %8.4f %8.4f" %
-              (f"{x['tag']} {label(x)}", pv["rho2"], x["rho2"], pv["rho2_frozen"], x["rho2_frozen"],
+              (f"{x['tag']} {_label(x)}", pv["rho2"], x["rho2"], pv["rho2_frozen"], x["rho2_frozen"],
                x["f0"], x["f0_s"], x["chirp"], x["chirp_s"], 3*x["c3"]*KF*1e3, 3*x["c3_s"]*KF*1e3))
     for tg in ("scan_d", "scan_L"):
         sub = [x for x in rows if x["tag"] == tg]
