@@ -6,10 +6,15 @@ Reads, under Z:\\Droplets\\shaped_usCFG_paper:
                                             jet-accompanying cross-correlation
   truncation                                the 2026-09-18 truncation calibration data
 Stages, in order: traces -> spectra -> seeds -> joint -> scans -> jet -> truncation
--> jet_reductions (the last reads jet_prediction.json, written by jet).
+-> jet_reductions (the last reads jet_prediction.json, written by jet). ``--stage all``
+runs the traces..jet chain and truncation concurrently, then jet_reductions.
 """
 import argparse
+import threading
 import time
+import traceback
+
+from base_core.framework.concurrency.task_runner import TaskRunner
 
 from manuscript_plotting_scripts.shaped_usCFG_paper import config
 from manuscript_plotting_scripts.shaped_usCFG_paper.domain import (
@@ -52,15 +57,66 @@ def run_jet_reductions() -> None:
     jet.run_truncation(config.TEMP_DIR)
 
 
+#: Independent chains that ``--stage all`` runs concurrently, each in order on its own
+#: TaskRunner thread. `jet_reductions` reads chain A's `jet_prediction.json`, so it
+#: runs once both chains have finished.
+CHAINS = {"xcorr": ["traces", "spectra", "seeds", "joint", "scans", "jet"],
+          "truncation": ["truncation"]}
+AFTER_CHAINS = ["jet_reductions"]
+
+
+def run_stage(s: str) -> None:
+    t0 = time.perf_counter()
+    globals()[f"run_{s}"]()
+    print(f"stage {s}: {time.perf_counter() - t0:.1f} s", flush=True)
+
+
+def run_chains(chains: dict[str, list[str]]) -> None:
+    """Run each chain's stages in order on its own TaskRunner, the chains concurrently.
+
+    A failing stage stops its own chain; the other chains finish, and the first error
+    is then raised here, in the main thread.
+    """
+    errors: list[BaseException] = []
+    done: list[threading.Event] = []
+    runners: list[TaskRunner] = []
+    for name, stages in chains.items():
+        ev = threading.Event()
+
+        def chain(stages=stages, ev=ev) -> None:
+            try:
+                for s in stages:
+                    run_stage(s)
+            finally:
+                ev.set()
+
+        runner = TaskRunner(f"shaped_usCFG_paper.{name}")
+        runner.run(chain, on_error=errors.append)
+        done.append(ev)
+        runners.append(runner)
+    for ev in done:
+        while not ev.wait(1.0):          # a timed wait keeps Ctrl-C responsive
+            pass
+    for runner in runners:
+        runner.shutdown(wait=True, timeout=None)   # also lets on_error finish recording
+    for extra in errors[1:]:
+        traceback.print_exception(extra)
+    if errors:
+        raise errors[0]
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--stage", choices=STAGES + ["all"], default="all")
     stage = ap.parse_args().stage
-    todo = STAGES if stage == "all" else [stage]
-    for s in todo:
-        t0 = time.perf_counter()
-        globals()[f"run_{s}"]()
-        print(f"stage {s}: {time.perf_counter() - t0:.1f} s")
+    if stage != "all":
+        run_stage(stage)
+        return
+    t0 = time.perf_counter()
+    run_chains(CHAINS)
+    for s in AFTER_CHAINS:
+        run_stage(s)
+    print(f"all stages: {time.perf_counter() - t0:.1f} s")
 
 
 if __name__ == "__main__":

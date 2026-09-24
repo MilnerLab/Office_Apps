@@ -39,6 +39,9 @@ Pure numpy/scipy/h5py. No plotting here.
 from __future__ import annotations
 
 import csv
+import os
+from concurrent.futures import ProcessPoolExecutor
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -400,20 +403,61 @@ def profile_psi2(tr: SpecTrace, psi2_grid: np.ndarray, anchor: str = "T0",
 
     Returns `(psi2_grid, sse)`.
     """
+    T0s = _profile_T0s(tr, psi2_grid, t_min)
+    sse = np.empty(len(psi2_grid))
+    for i, p2 in enumerate(psi2_grid):
+        sse[i] = _profile_point(tr, p2, float(T0s[i]), anchor)
+    return np.asarray(psi2_grid, float), sse
+
+
+def _profile_T0s(tr: SpecTrace, psi2_grid: np.ndarray, t_min: float) -> np.ndarray:
+    """Matched-filter `T0` seed at each `psi2` of the grid (see :func:`profile_psi2`)."""
     _, T0s, _ = chirp_matched_filter(
         tr.u, tr.s / np.maximum(_smooth_env(tr.s, 201), 1e-9) - 1.0,
         psi2_grid, t_min)
-    sse = np.empty(len(psi2_grid))
-    for i, p2 in enumerate(psi2_grid):
-        best = np.inf
-        for t0 in (float(T0s[i]), 0.0):
-            for v0 in VDEC_STARTS:
-                f = fit_spectrum(tr, p2, t0, seed_vdec=v0, anchor=anchor,
-                                 fix_psi2=True, max_nfev=PROFILE_NFEV)
-                if f.ok:
-                    best = min(best, f.sse)
-        sse[i] = best
-    return np.asarray(psi2_grid, float), sse
+    return T0s
+
+
+def _profile_point(tr: SpecTrace, p2, t0_seed: float, anchor: str) -> float:
+    """One point of the profile: the lowest cost over the starts, with `psi2` pinned.
+
+    Top-level so a process pool can run it (see :func:`fit_all`).
+    """
+    best = np.inf
+    for t0 in (t0_seed, 0.0):
+        for v0 in VDEC_STARTS:
+            f = fit_spectrum(tr, p2, t0, seed_vdec=v0, anchor=anchor,
+                             fix_psi2=True, max_nfev=PROFILE_NFEV)
+            if f.ok:
+                best = min(best, f.sse)
+    return best
+
+
+def _fine_grid(g: np.ndarray, sse: np.ndarray, refine: int) -> np.ndarray:
+    """Grid one coarse step either side of the coarse profile's minimum."""
+    j = int(np.argmin(sse))
+    step = float(g[1] - g[0])
+    return np.linspace(g[j] - step, g[j] + step, refine)
+
+
+def _final_starts(tr: SpecTrace, p2: float, t_min: float):
+    """The `(T0, vis_decay)` starts of the free fit released at `p2`, in order."""
+    T0s = _profile_T0s(tr, np.array([p2]), t_min)
+    return [(t0, v0) for t0 in (float(T0s[0]), 0.0) for v0 in VDEC_STARTS]
+
+
+def _final_fit(tr: SpecTrace, p2: float, t0: float, v0: float, anchor: str) -> SpecFit:
+    """One start of the free fit. Top-level so a process pool can run it."""
+    return fit_spectrum(tr, p2, t0, seed_vdec=v0, anchor=anchor)
+
+
+def _pick_best(fits) -> SpecFit | None:
+    """The lowest-cost successful fit; ties go to the earliest start."""
+    best = None
+    for f in fits:
+        if f.ok and (best is None or f.sse < best.sse):
+            best = f
+    return best
 
 
 def best_fit(tr: SpecTrace, psi2_grid: np.ndarray, anchor: str = "T0",
@@ -425,21 +469,10 @@ def best_fit(tr: SpecTrace, psi2_grid: np.ndarray, anchor: str = "T0",
     Nothing is seeded from any across-trace trend -- each setpoint stands alone.
     """
     g, sse = profile_psi2(tr, psi2_grid, anchor, t_min)
-    j = int(np.argmin(sse))
-    step = float(g[1] - g[0])
-    fine = np.linspace(g[j] - step, g[j] + step, refine)
-    g2, sse2 = profile_psi2(tr, fine, anchor, t_min)
+    g2, sse2 = profile_psi2(tr, _fine_grid(g, sse, refine), anchor, t_min)
     p2 = float(g2[int(np.argmin(sse2))])
-
-    _, T0s, _ = chirp_matched_filter(
-        tr.u, tr.s / np.maximum(_smooth_env(tr.s, 201), 1e-9) - 1.0,
-        np.array([p2]), t_min)
-    best = None
-    for t0 in (float(T0s[0]), 0.0):
-        for v0 in VDEC_STARTS:
-            f = fit_spectrum(tr, p2, t0, seed_vdec=v0, anchor=anchor)
-            if f.ok and (best is None or f.sse < best.sse):
-                best = f
+    best = _pick_best(_final_fit(tr, p2, t0, v0, anchor)
+                      for t0, v0 in _final_starts(tr, p2, t_min))
     return best, (g, sse)
 
 
@@ -479,25 +512,121 @@ def _prior_grid(path: Path):
             for r in csv.DictReader(open(path, encoding="utf8"))}
 
 
-def fit_all(prior=None):
-    out = {}
+#: Environment variable that sets the number of worker processes for :func:`fit_all`;
+#: ``1`` runs the original serial loop in this process (for debugging).
+WORKERS_ENV = "SHAPED_USCFG_SPECTRA_WORKERS"
+
+#: BLAS/OpenMP thread caps given to the workers, so that N processes do not each
+#: start N BLAS threads. They must be in the environment *before* a worker imports
+#: numpy -- which happens as soon as it unpickles its first task -- so they are set
+#: in this process's environment for the pool's lifetime and inherited at spawn.
+_WORKER_ENV = {"OPENBLAS_NUM_THREADS": "1", "OMP_NUM_THREADS": "1",
+               "MKL_NUM_THREADS": "1"}
+
+
+def _n_workers(workers: int | None) -> int:
+    if workers is None:
+        workers = int(os.environ.get(WORKERS_ENV, 0)) or (os.cpu_count() or 1)
+    return max(1, int(workers))
+
+
+@contextmanager
+def _pool(workers: int):
+    saved = {k: os.environ.get(k) for k in _WORKER_ENV}
+    os.environ.update(_WORKER_ENV)
+    try:
+        with ProcessPoolExecutor(max_workers=workers) as ex:
+            yield ex
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+
+def _profiles_parallel(ex, items, t_min: float):
+    """:func:`profile_psi2` for every `(trace, grid, anchor)` of `items` at once.
+
+    One task per grid point, so the long blind profiles of `scan_d` and the short
+    warm-started brackets of `scan_L` share the workers evenly. The `T0` seeds are
+    computed here exactly as the serial profile computes them, and the costs are
+    gathered back in grid order, so the result is the serial one.
+    """
+    futs = []
+    for tr, grid, anchor in items:
+        T0s = _profile_T0s(tr, grid, t_min)
+        futs.append([ex.submit(_profile_point, tr, p2, float(T0s[i]), anchor)
+                     for i, p2 in enumerate(grid)])
+    out = []
+    for (_, grid, _), fl in zip(items, futs):
+        sse = np.empty(len(grid))
+        for i, fu in enumerate(fl):
+            sse[i] = fu.result()
+        out.append((np.asarray(grid, float), sse))
+    return out
+
+
+def _best_fits_parallel(jobs, workers: int, refine: int = 9, t_min: float = 0.05):
+    """:func:`best_fit` for every `(tag, trace, grid)` of `jobs`, on a process pool.
+
+    The same three steps as :func:`best_fit` -- coarse profile, fine profile around
+    its minimum, free fit from the fine minimum -- each spread over all traces at
+    once, with the same selection at every step. Results come back in `jobs` order.
+    """
+    with _pool(workers) as ex:
+        coarse = _profiles_parallel(
+            ex, [(tr, grid, ANCHOR[tag]) for tag, tr, grid in jobs], t_min)
+        fine = _profiles_parallel(
+            ex, [(tr, _fine_grid(g, sse, refine), ANCHOR[tag])
+                 for (tag, tr, _), (g, sse) in zip(jobs, coarse)], t_min)
+        finals = []
+        for (tag, tr, _), (g2, sse2) in zip(jobs, fine):
+            p2 = float(g2[int(np.argmin(sse2))])
+            finals.append([ex.submit(_final_fit, tr, p2, t0, v0, ANCHOR[tag])
+                           for t0, v0 in _final_starts(tr, p2, t_min)])
+        return [(_pick_best(fu.result() for fu in fl), prof)
+                for fl, prof in zip(finals, coarse)]
+
+
+def _report(tag, tr, f, prior) -> None:
+    x = tr.dt_ps if tag == "scan_d" else tr.L_mm
+    pin = ""
+    if prior is not None and (tag, tr.setpoint) in prior:
+        if abs(f.psi2 - prior[(tag, tr.setpoint)]) > 0.95 * SEED_HALFWIDTH:
+            pin = "   PINNED AT BRACKET EDGE — recheck blind"
+    print(f"  {tag} {x:8.3f}  T0 {f.T0:+8.4f}  psi2 {f.psi2:+9.5f}"
+          f"  rms {f.rms:.4f}  gain {tr.align_gain:.3f}{pin}", flush=True)
+
+
+def fit_all(prior=None, workers: int | None = None):
+    """Fit every setpoint of both runs. -> ``{run: [(trace, fit, profile), ...]}``.
+
+    ``workers`` processes share the fits (default: the ``SHAPED_USCFG_SPECTRA_WORKERS``
+    environment variable, else one per CPU); ``1`` runs them serially in this
+    process. Both paths make the same fits and the same choices, in the same order.
+    """
+    jobs = []
     for tag, fn in RUNS.items():
-        rows = []
         for tr in load_traces(fn):
             grid = GRID[tag]
             if prior is not None and (tag, tr.setpoint) in prior:
                 p0 = prior[(tag, tr.setpoint)]
                 grid = np.linspace(p0 - SEED_HALFWIDTH, p0 + SEED_HALFWIDTH, SEED_N)
+            jobs.append((tag, tr, grid))
+
+    workers = _n_workers(workers)
+    out = {tag: [] for tag in RUNS}
+    if workers == 1:
+        for tag, tr, grid in jobs:
             f, prof = best_fit(tr, grid, anchor=ANCHOR[tag])
-            rows.append((tr, f, prof))
-            x = tr.dt_ps if tag == "scan_d" else tr.L_mm
-            pin = ""
-            if prior is not None and (tag, tr.setpoint) in prior:
-                if abs(f.psi2 - prior[(tag, tr.setpoint)]) > 0.95 * SEED_HALFWIDTH:
-                    pin = "   PINNED AT BRACKET EDGE — recheck blind"
-            print(f"  {tag} {x:8.3f}  T0 {f.T0:+8.4f}  psi2 {f.psi2:+9.5f}"
-                  f"  rms {f.rms:.4f}  gain {tr.align_gain:.3f}{pin}", flush=True)
-        out[tag] = rows
+            out[tag].append((tr, f, prof))
+            _report(tag, tr, f, prior)
+        return out
+
+    for (tag, tr, _), (f, prof) in zip(jobs, _best_fits_parallel(jobs, workers)):
+        out[tag].append((tr, f, prof))
+        _report(tag, tr, f, prior)
     return out
 
 
@@ -518,14 +647,15 @@ def write_csv(res, path: Path):
                             f"{f.rms:.4g}", f"{f.sse:.6g}"])
 
 
-def run(out: Path, seed_from: Path | None = None) -> None:
+def run(out: Path, seed_from: Path | None = None, workers: int | None = None) -> None:
     """Fit every setpoint of both runs and write ``out/spec_fits.csv``.
 
     ``seed_from`` warm-starts `psi2` from a previous `spec_fits.csv` (see
     :data:`SEED_HALFWIDTH`); ``None`` runs the blind profile. The averaged, aligned
     spectra are cached in ``config.TEMP_DIR`` (:func:`cache_path`) and reused on the
-    next run unless the band has changed.
+    next run unless the band has changed. ``workers`` is passed to :func:`fit_all`.
     """
     out.mkdir(parents=True, exist_ok=True)
-    res = fit_all(prior=_prior_grid(seed_from) if seed_from is not None else None)
+    res = fit_all(prior=_prior_grid(seed_from) if seed_from is not None else None,
+                  workers=workers)
     write_csv(res, out / "spec_fits.csv")
