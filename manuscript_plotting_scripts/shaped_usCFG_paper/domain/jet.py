@@ -124,6 +124,8 @@ import numpy as np
 from scipy.interpolate import CubicSpline
 from scipy.ndimage import median_filter, uniform_filter1d
 
+from _data_io.dat_loader import load_time_scan
+from base_core.quantities.enums import Prefix
 from manuscript_plotting_scripts.shaped_usCFG_paper import config
 from manuscript_plotting_scripts.shaped_usCFG_paper.domain import xcorr_fit as P
 
@@ -190,11 +192,14 @@ def load_oscillations():
     files = sorted(glob.glob(os.path.join(OSC_DIR, "*_ScanFile.dat")))
     if not files:
         raise FileNotFoundError(OSC_DIR)
-    a = np.array([np.loadtxt(f) for f in files])
-    t = a[0, :, 1]
-    if not np.allclose(a[:, :, 1], t):
+    # The lab loader carries an IonDataAnalysisConfig for provenance only; these files
+    # are already reduced by the acquisition VI, so there is none to give it.
+    scans = [load_time_scan(Path(f), None) for f in files]
+    ts = np.array([[d.value(Prefix.PICO) for d in s.delays] for s in scans])
+    t = ts[0]
+    if not np.allclose(ts, t):
         raise ValueError("the oscillation scans do not share a delay grid")
-    c = a[:, :, 2]
+    c = np.array([[m.value for m in s.measured_values] for s in scans])
     return t, c.mean(0), c.std(0, ddof=1) / np.sqrt(len(files)), len(files)
 
 
