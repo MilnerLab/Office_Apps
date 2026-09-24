@@ -1,13 +1,15 @@
 """Run the XCORR analysis chain for the shaped usCFG paper; all outputs go to _temp/shaped_usCFG_paper.
 
-Reads Z:\\Droplets\\shaped_usCFG_paper\\20260825 (scan_L) and \\20260831 (scan_d).
+Reads Z:\\Droplets\\shaped_usCFG_paper\\20260825 (scan_L) and \\20260831 (scan_d), and for
+the jet stage Jet\\Jet Truncation\\20260904 (the jet-accompanying cross-correlation).
 Stages, in order: traces -> spectra -> seeds -> joint -> scans -> jet.
 """
 import argparse
 import time
 
 from manuscript_plotting_scripts.shaped_usCFG_paper import config
-from manuscript_plotting_scripts.shaped_usCFG_paper.domain import spectra, xcorr_fit
+from manuscript_plotting_scripts.shaped_usCFG_paper.domain import (
+    jet_prediction, joint_fit, scan_fits, spectra, xcorr_fit)
 
 STAGES = ["traces", "spectra", "seeds", "joint", "scans", "jet"]
 SEED_CSV = config.INPUTS_DIR / "seed_scanL.csv"
@@ -19,6 +21,22 @@ def run_traces() -> None:
 
 def run_spectra() -> None:
     spectra.run(out=config.TEMP_DIR, seed_from=SEED_CSV)
+
+
+def run_seeds() -> None:
+    joint_fit.run_seeds(config.TEMP_DIR)
+
+
+def run_joint() -> None:
+    joint_fit.run_joint(config.TEMP_DIR)
+
+
+def run_scans() -> None:
+    scan_fits.run(config.TEMP_DIR)
+
+
+def run_jet() -> None:
+    jet_prediction.run(config.TEMP_DIR)
 
 
 def main() -> None:
