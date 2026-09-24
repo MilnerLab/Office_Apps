@@ -125,13 +125,13 @@ from scipy.interpolate import CubicSpline
 from scipy.ndimage import median_filter, uniform_filter1d
 
 from _data_io.dat_loader import load_time_scan
+from base_core.lab_specifics.helpers import calculate_time_delay
 from base_core.quantities.enums import Prefix
+from base_core.quantities.models import Length
 from manuscript_plotting_scripts.shaped_usCFG_paper import config
 from manuscript_plotting_scripts.shaped_usCFG_paper.domain import xcorr_fit as P
 
-C_MM_PER_PS = 0.299792458          # mm/ps
 STAGE_ZERO_MM = 64.500             # probe stage position of zero delay
-DOUBLE_PASS = 2.0
 
 X0, Y0 = 162.0, 220.0              # VMI centre (px), from the run sheets
 SCALE_X = 0.85                     # aspect correction applied to x
@@ -165,7 +165,8 @@ PRED_JSON = config.TEMP_DIR / "jet_prediction.json"
 
 def stage_to_delay_ps(pos_mm: float) -> float:
     """Probe stage position (mm) -> probe delay (ps), double pass."""
-    return DOUBLE_PASS * (pos_mm - STAGE_ZERO_MM) / C_MM_PER_PS
+    return calculate_time_delay(Length(pos_mm, Prefix.MILLI),
+                                Length(STAGE_ZERO_MM, Prefix.MILLI)).value(Prefix.PICO)
 
 
 _DLY_RE = re.compile(r"DLY_+(-?\d+)p(\d+)mm\.dat$")

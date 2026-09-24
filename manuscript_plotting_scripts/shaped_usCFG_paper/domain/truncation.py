@@ -54,6 +54,9 @@ import numpy as np
 from scipy.optimize import least_squares
 from scipy.special import erfc
 
+from base_core.lab_specifics.helpers import calculate_time_delay
+from base_core.quantities.enums import Prefix
+from base_core.quantities.models import Length
 from manuscript_plotting_scripts.shaped_usCFG_paper import config
 from manuscript_plotting_scripts.shaped_usCFG_paper.domain import xcorr_fit as P
 
@@ -63,7 +66,6 @@ XC = {12.86: DATA / "xcorr" / "Scan8_CFG_GA_Trunc1" / "20260918532_.csv",
       14.50: DATA / "xcorr" / "Scan9_CFG_GA_Trunc2" / "20260918537_.csv"}
 H5 = DATA / "XCORR_20260903_jet_accompany_scan.h5"
 
-C_MM_PS = P.C_MM_PER_PS
 C_NM_PS = 299792.458
 JET_STAGE_ZERO_MM = 64.500          # LabVIEW probe stage zero, double passed (domain/jet.py)
 JET_OFFSET_PS = 27.7                # jet axis = xcorr envelope-centre axis + 27.7 ps (Fig. 9)
@@ -147,7 +149,9 @@ def calibration_line(rows, pg, nsig=2.0):
 def load_xc(path):
     a = np.loadtxt(path)
     x, Y = a[:, 0], a[:, 1:]
-    t = 2 * (x - JET_STAGE_ZERO_MM) / C_MM_PS
+    t = np.array([calculate_time_delay(Length(xi, Prefix.MILLI),
+                                       Length(JET_STAGE_ZERO_MM, Prefix.MILLI)).value(Prefix.PICO)
+                  for xi in x])
     return t, Y.mean(1), Y.std(1, ddof=1) / np.sqrt(Y.shape[1])
 
 
