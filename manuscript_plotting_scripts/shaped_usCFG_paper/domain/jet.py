@@ -109,6 +109,15 @@ Truncation (``fig_jet_truncation``)
 Released rotation vs truncation position (mechanically phase-averaged): the four
 scans of `TRUNCATION_SCANS` read along the fitted axis ``psi``, with frame-level
 error bars.
+
+Types
+-----
+The public functions take and return base_core quantities (``Time``, ``Length``,
+``Frequency``, ``Angle``, ``Measurement``, ``ScanDataBase``); each converts to numpy
+once, at its boundary.  Laws such as the beat frequency are `TypedLaw` objects.  The
+STFT steps inside `oscillations` (`_spectrogram`, `_ridge`, `_align`) work on numpy
+arrays throughout; the comment above them gives the measured cost of typing the
+beat law inside `_align`.
 """
 
 from __future__ import annotations
@@ -118,16 +127,21 @@ import json
 import os
 import re
 from collections import defaultdict
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable, Sequence
 
 import numpy as np
 from scipy.interpolate import CubicSpline
 from scipy.ndimage import median_filter, uniform_filter1d
 
 from _data_io.dat_loader import load_time_scan
+from base_core.lab_specifics.base_models import Measurement, ScanDataBase
 from base_core.lab_specifics.helpers import calculate_time_delay
+from base_core.math.enums import AngleUnit
+from base_core.math.models import Angle
 from base_core.quantities.enums import Prefix
-from base_core.quantities.models import Length
+from base_core.quantities.models import Frequency, Length, Time
 from manuscript_plotting_scripts.shaped_usCFG_paper import config
 from manuscript_plotting_scripts.shaped_usCFG_paper.domain import xcorr_fit as P
 
@@ -160,31 +174,86 @@ PRED_JSON = config.TEMP_DIR / "jet_prediction.json"
 
 
 # --------------------------------------------------------------------------
+# types
+# --------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class TypedLaw:
+    """A law y(x) between base_core quantities, e.g. a beat frequency against delay.
+
+    Called with a sequence of typed x (``Time``, ``Length``, ...) it returns a list of
+    typed y, converting once at the boundary: x is read in ``x_prefix`` units and y
+    is built as ``y_type(value, y_prefix)``.  With ``y_type=None`` y is a plain float
+    (a signal level).  ``numpy`` is the same law on bare floats in those units; it is
+    what hot loops and dense drawn curves use.
+    """
+    numpy: Callable[[np.ndarray], np.ndarray]
+    x_prefix: Prefix
+    y_type: type | None
+    y_prefix: Prefix = Prefix.NONE
+
+    def __call__(self, xs: Sequence[float]) -> list:
+        y = self.numpy(np.array([x.value(self.x_prefix) for x in xs], dtype=float))
+        if self.y_type is None:
+            return [float(v) for v in y]
+        return [self.y_type(v, self.y_prefix) for v in y]
+
+
+@dataclass(frozen=True)
+class AveragedScan(ScanDataBase):
+    """A probe-delay scan averaged over repeats: ``measured_values`` are
+    Measurement(mean, standard error of the repeats)."""
+    n_repeats: int = 0
+
+
+@dataclass(frozen=True)
+class MomentScan:
+    """One mechanically-averaged truncation scan reduced to the second Fourier moment.
+
+    ``z`` (complex, one per delay) and ``per_frame`` (complex per-frame moments, one
+    array per delay) have no base_core type and stay numpy.
+    """
+    delays: list[Time]
+    z: np.ndarray
+    per_frame: list[np.ndarray]
+    n_ions: list[int]
+
+
+@dataclass(frozen=True)
+class TruncationTrace(ScanDataBase):
+    """One truncation scan read along the alignment axis: ``measured_values`` are
+    Measurement(<cos^2 theta_2D>, frame-level standard error)."""
+    label: str = ""
+    prism: Length | None = None        # truncation prism position; None = full centrifuge
+    rel: str = ""                      # scan directory under ``Jet Truncation/``
+    n_ions: list[int] | None = None    # ions inside the radial mask, per delay
+
+
+# --------------------------------------------------------------------------
 # delay bookkeeping
 # --------------------------------------------------------------------------
 
-def stage_to_delay_ps(pos_mm: float) -> float:
-    """Probe stage position (mm) -> probe delay (ps), double pass."""
-    return calculate_time_delay(Length(pos_mm, Prefix.MILLI),
-                                Length(STAGE_ZERO_MM, Prefix.MILLI)).value(Prefix.PICO)
+def stage_to_delay(pos: Length) -> Time:
+    """Probe stage position -> probe delay, double pass."""
+    return calculate_time_delay(pos, Length(STAGE_ZERO_MM, Prefix.MILLI))
 
 
 _DLY_RE = re.compile(r"DLY_+(-?\d+)p(\d+)mm\.dat$")
 
 
-def _stage_of(path: str) -> float:
+def _stage_of(path: str) -> Length:
     m = _DLY_RE.search(os.path.basename(path))
     if m is None:
         raise ValueError(f"cannot parse stage position from {path!r}")
-    return float(f"{m.group(1)}.{m.group(2)}")
+    return Length(float(f"{m.group(1)}.{m.group(2)}"), Prefix.MILLI)
 
 
 # --------------------------------------------------------------------------
 # the stabilized oscillation scans (already reduced)
 # --------------------------------------------------------------------------
 
-def load_oscillations():
-    """Return (t_ps, c2t, sem, n_scans) averaged over the nine repeats.
+def load_oscillations() -> AveragedScan:
+    """The nine repeats averaged: Measurement(<cos^2 theta_2D>, standard error) per delay.
 
     The nine scans share one delay grid, which is asserted rather than
     interpolated.  The uncertainty is the scatter of the repeats about their
@@ -197,11 +266,13 @@ def load_oscillations():
     # are already reduced by the acquisition VI, so there is none to give it.
     scans = [load_time_scan(Path(f), None) for f in files]
     ts = np.array([[d.value(Prefix.PICO) for d in s.delays] for s in scans])
-    t = ts[0]
-    if not np.allclose(ts, t):
+    if not np.allclose(ts, ts[0]):
         raise ValueError("the oscillation scans do not share a delay grid")
     c = np.array([[m.value for m in s.measured_values] for s in scans])
-    return t, c.mean(0), c.std(0, ddof=1) / np.sqrt(len(files)), len(files)
+    mean, sem = c.mean(0), c.std(0, ddof=1) / np.sqrt(len(files))
+    return AveragedScan(delays=list(scans[0].delays),
+                        measured_values=[Measurement(float(v), float(e)) for v, e in zip(mean, sem)],
+                        run_id=None, n_repeats=len(files))
 
 
 # --------------------------------------------------------------------------
@@ -241,37 +312,38 @@ def _load_point(files):
     return e.mean(), per_frame, th.size
 
 
-def load_truncation_scan(rel_dir: str):
-    """Return (t_ps, z, per_frame_z_list, n_ions) for one truncation scan."""
+def load_truncation_scan(rel_dir: str) -> MomentScan:
+    """One truncation scan: delays, second moment z, per-frame moments and ion counts."""
     g = _group_by_stage(os.path.join(TRUNC_ROOT, rel_dir))
     t, z, pf, n = [], [], [], []
     for pos, files in g.items():
         zi, pfi, ni = _load_point(files)
-        t.append(stage_to_delay_ps(pos))
+        t.append(stage_to_delay(pos))
         z.append(zi)
         pf.append(pfi)
-        n.append(ni)
-    return np.array(t), np.array(z), pf, np.array(n)
+        n.append(int(ni))
+    return MomentScan(delays=t, z=np.array(z), per_frame=pf, n_ions=n)
 
 
-def fit_alignment_axis(scans) -> float:
-    """Laboratory alignment axis psi (rad) from the centrifuge-induced change.
+def fit_alignment_axis(scans: Sequence[MomentScan]) -> Angle:
+    """Laboratory alignment axis psi from the centrifuge-induced change.
 
-    `scans` is a list of (t, z, ...) as returned by `load_truncation_scan`.
     For each scan the earliest delay is the pre-centrifuge reference; the axis
     is the argument of the summed change, which weights the delays that carry
     signal without any hand-set window.
     """
     total = 0.0 + 0.0j
-    for t, z, *_ in scans:
-        ref = z[np.argmin(t)]
-        total += np.sum(z - ref)
-    return 0.5 * np.angle(total)
+    for s in scans:
+        t = np.array([d.value(Prefix.PICO) for d in s.delays])
+        ref = s.z[np.argmin(t)]
+        total += np.sum(s.z - ref)
+    # psi is already in (-pi/2, pi/2]; wrap=False keeps it bit for bit
+    return Angle(0.5 * np.angle(total), AngleUnit.RAD, wrap=False)
 
 
-def c2t(z, psi: float):
-    """<cos^2 theta_2D> along the axis psi."""
-    return 0.5 + 0.5 * np.real(np.asarray(z) * np.exp(-2j * psi))
+def c2t(z: np.ndarray, psi: Angle) -> np.ndarray:
+    """<cos^2 theta_2D> along the axis psi, from complex second moments z."""
+    return 0.5 + 0.5 * np.real(np.asarray(z) * np.exp(-2j * psi.Rad))
 
 
 # --------------------------------------------------------------------------
@@ -286,34 +358,44 @@ XCORR_H5 = os.path.join(TRUNC_ROOT, "20260904",
                         "XCORR_20260903_jet_accompany_scan.h5")
 
 
-def load_accompanying_xcorr():
-    """Return ``(u_ps, v, v_err, beat_ghz, fit)`` for that sweep.
+def load_accompanying_xcorr() -> tuple[ScanDataBase, TypedLaw, P.FitResult]:
+    """Return ``(scan, beat, fit)`` for that sweep.
 
-    ``u`` is the probe delay referenced to the **fitted envelope centre**, which
-    is the only origin the file defines: its ``probe_offset_mm`` is just where
-    the sweep was started.  The jet scans reference their own stage zero, so the
-    two axes differ by a constant, which `align` measures.
+    ``scan`` holds Measurement(v_mean_pos, v_std) against the probe delay
+    referenced to the **fitted envelope centre**, which is the only origin the
+    file defines: its ``probe_offset_mm`` is just where the sweep was started.
+    The jet scans reference their own stage zero, so the two axes differ by a
+    constant, which `_align` measures.
 
-    ``beat_ghz(u)`` is the fringe frequency of the nine-parameter fit.  It is in
-    the **same units as the jet's alignment beat**: the cross-correlation sees
-    the corkscrew through a cos^2 projection and the molecules align headlessly,
-    so both run at twice the centrifuge frequency.  This is the whole point of
-    the comparison and no factor is applied anywhere to make it work.
+    ``beat`` (delay about the envelope centre -> ``Frequency``) is the fringe
+    frequency of the nine-parameter fit.  It is in the **same units as the jet's
+    alignment beat**: the cross-correlation sees the corkscrew through a cos^2
+    projection and the molecules align headlessly, so both run at twice the
+    centrifuge frequency.  This is the whole point of the comparison and no
+    factor is applied anywhere to make it work.
     """
     sc = P.load_scans(XCORR_H5)[0]
     fit = P.full_fit(sc)
     if not fit.ok:
         raise RuntimeError(f"xcorr fit failed: {fit.status}")
     mu = fit["mu"]
-    beat = lambda u: 2.0 * P.f_uscfg_ghz(fit, u)
-    return sc.t_ps - mu, sc.y, sc.y_err, beat, fit
+    beat = TypedLaw(lambda u: 2.0 * P.f_uscfg_ghz(fit, u), Prefix.PICO, Frequency, Prefix.GIGA)
+    scan = ScanDataBase(delays=[Time(u, Prefix.PICO) for u in sc.t_ps - mu],
+                        measured_values=[Measurement(float(v), float(e)) for v, e in zip(sc.y, sc.y_err)],
+                        run_id=None)
+    return scan, beat, fit
 
 
 # --------------------------------------------------------------------------
 # oscillations: spectrogram, ridge and the xcorr law against it
 # --------------------------------------------------------------------------
 
-def spectrogram(tu, s, dt):
+# The STFT steps below are private steps of `oscillations`, on its uniform numpy grid;
+# `oscillations` is their typed boundary. `_align` evaluates the beat law ~10^6 times, so it
+# takes the law's numpy form (`TypedLaw.numpy`).
+# numpy here: base_core types cost 15x (baseline 0.139 s, typed 2.13 s)
+
+def _spectrogram(tu, s, dt):
     """STFT, zero padded by half a window so the columns span the whole scan."""
     n = int(round(WIN_PS / dt))
     n += n % 2
@@ -330,7 +412,7 @@ def spectrogram(tu, s, dt):
     return np.array(centres), f, np.array(cols).T
 
 
-def ridge(f, S, fmin=8.0):
+def _ridge(f, S, fmin=8.0):
     """Interpolated spectral peak of each STFT column, lightly median filtered."""
     m = (f > fmin) & (f < FMAX_GHZ)
     fm, Sm = f[m], S[m]
@@ -361,7 +443,7 @@ def _window(tc, nyq, beat, shift):
     return float(tc[lo]), float(tc[hi])
 
 
-def align(tc, fr, nyq, beat):
+def _align(tc, fr, nyq, beat):
     """Delay-origin offset between the xcorr axis and the jet axis, ps.
 
     One parameter, by least squares of |beat| against the ridge over the
@@ -403,42 +485,60 @@ def _peak(tt, yy):
     return float(f[k][np.argmax(F[k])])
 
 
-def predicted_beat():
-    """The calibration's prediction of the accompanying xcorr's beat, ``2 f_CFG(u)`` in GHz,
-    from ``jet_prediction.json``: f_CFG(u) coefficients about the envelope centre, folded to
-    f(0) > 0 as the fit is. Drawn over panel (b) of ``fig_jet_oscillations``."""
+def predicted_beat() -> TypedLaw:
+    """The calibration's prediction of the accompanying xcorr's beat, ``2 f_CFG(u)``
+    (delay about the envelope centre -> ``Frequency``), from ``jet_prediction.json``:
+    f_CFG(u) coefficients about the envelope centre, folded to f(0) > 0 as the fit is.
+    Drawn over panel (b) of ``fig_jet_oscillations``."""
     pc = json.load(open(PRED_JSON))["predicted"]
-    return lambda u: 2.0 * (pc[0] + pc[1] * u + pc[2] * u * u)
+    return TypedLaw(lambda u: 2.0 * (pc[0] + pc[1] * u + pc[2] * u * u),
+                    Prefix.PICO, Frequency, Prefix.GIGA)
 
 
 def oscillations() -> dict:
     """The whole oscillation reduction. Returns, keyed by name:
 
-    ``t, y, sem, nrep``   the averaged jet trace (panel (a))
-    ``tc, f, S``          the spectrogram's column centres, frequencies and magnitude (panel (b))
-    ``fr, nyq``           the ridge and the original grid's local Nyquist at each column
-    ``ux, vx, beat, xfit`` the accompanying xcorr (u about its envelope centre), its beat law and fit
-    ``shift, lo, hi, rms, m`` the delay-origin offset, the supported window, the law-vs-ridge rms
-                          and the columns used; the figure's x range is ``(lo, hi)``
-    ``pbeat``             the predicted beat (`predicted_beat`)
+    ``trace``   AveragedScan: the averaged jet trace, Measurement(<cos^2 theta_2D>, sem)
+                against delay (panel (a)); ``trace.n_repeats`` repeats
+    ``dt``      Time: the finest step of the delay grid (the STFT's uniform step)
+    ``tc``      list[Time]: the spectrogram's column centres (panel (b))
+    ``f``       list[Frequency]: the spectrogram's frequencies
+    ``S``       numpy array (len(f), len(tc)): STFT magnitude.  A 2-D image stays
+                numpy: it is drawn with imshow and has no per-element meaning.
+    ``fr``      list[Frequency]: the ridge (spectral peak) of each column
+    ``nyq``     list[Frequency]: the ORIGINAL grid's local Nyquist at each column
+    ``xcorr``   ScanDataBase: the accompanying xcorr, delay about its envelope centre
+                (panel (c) draws it at delay + ``shift``)
+    ``beat``    TypedLaw, delay about the envelope centre -> Frequency: its beat law
+    ``xfit``    xcorr_fit.FitResult: its nine-parameter fit
+    ``shift``   Time: the delay-origin offset; the xcorr's envelope centre on the jet axis
+    ``lo, hi``  Time: the window the grid supports; the figure's x range
+    ``rms``     Frequency: law-vs-ridge rms over the window
+    ``m``       numpy bool array over ``tc``: the columns used in the offset fit
+    ``pbeat``   TypedLaw: the predicted beat (`predicted_beat`)
     """
-    t, y, sem, nrep = load_oscillations()
+    trace = load_oscillations()
+    t = np.array([d.value(Prefix.PICO) for d in trace.delays])
+    y = np.array([v.value for v in trace.measured_values])
     dt = float(np.diff(t).min())
 
     tu = np.arange(t.min(), t.max(), dt)
     yu = CubicSpline(t, y)(tu)
     s = yu - uniform_filter1d(yu, int(round(WIN_PS / dt)) | 1, mode="nearest")
 
-    tc, f, S = spectrogram(tu, s, dt)
-    fr = ridge(f, S)
+    tc, f, S = _spectrogram(tu, s, dt)
+    fr = _ridge(f, S)
 
     # local Nyquist of the ORIGINAL grid, carried onto the STFT centres
     nyq = 1e3 / (2 * np.interp(tc, 0.5 * (t[1:] + t[:-1]), np.diff(t)))
 
-    ux, vx, _, beat, xfit = load_accompanying_xcorr()
-    shift, (lo, hi), rms, m = align(tc, fr, nyq, beat)
-    return dict(t=t, y=y, sem=sem, nrep=nrep, dt=dt, tc=tc, f=f, S=S, fr=fr, nyq=nyq,
-                ux=ux, vx=vx, beat=beat, xfit=xfit, shift=shift, lo=lo, hi=hi, rms=rms, m=m,
+    xcorr, beat, xfit = load_accompanying_xcorr()
+    shift, (lo, hi), rms, m = _align(tc, fr, nyq, beat.numpy)
+    ps = lambda v: Time(v, Prefix.PICO)
+    ghz = lambda v: Frequency(v, Prefix.GIGA)
+    return dict(trace=trace, dt=ps(dt), tc=[ps(v) for v in tc], f=[ghz(v) for v in f], S=S,
+                fr=[ghz(v) for v in fr], nyq=[ghz(v) for v in nyq], xcorr=xcorr, beat=beat,
+                xfit=xfit, shift=ps(shift), lo=ps(lo), hi=ps(hi), rms=ghz(rms), m=m,
                 pbeat=predicted_beat())
 
 
@@ -446,9 +546,17 @@ def run_oscillations(out_dir: Path) -> None:
     """Reduce the oscillation scans; write ``oscillations.csv``, ``oscillations_ridge.csv``
     and ``accompanying_xcorr.csv`` (the xcorr on the jet axis)."""
     k = oscillations()
-    t, y, sem, nrep, dt = k["t"], k["y"], k["sem"], k["nrep"], k["dt"]
-    tc, fr, nyq, ux, vx, beat, xfit = k["tc"], k["fr"], k["nyq"], k["ux"], k["vx"], k["beat"], k["xfit"]
-    shift, lo, hi, rms, m, pbeat = k["shift"], k["lo"], k["hi"], k["rms"], k["m"], k["pbeat"]
+    ps = lambda xs: np.array([x.value(Prefix.PICO) for x in xs])
+    ghz = lambda xs: np.array([x.value(Prefix.GIGA) for x in xs])
+    trace, xcorr, xfit, m = k["trace"], k["xcorr"], k["xfit"], k["m"]
+    t, nrep, dt = ps(trace.delays), trace.n_repeats, k["dt"].value(Prefix.PICO)
+    y = np.array([v.value for v in trace.measured_values])
+    sem = np.array([v.error for v in trace.measured_values])
+    tc, fr, nyq = ps(k["tc"]), ghz(k["fr"]), ghz(k["nyq"])
+    ux, vx = ps(xcorr.delays), np.array([v.value for v in xcorr.measured_values])
+    shift, lo, hi = (k[n].value(Prefix.PICO) for n in ("shift", "lo", "hi"))
+    rms = k["rms"].value(Prefix.GIGA)
+    beat, pbeat = k["beat"].numpy, k["pbeat"].numpy
 
     print(f"{len(t)} delays, {t.min():.0f}..{t.max():.0f} ps, "
           f"step {np.diff(t).max():.1f}..{dt:.2f} ps, {nrep} repeats")
@@ -497,30 +605,35 @@ def run_oscillations(out_dir: Path) -> None:
 # truncation: released rotation vs truncation position
 # --------------------------------------------------------------------------
 
-def sem_from_frames(per_frame, psi):
-    """Frame-level standard error on <cos^2 theta_2D>."""
-    v = 0.5 * np.real(per_frame * np.exp(-2j * psi))
+def sem_from_frames(per_frame: np.ndarray, psi: Angle) -> float:
+    """Frame-level standard error on <cos^2 theta_2D>, from complex per-frame moments."""
+    v = 0.5 * np.real(per_frame * np.exp(-2j * psi.Rad))
     return v.std(ddof=1) / np.sqrt(v.size)
 
 
-def truncation_traces():
-    """The four `TRUNCATION_SCANS` read along the fitted axis. Returns ``(psi, traces)``,
-    ``traces`` a list in plotting order of dicts ``rel, label, prism, t, y, e, n``
-    (delay, <cos^2 theta_2D>, frame-level error, ions per delay)."""
+def truncation_traces() -> tuple[Angle, list[TruncationTrace]]:
+    """The four `TRUNCATION_SCANS` read along the fitted axis. Returns ``(psi, traces)``:
+    ``psi`` the fitted alignment axis, ``traces`` the `TruncationTrace` of each scan in
+    plotting order (delays; Measurement(<cos^2 theta_2D>, frame-level error); label;
+    prism position, None for the full centrifuge; ions per delay)."""
     scans = []
     for rel, label, prism in TRUNCATION_SCANS:
-        t, z, pf, n = load_truncation_scan(rel)
-        scans.append((t, z, pf, n, label, prism, rel))
-        print(f"{label:18s} {rel:22s} {len(t):2d} delays, {n.sum():,} ions")
+        ms = load_truncation_scan(rel)
+        scans.append((ms, label, prism, rel))
+        print(f"{label:18s} {rel:22s} {len(ms.delays):2d} delays, {sum(ms.n_ions):,} ions")
 
-    psi = fit_alignment_axis([(s[0], s[1]) for s in scans])
-    print(f"alignment axis psi = {np.degrees(psi):+.2f} deg")
+    psi = fit_alignment_axis([s[0] for s in scans])
+    print(f"alignment axis psi = {psi.Deg:+.2f} deg")
 
     traces = []
-    for t, z, pf, n, label, prism, rel in scans:
-        y = c2t(z, psi)
-        e = np.array([sem_from_frames(p, psi) for p in pf])
-        traces.append(dict(rel=rel, label=label, prism=prism, t=t, y=y, e=e, n=n))
+    for ms, label, prism, rel in scans:
+        y = c2t(ms.z, psi)
+        e = [sem_from_frames(p, psi) for p in ms.per_frame]
+        traces.append(TruncationTrace(
+            delays=ms.delays,
+            measured_values=[Measurement(float(yi), float(ei)) for yi, ei in zip(y, e)],
+            run_id=None, label=label, rel=rel, n_ions=ms.n_ions,
+            prism=None if prism is None else Length(prism, Prefix.MILLI)))
     return psi, traces
 
 
@@ -529,10 +642,9 @@ def run_truncation(out_dir: Path) -> None:
     psi, traces = truncation_traces()
     rows = []
     for tr in traces:
-        prism = tr["prism"]
-        for ti, yi, ei, ni in zip(tr["t"], tr["y"], tr["e"], tr["n"]):
-            rows.append((tr["rel"], tr["label"], prism if prism is not None else np.nan,
-                         ti, yi, ei, ni))
+        prism = np.nan if tr.prism is None else tr.prism.value(Prefix.MILLI)
+        for d, v, ni in zip(tr.delays, tr.measured_values, tr.n_ions):
+            rows.append((tr.rel, tr.label, prism, d.value(Prefix.PICO), v.value, v.error, ni))
 
     out_dir.mkdir(parents=True, exist_ok=True)
     csv = os.path.join(out_dir, "truncation.csv")
@@ -540,4 +652,4 @@ def run_truncation(out_dir: Path) -> None:
         fh.write("scan,label,prism_mm,delay_ps,c2t,sem,n_ions\n")
         for r in rows:
             fh.write("%s,%s,%s,%.3f,%.6f,%.6f,%d\n" % r)
-    print("wrote", csv, f"(psi = {np.degrees(psi):+.3f} deg)")
+    print("wrote", csv, f"(psi = {psi.Deg:+.3f} deg)")

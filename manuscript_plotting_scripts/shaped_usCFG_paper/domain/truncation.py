@@ -42,24 +42,32 @@ Chain:
 `calibrate` runs the chain and returns everything, including what only the figure
 (``fig_char_truncation``) draws; `run` writes ``truncation_calibration.json`` and
 ``lamcut.csv``.
+
+The public functions (`load_xc`, `fit_edge`, `calibrate`) take and return base_core
+quantities and convert to numpy once, at their boundary. The underscored helpers are
+the chain's numpy steps: the spectra are a 2-D block (141 spectra over the band), and
+the dispersion and Fresnel quantities (rad/ps^2, ps^2) have no base_core type.
 """
 from __future__ import annotations
 
 import glob
 import json
 import os
+from dataclasses import dataclass, fields
 from pathlib import Path
 
 import numpy as np
 from scipy.optimize import least_squares
 from scipy.special import erfc
 
+from base_core.lab_specifics.base_models import Measurement, ScanDataBase
 from base_core.lab_specifics.helpers import calculate_time_delay
 from base_core.math.functions import erfc as step, gaussian
 from base_core.quantities.enums import Prefix
-from base_core.quantities.models import Length
+from base_core.quantities.models import Frequency, Length, Time
 from manuscript_plotting_scripts.shaped_usCFG_paper import config
 from manuscript_plotting_scripts.shaped_usCFG_paper.domain import xcorr_fit as P
+from manuscript_plotting_scripts.shaped_usCFG_paper.domain.jet import TypedLaw
 
 DATA = config.TRUNCATION_ROOT
 SPEC_DIR = DATA / "spectrometer"
@@ -81,26 +89,59 @@ BETA0 = 2 * np.pi * BETA0_GHZ_PS * 1e-3                 # rad/ps^2
 GAMMA0 = 2 * np.pi * GAMMA0_3_MHZ_PS2 * 1e-6 / 3.0       # rad/ps^3
 
 
-def dbeta_of_L(L_mm):
+@dataclass(frozen=True)
+class SpectrumCut:
+    """The erfc-edge fit to one spectrometer spectrum (step 1). NaN where the prism
+    blocks the whole spectrum."""
+    prism: Length          # truncation prism position
+    lam_cut: Length        # fitted cut wavelength
+    sigma_lam: Length      # fitted edge width: the spectrometer's resolution, a nuisance
+    lam_cut_err: Length    # standard error of lam_cut
+    scale: float           # amplitude against the open spectrum
+
+
+@dataclass(frozen=True)
+class EdgeFit:
+    """The plain erfc fit to one truncated cross-correlation (step 4, `fit_edge`)."""
+    tc: Time               # the cut, on the scan's delay axis
+    tc_err: Time
+    sigma: Time            # erfc width
+    sigma_err: Time
+    w1090: Time            # 10-90 width, 2.563 sigma
+    chi2_dof: float
+    pre: float             # signal level before the cut
+    post: float            # signal level after the cut
+    model: TypedLaw        # delay -> signal (float), the fitted curve
+
+
+@dataclass(frozen=True)
+class EdgeScan(ScanDataBase):
+    """A truncated cross-correlation on the jet delay axis, Measurement(mean, standard
+    error of the 20 repeats), with the prism position and its erfc fit."""
+    prism: Length | None = None
+    fit: EdgeFit | None = None
+
+
+def _dbeta_of_L(L_mm):
     lin = DF_SLOPE_GHZ_MM * L_mm
     return 2 * np.pi * (lin / (1.0 - lin / DF0_GHZ)) * 1e-3 / P.TAU_PS
 
 
 # ----------------------------------------------------------------------------- spectra
 
-def load_spec(f):
+def _load_spec(f):
     a = np.loadtxt(f, delimiter=",", skiprows=1)
     return a[:, 0], a[:, 1]
 
 
-def fit_spectra():
+def _fit_spectra():
     files = sorted(glob.glob(str(SPEC_DIR / "*.csv")))
-    lam, _ = load_spec(files[0])
+    lam, _ = _load_spec(files[0])
     band = (lam > 780) & (lam < 825)
     l = lam[band]
 
     def spec(f):
-        _, I = load_spec(f)
+        _, I = _load_spec(f)
         return I[band] - np.percentile(I, 1)          # dark pedestal: 1st percentile
 
     ref = np.mean([spec(f) for f in files[-6:]], 0)  # prism 16.75 .. 17.00 mm: open
@@ -132,7 +173,7 @@ def fit_spectra():
     return l, pg, rows, files, spec
 
 
-def calibration_line(rows, pg, nsig=2.0):
+def _calibration_line(rows, pg, nsig=2.0):
     ok = np.isfinite(rows[:, 1]) & (rows[:, 1] > pg[1] - nsig * pg[2]) & (rows[:, 1] < pg[1] + nsig * pg[2])
     A = np.vstack([rows[ok, 0], np.ones(ok.sum())]).T
     c, *_ = np.linalg.lstsq(A, rows[ok, 1], rcond=None)
@@ -143,19 +184,27 @@ def calibration_line(rows, pg, nsig=2.0):
 
 # ------------------------------------------------------------------ cross-correlations
 
-def load_xc(path):
+def load_xc(path) -> ScanDataBase:
+    """One truncated cross-correlation on the jet delay axis: Measurement(mean, standard
+    error) of the 20 repeats per delay. ``run_id`` is the file's acquisition number."""
     a = np.loadtxt(path)
     x, Y = a[:, 0], a[:, 1:]
-    t = np.array([calculate_time_delay(Length(xi, Prefix.MILLI),
-                                       Length(JET_STAGE_ZERO_MM, Prefix.MILLI)).value(Prefix.PICO)
-                  for xi in x])
-    return t, Y.mean(1), Y.std(1, ddof=1) / np.sqrt(Y.shape[1])
+    zero = Length(JET_STAGE_ZERO_MM, Prefix.MILLI)
+    delays = [calculate_time_delay(Length(xi, Prefix.MILLI), zero) for xi in x]
+    y, e = Y.mean(1), Y.std(1, ddof=1) / np.sqrt(Y.shape[1])
+    return ScanDataBase(delays=delays,
+                        measured_values=[Measurement(float(yi), float(ei)) for yi, ei in zip(y, e)],
+                        run_id=int(Path(path).stem.rstrip("_")))
 
 
-def fit_edge(t, y, e):
+def fit_edge(scan: ScanDataBase) -> EdgeFit:
     """Plain erfc edge (a Gaussian-blurred step). The ripples before the cut (the Fresnel
     fringes of the chirp-limited edge, Sec. II C) are left in the residuals; the errors are
     scaled by chi2/dof."""
+    t = np.array([d.value(Prefix.PICO) for d in scan.delays])
+    y = np.array([m.value for m in scan.measured_values])
+    e = np.array([m.error for m in scan.measured_values])
+
     def model(p, t=t):
         b, A, tc, s = p
         # base_core's erfc is the rising step 0.5 A erf(z) + offset; amplitude -A and
@@ -169,14 +218,16 @@ def fit_edge(t, y, e):
     dof = len(t) - len(p)
     cov = np.linalg.inv(best.jac.T @ best.jac) * (2 * best.cost / dof)
     sd = np.sqrt(np.diag(cov))
-    return dict(tc=p[2], tc_err=sd[2], sigma=abs(p[3]), sigma_err=sd[3], w1090=2.563 * abs(p[3]),
-                chi2_dof=2 * best.cost / dof, pre=float(p[0] + p[1]), post=float(p[0]),
-                model=lambda tq: model(p, tq))
+    ps = lambda v: Time(v, Prefix.PICO)
+    return EdgeFit(tc=ps(p[2]), tc_err=ps(sd[2]), sigma=ps(abs(p[3])), sigma_err=ps(sd[3]),
+                   w1090=ps(2.563 * abs(p[3])), chi2_dof=float(2 * best.cost / dof),
+                   pre=float(p[0] + p[1]), post=float(p[0]),
+                   model=TypedLaw(lambda tq: model(p, tq), Prefix.PICO, None))
 
 
 # --------------------------------------------------------------------------- the map
 
-def fresnel_edge(gdd_ps2, sigma_rad_ps, tau):
+def _fresnel_edge(gdd_ps2, sigma_rad_ps, tau):
     """Intensity |(1/2) erfc(tau/Lambda)|^2, Lambda^2 = 2 GDD^2 sigma^2 + 2i GDD, normalised
     far before the cut. Eq. (edge_exact) of the paper."""
     Lam = np.sqrt(2 * gdd_ps2 ** 2 * sigma_rad_ps ** 2 + 2j * gdd_ps2)
@@ -186,11 +237,11 @@ def fresnel_edge(gdd_ps2, sigma_rad_ps, tau):
     return I / I[0], abs(Lam)
 
 
-def fresnel_1090(gdd_ps2, sigma_rad_ps):
+def _fresnel_1090(gdd_ps2, sigma_rad_ps):
     """10-90 width of the intensity edge, and its width read the way the data are read:
     a Gaussian-blurred step fitted to the same curve (sigma of that erfc)."""
     tau = np.linspace(-60, 60, 240001)
-    I, Lam = fresnel_edge(gdd_ps2, sigma_rad_ps, tau)
+    I, Lam = _fresnel_edge(gdd_ps2, sigma_rad_ps, tau)
     i90 = np.where(I > 0.9)[0][-1]
     i10 = np.where(I < 0.1)[0][0]
     m = np.abs(tau) < 30
@@ -200,18 +251,29 @@ def fresnel_1090(gdd_ps2, sigma_rad_ps):
 
 
 def calibrate() -> dict:
-    """Run steps 1-5. Returns the results dict ``res`` (what ``truncation_calibration.json``
-    holds) together with the intermediates, several of which only the figure draws:
+    """Run steps 1-5. Returns, keyed by name:
 
-    ``l, files, spec``   the fitted band and a spectrum loader (panel (a)'s image)
-    ``rows, ok, c``      the per-spectrum fits, the calibrated subset, the calibration line
-    ``lam_of_x``         the calibration line lam_cut(x) (panel (a)'s line)
-    ``f_of_u, u_cut``    f_CFG(u) and u_cut(x) (panel (a)'s right-hand f_trunc axis)
-    ``edges``            per prism position: t, y, e, the erfc fit and its ``model`` (panel (b))
+    ``l``          list[Length]: the fitted band's wavelengths (panel (a)'s image axis)
+    ``files``      list[str]: the spectrometer files, in prism order
+    ``spec``       spec(file) -> numpy array over ``l``: counts above the dark pedestal.
+                   The spectra stay numpy: stacked they are panel (a)'s 2-D image.
+    ``rows``       list[SpectrumCut]: the per-spectrum fits (``lamcut.csv``)
+    ``ok``         list[bool] over ``rows``: the subset the calibration line is fitted to
+    ``lam_of_x``   TypedLaw, prism Length -> Length: the calibration line lam_cut(x)
+    ``f_of_u``     TypedLaw, Time -> Frequency: f_CFG(u), u about the xcorr envelope centre
+    ``u_cut``      TypedLaw, prism Length -> Time: the cut on the envelope-centre axis
+    ``t_jet_cut``  TypedLaw, prism Length -> Time: the cut on the jet axis
+    ``edges``      list[EdgeScan]: the two measured edges (on the jet axis), each with
+                   its prism position and `EdgeFit` (panel (b))
+    ``edge_theory``, ``res``  the JSON record (``truncation_calibration.json``), plain
+                   floats in the units the key names state; several quantities in it
+                   (rad/ps^2, ps^2, ratios) have no base_core type.
+    Every TypedLaw takes a sequence and returns a list; ``.numpy`` is the same law on
+    floats (mm, nm, ps, GHz) for dense curves.
     """
     # 1-2. spectra
-    l, pg, rows, files, spec = fit_spectra()
-    ok, c, c_err, resid = calibration_line(rows, pg)
+    l, pg, rows, files, spec = _fit_spectra()
+    ok, c, c_err, resid = _calibration_line(rows, pg)
     lam_of_x = lambda x: c[0] * x + c[1]
 
     # accompanying cross-correlation -> f_CFG(u)
@@ -225,7 +287,7 @@ def calibrate() -> dict:
     # 3. map: shaper arm's frame
     lam0 = pg[1]
     w0 = 2 * np.pi * C_NM_PS / lam0
-    bs = BETA0 + dbeta_of_L(L)
+    bs = BETA0 + _dbeta_of_L(L)
     gs = GAMMA0                                 # Delta gamma(L) is ~0 in the joint fit
 
     def t_prime(lam):
@@ -235,12 +297,14 @@ def calibrate() -> dict:
     u_map = lambda x: t_prime(lam_of_x(x)) - dt / 2.0     # xcorr-centre frame, before anchoring
 
     # 4. the two measured edges
-    edges = {}
+    edges = []
     for x, path in XC.items():
-        t, y, e = load_xc(path)
-        edges[x] = dict(t=t, y=y, e=e, **fit_edge(t, y, e))
+        sc_x = load_xc(path)
+        edges.append(EdgeScan(delays=sc_x.delays, measured_values=sc_x.measured_values,
+                              run_id=sc_x.run_id, prism=Length(x, Prefix.MILLI), fit=fit_edge(sc_x)))
+    tc = {x: E.fit.tc.value(Prefix.PICO) for x, E in zip(XC, edges)}
     # one offset between the map's zero and the cross-correlation axis
-    offs = np.array([edges[x]["tc"] - JET_OFFSET_PS - u_map(x) for x in XC])
+    offs = np.array([tc[x] - JET_OFFSET_PS - u_map(x) for x in XC])
     anchor = float(offs.mean())
     anchor_spread = float(np.ptp(offs))
     u_cut = lambda x: u_map(x) + anchor
@@ -252,20 +316,27 @@ def calibrate() -> dict:
     for x in XC:
         tp = float(t_prime(lam_of_x(x)))
         gdd = 1.0 / (2 * bs + 6 * gs * tp)
-        w_fres, _, s_fres, _ = fresnel_1090(gdd, 0.0)
+        w_fres, _, s_fres, _ = _fresnel_1090(gdd, 0.0)
         edge_theory[str(x)] = dict(t_prime_ps=tp, gdd_ps2=gdd, dt_F_ps=float(np.sqrt(2 * gdd)),
                                    w1090_fresnel_ps=w_fres, sigma_fit_fresnel_ps=s_fres)
+
+    def edge_record(F: EdgeFit) -> dict:
+        """The fit's JSON entry: Time fields in ps, the rest as they are, no model."""
+        out = {}
+        for f in fields(F):
+            v = getattr(F, f.name)
+            if f.name != "model":
+                out[f.name] = v.value(Prefix.PICO) if isinstance(v, Time) else v
+        return out
 
     res = dict(
         L_mm=L, dt_ps=dt, lam0_nm=lam0, sigma_open_nm=pg[2],
         calib=dict(slope_nm_per_mm=c[0], slope_err=c_err[0], intercept_nm=c[1], intercept_err=c_err[1],
                    rms_resid_nm=float(resid.std()), n=int(ok.sum()),
                    x_range=[float(rows[ok, 0].min()), float(rows[ok, 0].max())]),
-        map=dict(beta_s_over_beta0=bs / BETA0, dbeta_rad_ps2=dbeta_of_L(L), dt_per_mm_ps=float((u_map(14.5) - u_map(13.5))),
+        map=dict(beta_s_over_beta0=bs / BETA0, dbeta_rad_ps2=_dbeta_of_L(L), dt_per_mm_ps=float((u_map(14.5) - u_map(13.5))),
                  anchor_ps=anchor, anchor_spread_ps=anchor_spread, jet_offset_ps=JET_OFFSET_PS),
-        edges={str(x): {k: (float(v) if isinstance(v, (float, np.floating)) else v)
-                        for k, v in edges[x].items() if k not in ("t", "y", "e", "model")}
-               for x in XC},
+        edges={str(x): edge_record(E.fit) for x, E in zip(XC, edges)},
         edge_theory=edge_theory,
         f_cfg=dict(f0_ghz=float(f_of_u(0.0)), slope_ghz_ps=float((f_of_u(1.0) - f_of_u(-1.0)) / 2),
                    mu_ps=float(fit["mu"]), sigma_ps=float(fit["sigma"])),
@@ -275,20 +346,29 @@ def calibrate() -> dict:
                   for x in list(XC) + list(PRISM_JET)},
     )
     for x in XC:
-        res["releases"][str(x)]["t_jet_measured_ps"] = float(edges[x]["tc"])
+        res["releases"][str(x)]["t_jet_measured_ps"] = tc[x]
 
-    return dict(l=l, pg=pg, rows=rows, files=files, spec=spec, ok=ok, c=c, resid=resid,
-                lam_of_x=lam_of_x, f_of_u=f_of_u, u_cut=u_cut, t_jet_cut=t_jet_cut,
+    nm = lambda v: Length(v, Prefix.NANO)
+    cuts = [SpectrumCut(prism=Length(r[0], Prefix.MILLI), lam_cut=nm(r[1]), sigma_lam=nm(r[2]),
+                        lam_cut_err=nm(r[3]), scale=float(r[4])) for r in rows]
+    return dict(l=[nm(v) for v in l], files=files, spec=spec, rows=cuts, ok=[bool(k) for k in ok],
+                lam_of_x=TypedLaw(lam_of_x, Prefix.MILLI, Length, Prefix.NANO),
+                f_of_u=TypedLaw(f_of_u, Prefix.PICO, Frequency, Prefix.GIGA),
+                u_cut=TypedLaw(u_cut, Prefix.MILLI, Time, Prefix.PICO),
+                t_jet_cut=TypedLaw(t_jet_cut, Prefix.MILLI, Time, Prefix.PICO),
                 edges=edges, edge_theory=edge_theory, res=res)
 
 
 def run(out_dir: Path) -> None:
     """Run the calibration; write ``lamcut.csv`` and ``truncation_calibration.json``."""
     k = calibrate()
-    rows, c, resid, ok = k["rows"], k["c"], k["resid"], k["ok"]
-    edges, edge_theory, res = k["edges"], k["edge_theory"], k["res"]
+    edge_theory, res = k["edge_theory"], k["res"]
     lam0, L, dt = res["lam0_nm"], res["L_mm"], res["dt_ps"]
     anchor, anchor_spread = res["map"]["anchor_ps"], res["map"]["anchor_spread_ps"]
+    cal = res["calib"]
+    rows = np.array([(r.prism.value(Prefix.MILLI), r.lam_cut.value(Prefix.NANO),
+                      r.sigma_lam.value(Prefix.NANO), r.lam_cut_err.value(Prefix.NANO), r.scale)
+                     for r in k["rows"]])
 
     out_dir.mkdir(parents=True, exist_ok=True)
     np.savetxt(out_dir / "lamcut.csv", rows, delimiter=",",
@@ -296,19 +376,20 @@ def run(out_dir: Path) -> None:
     json.dump(res, open(out_dir / "truncation_calibration.json", "w"), indent=1)
 
     print(f"open spectrum: centre {lam0:.3f} nm, sigma {res['sigma_open_nm']:.3f} nm; L = {L:.2f} mm, dt = {dt:.3f} ps")
-    print(f"calibration: lam_cut = {c[0]:.4f} x + {c[1]:.3f}  (rms {resid.std():.4f} nm over {ok.sum()} points)")
+    print(f"calibration: lam_cut = {cal['slope_nm_per_mm']:.4f} x + {cal['intercept_nm']:.3f}  "
+          f"(rms {cal['rms_resid_nm']:.4f} nm over {cal['n']} points)")
     print(f"map: beta_s/beta0 = {res['map']['beta_s_over_beta0']:.4f}; {res['map']['dt_per_mm_ps']:.1f} ps per mm of prism")
     for x in XC:
-        E = edges[x]
+        E = res["edges"][str(x)]
         print(f"xcorr edge, prism {x}: t_cut = {E['tc']:.2f} +- {E['tc_err']:.2f} ps (jet axis), "
               f"sigma {E['sigma']:.2f} +- {E['sigma_err']:.2f} ps, 10-90 {E['w1090']:.2f} ps; "
               f"post/pre {E['post']/E['pre']:.3f}, chi2/dof {E['chi2_dof']:.0f}")
     print(f"anchor: map zero sits {anchor:.1f} ps after the xcorr envelope centre; the two edges agree to {anchor_spread:.1f} ps")
     for x in XC:
-        T = edge_theory[str(x)]
+        T, E = edge_theory[str(x)], res["edges"][str(x)]
         print(f"edge theory, prism {x}: t' {T['t_prime_ps']:.0f} ps, local GDD {T['gdd_ps2']:.2f} ps^2, "
               f"dt_F {T['dt_F_ps']:.2f} ps, sharp-cut floor read as a blurred step: sigma {T['sigma_fit_fresnel_ps']:.2f} ps "
-              f"(measured {edges[x]['sigma']:.2f} +- {edges[x]['sigma_err']:.2f})")
+              f"(measured {E['sigma']:.2f} +- {E['sigma_err']:.2f})")
     for x in list(XC) + list(PRISM_JET):
         r = res["releases"][str(x)]
         print(f"prism {x}: lam_cut {r['lam_cut_nm']:.2f} nm -> t_cut {r['t_jet_ps']:.0f} ps (jet axis) -> f_trunc {r['f_trunc_ghz']:.1f} GHz")
