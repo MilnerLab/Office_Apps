@@ -28,8 +28,8 @@ from base_core.quantities.models import Length, Time
 
 
 STFTWINDOWSIZE = Time(300,Prefix.PICO)  
-EARLIEST_DELAY_PS = -430
-LATEST_DELAY_PS = 430
+EARLIEST_DELAY_PS = -850
+LATEST_DELAY_PS = 1300
 POSZEROSHIFT = 0 #millimetres :)
 
 MAJORTITLEFONTSIZE = 16
@@ -40,7 +40,7 @@ def calculating(folders: list[Path], configs: list[IonDataAnalysisConfig]) -> tu
     
     
     scans_paths = DatFinder(folders).find_datafiles() #Change this if you want a specific path rather than the Droplets folder
-    raw_datas = load_ion_data(scans_paths)
+    raw_datas = load_ion_data(scans_paths)  
     calculated_scans = run_pipeline(raw_datas, configs)
     averagedScanData = average_scans(calculated_scans)
     config = StftAnalysisConfig(calculated_scans, STFTWINDOWSIZE)
@@ -63,37 +63,24 @@ savedata_filename_1 = savedata_filedir + r"\ONNO_TEMP.csv" #Name the file to sav
 #Plot on top
 
 
-PlotTitle = r"ONNO in 30 bar / 18 K droplets"
+PlotTitle = r"ONNO in 30 bar / 18 K droplets" + "\n" + r"with 7-19 GHz centrifuge"
 
 
 #--------------------------------------------------------------------------------------------------------------
-#--------------------------------------------------------------------------------------------------------------
-
-#ACCELERATING
-
-
-# configs_1: list[IonDataAnalysisConfig] = []
-# folders_1: list[Path] = []
-
-# folders_1.append(Path(r"20260426\Scan3"))  #Correct for direct comparison to 20260427\Scan2,  GA=0, DA = 15.5mm
-# configs_1.append(IonDataAnalysisConfig(
-#     delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
-#     center=Point(205, 194),
-#     angle= Angle(12, AngleUnit.DEG),
-#     analysis_zone= Range[int](DROPLETRADIUSMIN, 120),
-#     transform_parameter=0.78))
 
 
 configs_1: list[IonDataAnalysisConfig] = []
 folders_1: list[Path] = []
 
-folders_1.append(Path(r"20260910\Scan5_CFG")) #better older data, GA=0, DA = 16.6mm, still has ~40GHz central oscillation frequency 
+folders_1.append(Path(r"20260928\Scan5_CFG_AVG")) 
 configs_1.append(IonDataAnalysisConfig(
-    delay_center= Length(139.5-POSZEROSHIFT, Prefix.MILLI),
-    center=Point(115, 99),
+    delay_center= Length(153-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(100,100),
     angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](18, 45),
-    transform_parameter= 0.77))
+    analysis_zone= Range[int](20,50),
+    transform_parameter=0.8))
+#folders_1.append(Path(r"20260925\Scan4_CFG")) 
+#configs_1.append(configs_1[0]) #Use the same config for both folders, but different data
 
 
 #--------------------------------------------------------------------------------------------------
@@ -102,31 +89,20 @@ plt.style.use(r"stylefiles\compare_c2t_spectrogram.mplstyle")
 
 #Pipeline 
 plottable_scan_1, plottable_spectrogram_1 = calculating(folders_1, configs_1)
-
+PlotTitle = PlotTitle + "\n" + str(folders_1)
 #Main figure
 mainfig, (axs) = plt.subplots(
-            nrows=2,
+            nrows=1,
             ncols=1,
             figsize=(6.75, 4.2),
             sharex=True,             
             gridspec_kw={'hspace': 0.1,'wspace': 0.3}
         )
 
-a = axs[0]
+a = axs
 plot_averaged_scan(a, plottable_scan_1, PlotColor.BLACK,ecolor=PlotColor.RED,marker='d', label = None,elinewidth=1)
 a.grid()
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
-a.set_xlabel(None)
-
-a = axs[1]
-plot_Spectrogram(a, plottable_spectrogram_1,shading="auto",v_range=Range(0,1))
-a.set_ylim([0,60])
-a.set_ylabel('Oscillation\nFrequency (GHz)')
-a.yaxis.set_label_coords(YLABELX,0.5)
-
-#plot_nyquist_frequency(a, plottable_scan_1)
-a.set_xlabel(None)
-
 
 
 mainfig.suptitle(PlotTitle,fontsize=MAJORTITLEFONTSIZE,color='black')

@@ -17,16 +17,16 @@ from base_core.quantities.models import Length
 from base_core.fitting.functions import fit_gaussian
 
 POSZEROSHIFT = 0 #millimetres :)
-
-folder_path = Path(r"Z:\Droplets\20260923\Scan13_Droplets_CFG")
+PlotTitle = "DIB in 40bar/13K Droplets"
+folder_path = Path(r"Z:\Droplets\20260929\Scan2_AVG")
 file_paths = DatFinder(folder_path,is_full_path=True).find_datafiles()
 
 config = IonDataAnalysisConfig(
-    delay_center= Length(165-POSZEROSHIFT, Prefix.MILLI),
-    center=Point(98, 98),
+    delay_center= Length(80-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(200,200),
     angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](20,50),
-    transform_parameter=0.83)
+    analysis_zone= Range[int](40,90),
+    transform_parameter=0.85)
 
 
 raw_scans = load_ion_data(file_paths)
@@ -39,7 +39,8 @@ label = "Center = (" + str(config.center.x) + ", " + str(config.center.y) + "), 
 #plot_calculated_scan(ax3, calculated_Scan[0],label=label)
 plot_calculated_scan(ax, scan_avg,label=label)
 fig.tight_layout()
-
+ax.set_title(str(folder_path) + "\n" + PlotTitle, fontsize=8)
 #fit = fit_gaussian(scan_avg.delays,scan_avg.measured_values)
+fig.savefig(r"Z:\Droplets\plots\C2T_SCRIPT_TEMPORARY.png",dpi=300, bbox_inches='tight')
 
 plt.show()
