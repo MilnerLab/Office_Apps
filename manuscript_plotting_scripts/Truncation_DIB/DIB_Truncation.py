@@ -1,5 +1,6 @@
 print('Code start!')
 from pathlib import Path
+from pydoc import locate
 from altair import FontWeight
 import matplotlib as mpl
 from matplotlib import pyplot as plt
@@ -82,6 +83,7 @@ configs.append(IonDataAnalysisConfig(
 
 folders_1 = folders
 configs_1 = configs
+label_1 = ""
 
 #--------------------------------------------------------------------------------------------------------------
 
@@ -99,6 +101,25 @@ configs.append(IonDataAnalysisConfig(
 
 folders_2 = folders
 configs_2 = configs
+label_2 = "11GHz - Truncated"
+
+#--------------------------------------------------------------------------------------------------------------
+
+
+configs: list[IonDataAnalysisConfig] = []
+folders: list[Path] = []
+
+folders.append(Path(r"Z:\Droplets\20260929\Scan2_AVG")) 
+configs.append(IonDataAnalysisConfig(
+    delay_center= Length(80-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(200,200),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= Range[int](40,90),
+    transform_parameter=0.85))
+
+folders_3 = folders
+configs_3 = configs
+label_3 = "5Ghz - Full"
 
 
 #--------------------------------------------------------------------------------------------------------------
@@ -112,6 +133,7 @@ plt.style.use(r"stylefiles\compare_c2t_spectrogram.mplstyle")
 #Pipeline 
 plottable_scan_1, plottable_spectrogram_1 = calculating(folders_1, configs_1)
 plottable_scan_2, plottable_spectrogram_2 = calculating(folders_2, configs_2)
+plottable_scan_3, plottable_spectrogram_3 = calculating(folders_3, configs_3)
 
 PlotTitle = PlotTitle + "\n" + str(folders_1)  + "\n" + str(folders_2) 
 #Main figure
@@ -125,11 +147,12 @@ mainfig, (axs) = plt.subplots(
 
 a = axs
 plot_averaged_scan(a, plottable_scan_1, PlotColor.BLUE,ecolor=PlotColor.BLUE,marker='d', label = "11GHz - Full",elinewidth=1)
-plot_averaged_scan(a, plottable_scan_2, PlotColor.RED,ecolor=PlotColor.RED,marker='x', label = "11GHz - Truncated",elinewidth=1)
+plot_averaged_scan(a, plottable_scan_2, PlotColor.RED,ecolor=PlotColor.RED,marker='x', label = label_2,elinewidth=1)
+plot_averaged_scan(a, plottable_scan_3, PlotColor.BLACK,ecolor=PlotColor.BLACK,marker='x', label = label_3,elinewidth=1)
 
 a.grid()
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
-
+a.legend(loc="upper right")
 
 a.set_title(PlotTitle,fontsize=MAJORTITLEFONTSIZE,color='black')
 
