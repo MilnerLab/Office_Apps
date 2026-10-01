@@ -83,7 +83,7 @@ configs.append(IonDataAnalysisConfig(
 
 folders_1 = folders
 configs_1 = configs
-label_1 = ""
+label_1 = "11GHz - Full"
 
 #--------------------------------------------------------------------------------------------------------------
 
@@ -146,7 +146,7 @@ mainfig, (axs) = plt.subplots(
         )
 
 a = axs
-plot_averaged_scan(a, plottable_scan_1, PlotColor.BLUE,ecolor=PlotColor.BLUE,marker='d', label = "11GHz - Full",elinewidth=1)
+plot_averaged_scan(a, plottable_scan_1, PlotColor.BLUE,ecolor=PlotColor.BLUE,marker='d', label = label_1,elinewidth=1)
 plot_averaged_scan(a, plottable_scan_2, PlotColor.RED,ecolor=PlotColor.RED,marker='x', label = label_2,elinewidth=1)
 plot_averaged_scan(a, plottable_scan_3, PlotColor.BLACK,ecolor=PlotColor.BLACK,marker='x', label = label_3,elinewidth=1)
 
