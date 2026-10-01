@@ -29,8 +29,8 @@ from base_core.quantities.models import Length, Time
 
 
 STFTWINDOWSIZE = Time(180,Prefix.PICO)  
-EARLIEST_DELAY_PS = -600
-LATEST_DELAY_PS = 1300
+EARLIEST_DELAY_PS = -620
+LATEST_DELAY_PS = 1370
 POSZEROSHIFT = 0 #millimetres :)
 
 MAJORTITLEFONTSIZE = 16
@@ -66,6 +66,7 @@ savedata_filename_1 = savedata_filedir + r"\DIB_TEMP.csv" #Name the file to save
 
 PlotTitle = r"DIB in 40 bar / 13 K droplets" + "\n" + r"with centrifuge"
 
+MINRADIUS = 40
 
 #--------------------------------------------------------------------------------------------------------------
 
@@ -78,7 +79,7 @@ configs.append(IonDataAnalysisConfig(
     delay_center= Length(70-POSZEROSHIFT, Prefix.MILLI),
     center=Point(200,200),
     angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](40,90),
+    analysis_zone= Range[int](MINRADIUS,90),
     transform_parameter=0.85))
 
 folders_1 = folders
@@ -91,17 +92,17 @@ label_1 = "11GHz - Full"
 configs: list[IonDataAnalysisConfig] = []
 folders: list[Path] = []
 
-folders.append(Path(r"Z:\Droplets\20260929\Scan5_AVG_Truncated")) 
+folders.append(Path(r"Z:\Droplets\20261001\Scan1_CFG")) 
 configs.append(IonDataAnalysisConfig(
-    delay_center= Length(70-POSZEROSHIFT, Prefix.MILLI),
+    delay_center= Length(81.5-POSZEROSHIFT, Prefix.MILLI),
     center=Point(200,200),
     angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](40,90),
+    analysis_zone= Range[int](MINRADIUS,90),
     transform_parameter=0.85))
 
 folders_2 = folders
 configs_2 = configs
-label_2 = "11GHz - Truncated"
+label_2 = "3GHz - Full"
 
 #--------------------------------------------------------------------------------------------------------------
 
@@ -114,7 +115,7 @@ configs.append(IonDataAnalysisConfig(
     delay_center= Length(80-POSZEROSHIFT, Prefix.MILLI),
     center=Point(200,200),
     angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](40,90),
+    analysis_zone= Range[int](MINRADIUS,90),
     transform_parameter=0.85))
 
 folders_3 = folders
@@ -135,7 +136,7 @@ plottable_scan_1, plottable_spectrogram_1 = calculating(folders_1, configs_1)
 plottable_scan_2, plottable_spectrogram_2 = calculating(folders_2, configs_2)
 plottable_scan_3, plottable_spectrogram_3 = calculating(folders_3, configs_3)
 
-PlotTitle = PlotTitle + "\n" + str(folders_1)  + "\n" + str(folders_2) 
+PlotTitle = PlotTitle + "\n" + str(folders_1)  + "\n" + str(folders_2) + "\n" + str(folders_3) 
 #Main figure
 mainfig, (axs) = plt.subplots(
             nrows=1,

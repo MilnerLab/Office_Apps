@@ -28,8 +28,8 @@ from base_core.quantities.models import Length, Time
 
 
 STFTWINDOWSIZE = Time(300,Prefix.PICO)  
-EARLIEST_DELAY_PS = -850
-LATEST_DELAY_PS = 1300
+EARLIEST_DELAY_PS = -250
+LATEST_DELAY_PS = 400
 POSZEROSHIFT = 0 #millimetres :)
 
 MAJORTITLEFONTSIZE = 16
@@ -63,7 +63,7 @@ savedata_filename_1 = savedata_filedir + r"\ONNO_TEMP.csv" #Name the file to sav
 #Plot on top
 
 
-PlotTitle = r"ONNO in 30 bar / 18 K droplets" + "\n" + r"with 7-19 GHz centrifuge"
+PlotTitle = r"ONNO in 30 bar / 18 K droplets" + "\n" + r"with 7 GHz cfCFG"
 
 
 #--------------------------------------------------------------------------------------------------------------
@@ -72,15 +72,15 @@ PlotTitle = r"ONNO in 30 bar / 18 K droplets" + "\n" + r"with 7-19 GHz centrifug
 configs_1: list[IonDataAnalysisConfig] = []
 folders_1: list[Path] = []
 
-folders_1.append(Path(r"20260928\Scan5_CFG_AVG")) 
+folders_1.append(Path(r"20260925\Scan3_CFG")) 
 configs_1.append(IonDataAnalysisConfig(
-    delay_center= Length(153-POSZEROSHIFT, Prefix.MILLI),
+    delay_center= Length(166.39-POSZEROSHIFT, Prefix.MILLI),
     center=Point(100,100),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](20,50),
     transform_parameter=0.8))
-#folders_1.append(Path(r"20260925\Scan4_CFG")) 
-#configs_1.append(configs_1[0]) #Use the same config for both folders, but different data
+folders_1.append(Path(r"20260925\Scan4_CFG")) 
+configs_1.append(configs_1[0]) #Use the same config for both folders, but different data
 
 
 #--------------------------------------------------------------------------------------------------
@@ -105,11 +105,11 @@ a.grid()
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 
 
-mainfig.suptitle(PlotTitle,fontsize=MAJORTITLEFONTSIZE,color='black')
+a.set_title(PlotTitle,fontsize=MAJORTITLEFONTSIZE,color='black')
 
 #Save scans
 plottable_scan_1.to_csv(savedata_filename_1)
 
-mainfig.savefig(fig_filename,format='png',dpi=300)
+mainfig.savefig(fig_filename,format='png',dpi=300,bbox_inches='tight')
 plt.show()
 print('Done!')
