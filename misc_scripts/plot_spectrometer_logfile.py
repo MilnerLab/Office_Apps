@@ -6,8 +6,14 @@ import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 
+#STabilization comparison
 H5_PATH1 = r"Z:\Droplets\20260921\SPEC_log_30ms_1avg_stabilized2_20260921_153251 - Copy.h5"
 H5_PATH2= r"Z:\Droplets\20260921\SPEC_log_30ms_1avg_unstabilized_20260921_135954 - Copy.h5"
+#H5_PATH1 = r"Z:\Droplets\20261001\SPEC_Spectral_Log_Scan3_20261001_123322.h5"#playing with stabilization
+#H5_PATH2 = r"Z:\Droplets\20261001\SPEC_Spectral_Log_Scan4_20261001_125616.h5" #playing with stabiliation
+
+#H5_PATH1 = r"Z:\Droplets\20261002\SPEC_Spectral_Log_XCORR1_20261002_115710.h5"
+#H5_PATH2 = H5_PATH1
 
 CMAP = "viridis"
 MAX_ROWS = 2000  # downsample the time axis so the image stays a manageable size
@@ -94,8 +100,10 @@ def main() -> None:
         path1, path2 = H5_PATH1, H5_PATH2
         out_path = None
 
+    print("Loading spectrograms...")
     data1 = load_spectrogram(path1)
     data2 = load_spectrogram(path2)
+    print("Done loading spectrograms.")
 
     fig, axes = plt.subplots(2, 2, figsize=(16, 8), height_ratios=[3, 1], constrained_layout=True)
     plot_column(axes[0, 0], axes[1, 0], *data1)

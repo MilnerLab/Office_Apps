@@ -18,11 +18,11 @@ from base_core.fitting.functions import fit_gaussian
 
 POSZEROSHIFT = 0 #millimetres :)
 PlotTitle = "DIB in 40bar/13K Droplets"
-folder_path = Path(r"Z:\Droplets\20261001\Scan2_CFG")
+folder_path = Path(r"Z:\Droplets\20261001\Scan8_CFG")
 file_paths = DatFinder(folder_path,is_full_path=True).find_datafiles()
 
 config = IonDataAnalysisConfig(
-    delay_center= Length(81.5-POSZEROSHIFT, Prefix.MILLI),
+    delay_center= Length(88-POSZEROSHIFT, Prefix.MILLI),
     center=Point(200,200),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](40,90),

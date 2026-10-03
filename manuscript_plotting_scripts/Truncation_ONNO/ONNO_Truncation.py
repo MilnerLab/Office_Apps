@@ -63,33 +63,66 @@ savedata_filename_1 = savedata_filedir + r"\ONNO_TEMP.csv" #Name the file to sav
 #Plot on top
 
 
-PlotTitle = r"ONNO in 30 bar / 18 K droplets" + "\n" + r"with 7 GHz cfCFG"
+PlotTitle = r"ONNO in 30 bar / 18 K droplets" + "\n" + r"with 7-15 GHz cfCFG"
 
 
 #--------------------------------------------------------------------------------------------------------------
+# 20260925\Scan3 and Scan4 are with a nearly cfCFG at 7.6Ghz
 
+# configs_1: list[IonDataAnalysisConfig] = []
+# folders_1: list[Path] = []
 
-configs_1: list[IonDataAnalysisConfig] = []
-folders_1: list[Path] = []
+# folders_1.append(Path(r"20260925\Scan3_CFG")) 
+# configs_1.append(IonDataAnalysisConfig(
+#     delay_center= Length(166.39-POSZEROSHIFT, Prefix.MILLI),
+#     center=Point(100,100),
+#     angle= Angle(12, AngleUnit.DEG),
+#     analysis_zone= Range[int](20,50),
+#     transform_parameter=0.8))
+# folders_1.append(Path(r"20260925\Scan4_CFG")) 
+# configs_1.append(configs_1[0]) #Use the same config for both folders, but different data
 
-folders_1.append(Path(r"20260925\Scan3_CFG")) 
-configs_1.append(IonDataAnalysisConfig(
-    delay_center= Length(166.39-POSZEROSHIFT, Prefix.MILLI),
+#--------------------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------------------
+# 20260928 was with a faster centrifuge, 11Ghz at t=0 with 26 MHz/ps ramp
+#
+configs: list[IonDataAnalysisConfig] = []
+folders: list[Path] = []
+
+folders.append(Path(r"20260928\Scan2_CFG")) #scan2 is without truncation
+configs.append(IonDataAnalysisConfig(
+    delay_center= Length(154-POSZEROSHIFT, Prefix.MILLI),
     center=Point(100,100),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](20,50),
     transform_parameter=0.8))
-folders_1.append(Path(r"20260925\Scan4_CFG")) 
-configs_1.append(configs_1[0]) #Use the same config for both folders, but different data
+folders_1 = folders
+configs_1 = configs
+label_1 = "Full"
+#  was with a faster centrifuge
+#
+configs: list[IonDataAnalysisConfig] = []
+folders: list[Path] = []
 
-
+folders.append(Path(r"20260928\Scan3_CFG")) #Scan3 is truncated 
+configs.append(IonDataAnalysisConfig(
+    delay_center= Length(154-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(100,100),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= Range[int](20,50),
+    transform_parameter=0.8))
+folders_2 = folders
+configs_2 = configs
+label_2 = "Truncated at 80ps"
 #--------------------------------------------------------------------------------------------------
 #Update the matplotlib settings
 plt.style.use(r"stylefiles\compare_c2t_spectrogram.mplstyle")
 
 #Pipeline 
+#Pipeline 
 plottable_scan_1, plottable_spectrogram_1 = calculating(folders_1, configs_1)
-PlotTitle = PlotTitle + "\n" + str(folders_1)
+
+#PlotTitle = PlotTitle + "\n" + str(folders_1)
 #Main figure
 mainfig, (axs) = plt.subplots(
             nrows=1,
@@ -100,7 +133,11 @@ mainfig, (axs) = plt.subplots(
         )
 
 a = axs
-plot_averaged_scan(a, plottable_scan_1, PlotColor.BLACK,ecolor=PlotColor.RED,marker='d', label = None,elinewidth=1)
+plot_averaged_scan(a, plottable_scan_1, PlotColor.BLACK,ecolor=PlotColor.GRAY,marker='d', label = label_1,elinewidth=1)
+if 'folders_2' in locals():
+    plottable_scan_2, plottable_spectrogram_2 = calculating(folders_2, configs_2)
+    plot_averaged_scan(a, plottable_scan_2, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d', label = label_2,elinewidth=1)
+
 a.grid()
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 
