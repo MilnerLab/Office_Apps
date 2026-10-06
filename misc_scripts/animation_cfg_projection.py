@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
+from enum import Enum
 
 import numpy as np
 from manim import *
@@ -31,6 +32,15 @@ from base_core.quantities.specific_models import AngularChirp
 #
 # Optional high-detail geometry for still images:
 #   MANIM_HIGH_DETAIL=1 manim -s -r 7680,4320 misc_scripts/animation_cfg_projection.py CfgProjectionThroughPBS
+#
+# Switch between the two views by choosing the scene:
+#   CfgProjectionThroughPBS  -> centrifuge split by the beam splitter into its projections
+#   CfgWholeCentrifuge       -> the whole, unsplit centrifuge (no beam splitter)
+
+
+class CfgView(Enum):
+    WHOLE = "whole"
+    PROJECTION = "projection"
 
 
 @dataclass(frozen=True)
@@ -40,24 +50,14 @@ class RenderMode:
 
 @dataclass(frozen=True)
 class SceneLayout:
-    pulse_start_x: float = -5.2
+    pulse_start_x: float = -7.2
     pbs_center: np.ndarray = field(default_factory=lambda: np.array([1.6, 0.0, 0.0]))
     pbs_size: float = 1.3
-    projection_length: float = 3.4
-    reflected_length: float = 6.5
     ribbon_width: float = 1.35
     ribbon_opacity: float = 0.42
     seconds_per_manim_unit: float = 80e-12
-    pulse_advance: float = 2.6
-    incoming_trim: float = 2.0
-
-    @property
-    def s_min(self) -> float:
-        return self.pulse_start_x - self.pbs_center[0]
-
-    @property
-    def s_max(self) -> float:
-        return max(self.projection_length, self.reflected_length)
+    pulse_advance: float = 0.6
+    intensity_cutoff: float = 0.3
 
     @property
     def lab_axes_origin(self) -> np.ndarray:
@@ -72,6 +72,7 @@ class SceneColors:
     cfg_reflected: ManimColor = PURPLE
     pbs: ManimColor = TEAL_E
     wall: ManimColor = GREY_BROWN
+    e_field: ManimColor = RED
 
     @staticmethod
     def dark() -> "SceneColors":
@@ -82,6 +83,7 @@ class SceneColors:
             cfg_reflected=PURPLE_A,
             pbs=TEAL_A,
             wall=GREY_BROWN,
+            e_field=RED,
         )
 
     @staticmethod
@@ -89,9 +91,8 @@ class SceneColors:
         return SceneColors()
 
 
-def create_centrifuge_for_animation() -> OpticalCentrifuge:
+def create_centrifuge_for_animation(pulse_duration: Time = Time(490, Prefix.PICO)) -> OpticalCentrifuge:
     left_chirp = AngularChirp(BETA_0 + DELTA_BETA * 0.4)
-    pulse_duration = Time(300, Prefix.PICO)
     additional_phase = Angle(225, AngleUnit.DEG)
 
     right_arm = CircularChirpedPulse(
@@ -168,6 +169,8 @@ def make_double_arrow(
 
 
 class CfgProjectionThroughPBS(ThreeDScene):
+    view: CfgView = CfgView.PROJECTION
+
     def construct(self) -> None:
         mode = RenderMode()
         layout = SceneLayout()
@@ -178,8 +181,8 @@ class CfgProjectionThroughPBS(ThreeDScene):
         self.set_camera_orientation(
             phi=68 * DEGREES,
             theta=-55 * DEGREES,
-            zoom=1.33,
-            frame_center=np.array([-0.123, 0.35, 0.0]),
+            zoom=0.85,
+            frame_center=np.array([0.762, 0.226, 0.0]),
         )
 
         camera = self.renderer.camera
@@ -190,18 +193,53 @@ class CfgProjectionThroughPBS(ThreeDScene):
         z_R_extra = Length(0.65, Prefix.MILLI)
         z_L_extra = Length(0)
 
-        amplitude, angle = self._build_model(cfg, z_R_extra, z_L_extra, layout)
+        amplitude, angle, s_start, s_end = self._build_model(cfg, z_R_extra, z_L_extra, layout)
 
         lab_axes, lab_axis_labels = self._make_lab_axes(layout.lab_axes_origin, colors)
-        incoming_beam = self._make_incoming_beam(layout, colors, geometry, amplitude, angle)
-        transmitted_beam = self._make_transmitted_beam(layout, colors, geometry, amplitude, angle)
-        reflected_beam = self._make_reflected_beam(layout, colors, geometry, amplitude, angle)
+        self.add(lab_axes)
+        self.add_fixed_orientation_mobjects(*lab_axis_labels)
+
+        if self.view is CfgView.WHOLE:
+            self._add_whole_centrifuge(layout, colors, geometry, amplitude, angle, s_start, s_end)
+        else:
+            self._add_projection(layout, colors, geometry, amplitude, angle, s_start, s_end)
+
+        self.wait(1 / self.camera.frame_rate)
+
+    def _add_whole_centrifuge(
+        self,
+        layout: SceneLayout,
+        colors: SceneColors,
+        geometry: dict[str, tuple[int, int]],
+        amplitude,
+        angle,
+        s_start: float,
+        s_end: float,
+    ) -> None:
+        beam = self._make_incoming_beam(layout, colors, geometry, amplitude, angle, s_start, s_end)
+        e_vector, e_label = self._make_cfg_e_vector(layout, colors, angle, s_end)
+
+        self.add(beam, e_vector)
+        self.add_fixed_orientation_mobjects(e_label)
+
+    def _add_projection(
+        self,
+        layout: SceneLayout,
+        colors: SceneColors,
+        geometry: dict[str, tuple[int, int]],
+        amplitude,
+        angle,
+        s_start: float,
+        s_end: float,
+    ) -> None:
+        incoming_beam = self._make_incoming_beam(layout, colors, geometry, amplitude, angle, s_start)
+        transmitted_beam = self._make_transmitted_beam(layout, colors, geometry, amplitude, angle, s_end)
+        reflected_beam = self._make_reflected_beam(layout, colors, geometry, amplitude, angle, s_end)
         pbs, wall = self._make_pbs(layout, colors)
-        transmitted_e_vector, transmitted_label = self._make_transmitted_e_vector(layout, colors)
-        reflected_e_vector, reflected_label = self._make_reflected_e_vector(layout, colors)
+        transmitted_e_vector, transmitted_label = self._make_transmitted_e_vector(layout, colors, s_end)
+        reflected_e_vector, reflected_label = self._make_reflected_e_vector(layout, colors, s_end)
 
         self.add(
-            lab_axes,
             incoming_beam,
             transmitted_beam,
             reflected_beam,
@@ -210,9 +248,7 @@ class CfgProjectionThroughPBS(ThreeDScene):
             transmitted_e_vector,
             reflected_e_vector,
         )
-        self.add_fixed_orientation_mobjects(*lab_axis_labels, transmitted_label, reflected_label)
-
-        self.wait(1 / self.camera.frame_rate)
+        self.add_fixed_orientation_mobjects(transmitted_label, reflected_label)
 
     def _geometry_resolution(self, mode: RenderMode) -> dict[str, tuple[int, int]]:
         if mode.high_detail:
@@ -228,23 +264,49 @@ class CfgProjectionThroughPBS(ThreeDScene):
         layout: SceneLayout,
     ):
         def pulse_time(s: float) -> float:
-            return -(s - layout.pulse_advance) * layout.seconds_per_manim_unit
+            return (layout.pulse_advance - s) * layout.seconds_per_manim_unit
 
-        sample_s = np.linspace(layout.s_min, layout.s_max, 800)
-        sample_times = np.array([pulse_time(s) for s in sample_s])
-        sample_intensity = np.asarray(cfg.intensity(sample_times, z_R_extra, z_L_extra), dtype=float)
-        intensity_norm = float(np.max(sample_intensity))
-        if intensity_norm <= 0:
+        # Find the envelope's peak and the two points where it has fallen to
+        # layout.intensity_cutoff of the peak, by probing a wide, fine window
+        # of physical time, independent of how the figure's s-domain is laid
+        # out. The drawn beams are then trimmed to exactly this window so
+        # both ends taper to the same (small) amplitude instead of an
+        # arbitrary, visually mismatched cutoff.
+        t_probe = np.linspace(-3000e-12, 3000e-12, 6001)
+        intensity_probe = np.asarray(cfg.intensity(t_probe, z_R_extra, z_L_extra), dtype=float)
+        intensity_max = float(np.max(intensity_probe))
+        if intensity_max <= 0:
             raise ValueError("Centrifuge intensity is zero in the sampled window.")
+        peak_index = int(np.argmax(intensity_probe))
+        cutoff_intensity = layout.intensity_cutoff * intensity_max
+
+        def crossing(indices: range) -> float:
+            prev_t, prev_i = t_probe[indices[0]], intensity_probe[indices[0]]
+            for idx in indices[1:]:
+                t, i = t_probe[idx], intensity_probe[idx]
+                if i <= cutoff_intensity:
+                    frac = (prev_i - cutoff_intensity) / (prev_i - i)
+                    return prev_t + frac * (t - prev_t)
+                prev_t, prev_i = t, i
+            return t_probe[indices[-1]]
+
+        # Positive pulse_time is the not-yet-split (incoming) side, negative
+        # pulse_time is the already-split (output) side, since pulse_time
+        # decreases as s increases past pulse_advance.
+        t_incoming_edge = crossing(range(peak_index, len(t_probe)))
+        t_output_edge = crossing(range(peak_index, -1, -1))
+
+        s_start = layout.pulse_advance - t_incoming_edge / layout.seconds_per_manim_unit
+        s_end = layout.pulse_advance - t_output_edge / layout.seconds_per_manim_unit
 
         def amplitude(s: float) -> float:
             intensity = float(cfg.intensity(pulse_time(s), z_R_extra, z_L_extra))
-            return np.sqrt(max(intensity, 0.0) / intensity_norm)
+            return np.sqrt(max(intensity, 0.0) / intensity_max)
 
         def angle(s: float) -> float:
             return float(cfg.polarization_angle(pulse_time(s), z_R_extra, z_L_extra))
 
-        return amplitude, angle
+        return amplitude, angle, s_start, s_end
 
     def _make_incoming_beam(
         self,
@@ -253,6 +315,8 @@ class CfgProjectionThroughPBS(ThreeDScene):
         geometry: dict[str, tuple[int, int]],
         amplitude,
         angle,
+        s_start: float,
+        s_stop: float = 0.0,
     ) -> Surface:
         def point(u: float, s: float) -> np.ndarray:
             a = amplitude(s)
@@ -264,7 +328,7 @@ class CfgProjectionThroughPBS(ThreeDScene):
         surface = Surface(
             point,
             u_range=[-0.5, 0.5],
-            v_range=[layout.s_min + layout.incoming_trim, 0.0],
+            v_range=[s_start, s_stop],
             resolution=geometry["centrifuge"],
             fill_opacity=layout.ribbon_opacity,
             checkerboard_colors=[ManimColor(colors.cfg), ManimColor(colors.cfg)],
@@ -280,6 +344,7 @@ class CfgProjectionThroughPBS(ThreeDScene):
         geometry: dict[str, tuple[int, int]],
         amplitude,
         angle,
+        s_end: float,
     ) -> Surface:
         def point(u: float, s: float) -> np.ndarray:
             a = amplitude(s)
@@ -289,7 +354,7 @@ class CfgProjectionThroughPBS(ThreeDScene):
         surface = Surface(
             point,
             u_range=[-0.5, 0.5],
-            v_range=[0.0, layout.projection_length],
+            v_range=[0.0, s_end],
             resolution=geometry["centrifuge"],
             fill_opacity=layout.ribbon_opacity,
             checkerboard_colors=[ManimColor(colors.cfg), ManimColor(colors.cfg)],
@@ -305,6 +370,7 @@ class CfgProjectionThroughPBS(ThreeDScene):
         geometry: dict[str, tuple[int, int]],
         amplitude,
         angle,
+        s_end: float,
     ) -> Surface:
         def point(u: float, s: float) -> np.ndarray:
             a = amplitude(s)
@@ -314,7 +380,7 @@ class CfgProjectionThroughPBS(ThreeDScene):
         surface = Surface(
             point,
             u_range=[-0.5, 0.5],
-            v_range=[0.0, layout.reflected_length],
+            v_range=[0.0, s_end],
             resolution=geometry["centrifuge"],
             fill_opacity=layout.ribbon_opacity,
             checkerboard_colors=[ManimColor(colors.cfg_reflected), ManimColor(colors.cfg_reflected)],
@@ -349,8 +415,21 @@ class CfgProjectionThroughPBS(ThreeDScene):
 
         return cube, wall
 
-    def _make_transmitted_e_vector(self, layout: SceneLayout, colors: SceneColors) -> tuple[VGroup, MathTex]:
-        s = 0.85 * layout.projection_length
+    def _make_cfg_e_vector(self, layout: SceneLayout, colors: SceneColors, angle, s_end: float) -> tuple[VGroup, MathTex]:
+        # Sits at the output end of the centrifuge, pointing along the local
+        # polarization of the field there.
+        s = s_end
+        th = angle(s)
+        direction = np.array([0.0, np.cos(th), np.sin(th)])
+        center = layout.pbs_center + np.array([s, 0.0, 0.0])
+        arrow = make_double_arrow(center, direction, colors.e_field)
+
+        label = MathTex(r"\vec{E}_\mathrm{CFG}", font_size=44, color=colors.e_field)
+        label.move_to(center + np.array([0.0, 0.0, 0.75]))
+        return arrow, label
+
+    def _make_transmitted_e_vector(self, layout: SceneLayout, colors: SceneColors, s_end: float) -> tuple[VGroup, MathTex]:
+        s = 0.85 * s_end
         center = layout.pbs_center + np.array([s, 0.0, 0.0])
         arrow = make_double_arrow(center, np.array([0.0, 1.0, 0.0]), colors.cfg)
 
@@ -358,8 +437,8 @@ class CfgProjectionThroughPBS(ThreeDScene):
         label.move_to(center + np.array([0.0, 0.75, 0.35]))
         return arrow, label
 
-    def _make_reflected_e_vector(self, layout: SceneLayout, colors: SceneColors) -> tuple[VGroup, MathTex]:
-        s = 0.85 * layout.reflected_length
+    def _make_reflected_e_vector(self, layout: SceneLayout, colors: SceneColors, s_end: float) -> tuple[VGroup, MathTex]:
+        s = 0.85 * s_end
         center = layout.pbs_center + np.array([0.0, s, 0.0])
         arrow = make_double_arrow(center, np.array([0.0, 0.0, 1.0]), colors.cfg_reflected)
 
@@ -416,3 +495,7 @@ class CfgProjectionThroughPBS(ThreeDScene):
         y_label.move_to(origin + (length + label_shift + cone_height) * vertical_dir)
 
         return axes, (x_label, y_label, z_label)
+
+
+class CfgWholeCentrifuge(CfgProjectionThroughPBS):
+    view: CfgView = CfgView.WHOLE
