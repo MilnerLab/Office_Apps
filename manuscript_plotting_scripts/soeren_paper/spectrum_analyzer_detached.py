@@ -1,7 +1,7 @@
 """Fit the four measurements of one centrifuge characterisation and plot them together.
 
 1. XCORR of one chirped arm (DA only)  -> Gaussian -> FWHM in mm and ps.
-2. XCORR of the centrifuge             -> ``xcorr_fit.fit_fringe`` -> beat frequency
+2. XCORR of the centrifuge             -> ``xcorr_fit.fit_fringe`` (quadratic phase) -> beat frequency
    f(t) at the two FWHM times mu +- FWHM_1/2 (mu = the centrifuge envelope's own centre).
 3. Spectrum of one arm (DA only)       -> Gaussian -> FWHM in nm.
 4. Spectrum of the centrifuge          -> the phase-stabilization fit (``analyze_trace``, the
@@ -50,10 +50,18 @@ def probe_mm_to_ps(probe_mm, zero_mm: float = 0.0):
 #: Valery share: mapped to Z: on the Windows lab PCs, mounted under /mnt on Ubuntu.
 SHARE = Path(r"Z:\Droplets") if os.name == "nt" else Path("/mnt/valeryshare/Droplets")
 DATA = SHARE / "20261002"
-XCORR_PULSE = DATA / "XCORR" / "20261002202_DA_GA=8_DA=17p77_Scan4.csv"
+# XCORR_PULSE = DATA / "XCORR" / "20261002202_DA_GA=8_DA=17p77_Scan4.csv"
+#: One-arm (DA only) xcorr, 2026-10-07: 20:0.3:170 mm, 7 waveforms/point, DA = 18.515 mm,
+#: GA = -53.68 mm.
+XCORR_PULSE = SHARE / "20261007" / "XCORR" / "DA1" / "20261007145_DA_GA=-53p68_DA=18p51.csv"
 XCORR_CFG = DATA / "XCORR" / "202610021156AM_CFG_GA=8_DA=17p77.csv"
-SPEC_ARM = DATA / "spectrum_3_DA.csv"
+# SPEC_ARM = DATA / "spectrum_3_DA.csv"
+#: One-arm (DA only) spectrum, 2026-10-07.
+SPEC_ARM = SHARE / "20261007" / "spectrum_DA.csv"
 SPEC_CFG = DATA / "spectrum_2.csv"
+#: Fast centrifuge, 2026-10-07: xcorr and the matching spectrum (third column of the figure).
+XCORR_FASTCFG = SHARE / "20261007" / "XCORR" / "fastCFG1" / "20261007334_DA_GA=-53p68_DA=18p51.csv"
+SPEC_FASTCFG = SHARE / "20261007" / "spectrum_fastCFG.csv"
 
 FWHM_PER_SIGMA = fc.FWHM_PER_SIGMA
 #: Speed of light, nm/ps.
@@ -179,8 +187,8 @@ def xcorr_readout(fit, window_ps, recon=None):
 def print_xcorr_readout(name, fit, xc, recon):
     c = fit.csig
     s = np.sqrt(np.clip(np.diag(fit.cov), 0.0, np.inf))
-    print(f"    -- {name}: order={fit.order}  r2_fringe={fit.r2_fringe:.3f}  mu = {xc['mu']:.2f} ps")
-    print(f"       c2 = {c[2]:+.4e} +- {s[2]:.1e}   c3 = {c[3]:+.3e} +- {s[3]:.1e}")
+    print(f"    -- {name}: r2_fringe={fit.r2_fringe:.3f}  mu = {xc['mu']:.2f} ps")
+    print(f"       c2 = {c[2]:+.4e} +- {s[2]:.1e}")
     print(f"       f_cfg(mu) = {xc['f_mu']:.2f} GHz")
     print(f"       f_min = {xc['f_min']:.2f} +- {xc['s_min']:.2f} (fit)"
           + (f" +- {xc['sys_min']:.2f} (FWHM)" if recon is not None else "")
@@ -197,8 +205,7 @@ def print_xcorr_readout(name, fit, xc, recon):
 def panel_xcorr_cfg(ax, path, zero_mm, window_ps, recon=None):
     x, y, sem, _ = load_xcorr(path)
     t = probe_mm_to_ps(x, zero_mm)
-    fit = ff.fit_fringe(t, y)
-    fit_q = fit_fringe_quadratic(t, y)
+    fit = fit_fringe_quadratic(t, y)
     print(f"[2] XCORR centrifuge  {Path(path).name}   window W = {window_ps:.2f} ps")
     ax.plot(t, y, ".-", color="0.5", ms=3, lw=0.6, label="mean")
     ax.set_xlabel("delay (ps)")
@@ -211,14 +218,7 @@ def panel_xcorr_cfg(ax, path, zero_mm, window_ps, recon=None):
     print(f"    (fringe frequency = {XCORR_FRINGES_PER_CFG:g} * f_cfg; f_cfg quoted below)")
     xc = xcorr_readout(fit, window_ps, recon)
     xc.update(t=t, y=y, sem=sem)
-    print_xcorr_readout("BIC order choice (library default)", fit, xc, recon)
-    xq = None
-    if fit_q.ok:
-        xq = xcorr_readout(fit_q, window_ps, recon)
-        print_xcorr_readout("quadratic phase forced (c3 = 0)", fit_q, xq, recon)
-        xc["quad"] = xq
-    else:
-        print(f"    quadratic fit failed: {fit_q.status}")
+    print_xcorr_readout("quadratic phase (c3 = 0)", fit, xc, recon)
 
     if recon is not None:
         # For contrast, the Fig. 2.8 situation: a Gaussian fitted over the WHOLE centrifuge
@@ -243,12 +243,8 @@ def panel_xcorr_cfg(ax, path, zero_mm, window_ps, recon=None):
     ax.legend(fontsize=8, loc="upper left")
 
     ax2 = ax.twinx()
-    ax2.plot(tc, xc["f_ghz"](tc), "C1", lw=1.2, label=f"xcorr fit (order {fit.order})")
+    ax2.plot(tc, xc["f_ghz"](tc), "C1", lw=1.2, label="xcorr fit (quadratic)")
     ax2.plot(xc["edges"], xc["fe"], "o", color="C1")
-    if xq is not None:
-        tq = fit_q.t_core_ps
-        ax2.plot(tq, xq["f_ghz"](tq), "C0", lw=1.2, ls=":", label="xcorr fit (quadratic)")
-        ax2.plot(xq["edges"], xq["fe"], "^", color="C0")
     if recon is not None:
         # Eq. (2.50) with linear chirps: f_cfg(t) = f_cfg(t_c) + (beta_R - beta_L)/(4 pi) (t - t_c),
         # t_c placed on the xcorr envelope centre. Neither the sign of Theta nor the direction
@@ -268,82 +264,12 @@ def panel_xcorr_cfg(ax, path, zero_mm, window_ps, recon=None):
             return f"{label}: {d['f_min']:.2f} ± {d['s_min']:.2f} → {d['f_max']:.2f} ± {d['s_max']:.2f} GHz"
         return (f"{label}: {d['f_min']:.2f} ± {d['s_min']:.2f} ± {d['sys_min']:.2f} → "
                 f"{d['f_max']:.2f} ± {d['s_max']:.2f} ± {d['sys_max']:.2f} GHz")
-    title = [line(f"xcorr order {fit.order}", xc)]
-    if xq is not None:
-        title.append(line("xcorr quadratic", xq))
+    title = [line("xcorr quadratic", xc)]
     if recon is not None:
         title.append(f"spectral reconstruction: {recon['f_lo']:.2f} ± {recon['sig']['f_lo']:.2f} → "
                      f"{recon['f_hi']:.2f} ± {recon['sig']['f_hi']:.2f} GHz")
     ax.set_title("\n".join(title), fontsize=9)
     return xc
-
-
-def plot_xcorr_order_comparison(xc, recon=None):
-    """Second figure: the centrifuge xcorr fitted with the BIC-chosen cubic phase vs. the
-    forced quadratic -- signal, residuals, and f_cfg(t) with 1-sigma bands."""
-    import matplotlib.pyplot as plt
-
-    xq = xc.get("quad")
-    fits = [(f"order {xc['fit'].order} (BIC)", xc, "C1", "-")]
-    if xq is not None:
-        fits.append(("quadratic (c3 = 0)", xq, "C0", ":"))
-    t, y, sem = xc["t"], xc["y"], xc["sem"]
-
-    fig, (a1, a2, a3) = plt.subplots(3, 1, figsize=(11, 10), sharex=True,
-                                     gridspec_kw=dict(height_ratios=[3, 1.3, 3]))
-    a1.errorbar(t, y, yerr=sem, fmt=".", ms=3, color="0.55", lw=0.6, label="mean ± SEM")
-    for name, d, col, ls in fits:
-        f = d["fit"]
-        a1.plot(f.t_core_ps, f.signal_core, color=col, ls=ls, lw=1.3,
-                label=f"{name}: r2_fringe = {f.r2_fringe:.3f}")
-        resid = np.interp(f.t_core_ps, t, y) - f.signal_core
-        a2.plot(f.t_core_ps, resid, color=col, ls=ls, lw=1.0,
-                label=f"{name}: rms = {np.sqrt(np.mean(resid ** 2)):.2e}")
-    a1.set_ylabel("signal")
-    a1.legend(fontsize=8, loc="upper right")
-    a2.axhline(0.0, color="k", lw=0.6)
-    a2.set_ylabel("data − fit")
-    a2.legend(fontsize=8, loc="upper right")
-
-    for name, d, col, ls in fits:
-        f = d["fit"]
-        tt = np.linspace(f.t_core_ps[0], f.t_core_ps[-1], 600)
-        ff_ = d["f_ghz"](tt)
-        sg = np.array([d["f_sigma"](v) for v in tt])
-        a3.plot(tt, ff_, color=col, ls=ls, lw=1.5, label=name)
-        a3.fill_between(tt, ff_ - sg, ff_ + sg, color=col, alpha=0.2, lw=0)
-        a3.errorbar(d["edges"], d["fe"], yerr=[d["f_sigma"](e) for e in d["edges"]],
-                    fmt="o", color=col, ms=5, capsize=3)
-    mu = xc["mu"]
-    if recon is not None:
-        T = recon["T_cfg_fwhm"]
-        tt = np.linspace(xc["fit"].t_core_ps[0], xc["fit"].t_core_ps[-1], 600)
-        slope = abs(recon["slope"]) * (1.0 if xc["rising"] else -1.0)
-        a3.plot(tt, np.abs(recon["f_c"] + slope * (tt - mu)), "C4", ls="--", lw=1.3,
-                label="spectral reconstruction")
-        e = [mu - T / 2, mu + T / 2]
-        fv = [recon["f_lo"], recon["f_hi"]] if slope > 0 else [recon["f_hi"], recon["f_lo"]]
-        sv = [recon["sig"]["f_lo"], recon["sig"]["f_hi"]] if slope > 0 else \
-             [recon["sig"]["f_hi"], recon["sig"]["f_lo"]]
-        a3.errorbar(e, fv, yerr=sv, fmt="s", color="C4", ms=5, capsize=3)
-        for v in e:
-            for a in (a1, a2, a3):
-                a.axvline(v, color="C4", ls="--", lw=0.7)
-    for v in xc["edges"]:
-        for a in (a1, a2, a3):
-            a.axvline(v, color="k", ls=":", lw=0.7)
-    a3.set_ylabel("f_cfg (GHz)")
-    a3.set_xlabel("delay (ps)")
-    a3.legend(fontsize=8, loc="upper left")
-    lines = [f"{name}: {d['f_min']:.2f} ± {d['s_min']:.2f} → {d['f_max']:.2f} ± {d['s_max']:.2f} GHz"
-             for name, d, _, _ in fits]
-    if recon is not None:
-        lines.append(f"spectral reconstruction: {recon['f_lo']:.2f} ± {recon['sig']['f_lo']:.2f} → "
-                     f"{recon['f_hi']:.2f} ± {recon['sig']['f_hi']:.2f} GHz")
-    a1.set_title("Centrifuge xcorr: cubic vs. quadratic phase\n" + "\n".join(lines), fontsize=9)
-    a1.set_xlim(xc["fit"].t_core_ps[0] - 40, xc["fit"].t_core_ps[-1] + 40)
-    fig.tight_layout()
-    return fig
 
 
 def panel_spec_arm(ax, path):
@@ -583,6 +509,10 @@ def main(argv=None) -> int:
     ap.add_argument("--xcorr-cfg", default=str(XCORR_CFG))
     ap.add_argument("--spec-arm", default=str(SPEC_ARM))
     ap.add_argument("--spec-cfg", default=str(SPEC_CFG))
+    ap.add_argument("--xcorr-fastcfg", default=str(XCORR_FASTCFG))
+    ap.add_argument("--spec-fastcfg", default=str(SPEC_FASTCFG))
+    ap.add_argument("--no-fastcfg", action="store_true",
+                    help="drop the third column (fast centrifuge)")
     ap.add_argument("--window-nm", nargs=2, type=float, default=list(fc.ZOOM))
     ap.add_argument("--zero-mm", type=float, default=0.0)
     ap.add_argument("--window-ps", type=float, default=None,
@@ -592,7 +522,8 @@ def main(argv=None) -> int:
 
     import matplotlib.pyplot as plt
 
-    fig, axs = plt.subplots(2, 2, figsize=(15, 9))
+    ncols = 2 if args.no_fastcfg else 3
+    fig, axs = plt.subplots(2, ncols, figsize=(7.5 * ncols, 9))
     fwhm_ps, s_fwhm_ps = panel_xcorr_pulse(axs[0, 0], args.xcorr_pulse, args.zero_mm)
     lam0, dlam, s_lam0, s_dlam = panel_spec_arm(axs[1, 0], args.spec_arm)
     r, csig_cov = panel_spec_cfg(axs[1, 1], args.spec_cfg, args.window_nm)
@@ -610,19 +541,27 @@ def main(argv=None) -> int:
         print("[6] f_cfg FWHM range, side by side")
         print(f"    spectral reconstruction : {recon['f_lo']:6.2f} -> {recon['f_hi']:6.2f} GHz"
               f"   (+-{sig['f_lo']:.2f} / {sig['f_hi']:.2f})   over T_cfg = {recon['T_cfg_fwhm']:.1f} ps")
-        for name, d in (("xcorr, BIC order", xc), ("xcorr, quadratic", xc.get("quad"))):
-            if d is None:
-                continue
-            print(f"    {name:<24s}: {d['f_min']:6.2f} -> {d['f_max']:6.2f} GHz"
-                  f"   (+-{d['s_min']:.2f} / {d['s_max']:.2f} fit, +-{d['sys_min']:.2f} / "
-                  f"{d['sys_max']:.2f} FWHM)   over W = {d['window']:.1f} ps")
+        print(f"    {'xcorr, quadratic':<24s}: {xc['f_min']:6.2f} -> {xc['f_max']:6.2f} GHz"
+              f"   (+-{xc['s_min']:.2f} / {xc['s_max']:.2f} fit, +-{xc['sys_min']:.2f} / "
+              f"{xc['sys_max']:.2f} FWHM)   over W = {xc['window']:.1f} ps")
+    if not args.no_fastcfg:
+        print("=== fast centrifuge (same one-arm pulse and spectrum) ===")
+        r_f, csig_cov_f = panel_spec_cfg(axs[1, 2], args.spec_fastcfg, args.window_nm)
+        recon_f = sig_f = None
+        if r_f is not None:
+            recon_f = report_reconstruction(lam0, dlam, fwhm_ps, r_f)
+            sig_f, _, budget_f = propagate_uscfg(lam0, dlam, fwhm_ps, r_f.csig, r_f.l0,
+                                                 s_lam0, s_dlam, s_fwhm_ps, csig_cov_f)
+            recon_f["sig"] = sig_f
+            report_uncertainty(recon_f, sig_f, budget_f)
+        xc_f = panel_xcorr_cfg(axs[0, 2], args.xcorr_fastcfg, args.zero_mm,
+                               args.window_ps if args.window_ps is not None else fwhm_ps, recon_f)
+        for ax in (axs[0, 2], axs[1, 2]):
+            ax.set_title("fast " + ax.get_title(), fontsize=9)
+
     fig.tight_layout()
-    fig2 = plot_xcorr_order_comparison(xc, recon) if xc is not None else None
     if args.save:
         fig.savefig(args.save, dpi=120)
-        if fig2 is not None:
-            out = Path(args.save)
-            fig2.savefig(out.with_name(out.stem + "_xcorr_orders" + out.suffix), dpi=120)
     else:
         plt.show()
     return 0
