@@ -11,7 +11,7 @@ import h5py
 import numpy as np
 from matplotlib import pyplot as plt
 
-from _data_io.dat_finder import DatFinder
+from _data_io.dat_finder import MOST_RECENT_FOLDER, DatFinder
 from _data_io.dat_loader import load_ion_data
 from apps.c2t_calculation.domain.analysis import run_pipeline
 from apps.scan_averaging.domain.averaging import average_scans
@@ -30,13 +30,13 @@ plt.style.use(str(REPO_ROOT / "stylefiles" / "compare_c2t_spectrogram.mplstyle")
 POSZEROSHIFT = 0  # millimetres :)
 
 #--- Spectrum-recording panel settings
-SPEC_FOLDER = Path(r"Z:\Droplets\20261006")
+SPEC_FOLDER = MOST_RECENT_FOLDER / "20261006"  #Z:\Droplets on Windows, /mnt/valeryshare/Droplets on Linux
 WL_RANGE: tuple[float, float] | None = (780, 825)  #nm; None = full detector range
 TIME_STRIDE = 10       #plot every Nth spectrum; 0.4 s/spectrum is far finer than the figure
 SHOW_METADATA = True   #dashed lines at rig-state changes
 
 #Folder to save figures
-savefig_folder = r"Z:\Droplets\plots\\"
+savefig_folder = MOST_RECENT_FOLDER / "plots"
 
 
 #FUNCTION TO GENERATE THE PLOTTABLE DATA
@@ -105,12 +105,14 @@ common_config = IonDataAnalysisConfig(
 
 #One column per dataset, all sharing the common config above
 datasets: list[Path] = [
-    Path(r"20261006\RotatingStabilized1"),
-    Path(r"20261006\RotatingUnstabilized1"),
+    Path("20261006/RotatingStabilized1"),  #forward slashes: '\' is not a separator on Linux
+    Path("20261006/RotatingUnstabilized1"),
 ]
 
 #Bottom row: the last two spectrum recordings, paired with the datasets in order
 spec_files = sorted(SPEC_FOLDER.glob("SPEC_*.h5"))[-len(datasets):]
+if len(spec_files) != len(datasets):
+    raise SystemExit(f"Need {len(datasets)} SPEC_*.h5 files in {SPEC_FOLDER}, found {len(spec_files)}")
 for folder, spec in zip(datasets, spec_files):
     print(f"{folder.name} <- {spec.name}")
 
@@ -167,7 +169,7 @@ axs[0, 0].set_ylabel(r'$\langle \cos^2\theta_{2D}\rangle$')
 axs[1, 0].set_ylabel('Time since first spectrum (s)')
 
 fig.tight_layout()
-fig.savefig(savefig_folder + "20261006_" + "_vs_".join(f.name for f in datasets) + ".pdf",
+fig.savefig(savefig_folder / ("20261006_" + "_vs_".join(f.name for f in datasets) + ".pdf"),
             format='pdf', dpi=300)
 
 plt.show()

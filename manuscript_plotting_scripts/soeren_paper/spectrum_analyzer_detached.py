@@ -47,8 +47,16 @@ def probe_mm_to_ps(probe_mm, zero_mm: float = 0.0):
     return 2.0 * (np.asarray(probe_mm, float) - float(zero_mm)) / C_MM_PER_PS
 
 
-#: Valery share: mapped to Z: on the Windows lab PCs, mounted under /mnt on Ubuntu.
-SHARE = Path(r"Z:\Droplets") if os.name == "nt" else Path("/mnt/valeryshare/Droplets")
+#: Valery share: mapped to Z: on the Windows lab PCs. On Ubuntu, use /mnt/valeryshare if it
+#: is mounted, otherwise the GVFS mount that the file manager creates for smb://.
+_GVFS_SHARE = Path(f"/run/user/{os.getuid() if os.name != 'nt' else 0}/gvfs"
+                   "/smb-share:server=phas-researchfs.phas.ubc.ca,share=valeryshare")
+if os.name == "nt":
+    SHARE = Path(r"Z:\Droplets")
+elif Path("/mnt/valeryshare/Droplets").is_dir():
+    SHARE = Path("/mnt/valeryshare/Droplets")
+else:
+    SHARE = _GVFS_SHARE / "Droplets"
 DATA = SHARE / "20261002"
 # XCORR_PULSE = DATA / "XCORR" / "20261002202_DA_GA=8_DA=17p77_Scan4.csv"
 #: One-arm (DA only) xcorr, 2026-10-07: 20:0.3:170 mm, 7 waveforms/point, DA = 18.515 mm,
@@ -136,15 +144,19 @@ def panel_xcorr_pulse(ax, path, zero_mm):
     return fwhm_ps, fwhm_ps_err
 
 
-def fit_fringe_quadratic(t, y):
-    """``ff.fit_fringe`` with the phase order forced to 2 (c3 = 0).
+def fit_fringe_order(t, y, order):
+    """``ff.fit_fringe`` with the phase order forced to ``order`` (2: c3 = 0, or 3).
 
-    ``_fit_core`` refits both orders {2, 3} and keeps the lower BIC; making the cubic's BIC
-    infinite for this one call leaves seeding, envelopes and covariance exactly the
-    library's, and only removes the choice.
+    ``_fit_core`` refits both orders {2, 3} and keeps the lower BIC (k = order + 1); making
+    the other order's BIC infinite for this one call leaves seeding, envelopes and
+    covariance exactly the library's, and only removes the choice.
     """
-    with mock.patch.object(ff, "_bic", lambda sse, k, n: 0.0 if k == 3 else np.inf):
+    with mock.patch.object(ff, "_bic", lambda sse, k, n: 0.0 if k == order + 1 else np.inf):
         return ff.fit_fringe(t, y)
+
+
+def fit_fringe_quadratic(t, y):
+    return fit_fringe_order(t, y, 2)
 
 
 def xcorr_readout(fit, window_ps, recon=None):
@@ -242,8 +254,15 @@ def panel_xcorr_cfg(ax, path, zero_mm, window_ps, recon=None):
         ax.axvline(e, color="k", ls="--", lw=0.8)
     ax.legend(fontsize=8, loc="upper left")
 
+    # Quadratic phase -> linear f_cfg(t): slope = 2 c2 / (2 pi) / XCORR_FRINGES_PER_CFG
+    # in THz/ps, x1e6 -> GHz/ns.
+    k_xc = 1e6 * 2.0 / (2.0 * np.pi) / XCORR_FRINGES_PER_CFG
+    slope_xc, s_slope_xc = k_xc * abs(fit.csig[2]), k_xc * np.sqrt(max(fit.cov[2, 2], 0.0))
+    print(f"       df_cfg/dt = {slope_xc:.2f} +- {s_slope_xc:.2f} GHz/ns")
     ax2 = ax.twinx()
-    ax2.plot(tc, xc["f_ghz"](tc), "C1", lw=1.2, label="xcorr fit (quadratic)")
+    ax2.plot(tc, xc["f_ghz"](tc), "C1", lw=1.2,
+             label=f"xcorr fit (quadratic): {slope_xc:.1f} ± {s_slope_xc:.1f} GHz/ns, "
+                   f"FWHM {xc['window']:.0f} ps")
     ax2.plot(xc["edges"], xc["fe"], "o", color="C1")
     if recon is not None:
         # Eq. (2.50) with linear chirps: f_cfg(t) = f_cfg(t_c) + (beta_R - beta_L)/(4 pi) (t - t_c),
@@ -252,7 +271,15 @@ def panel_xcorr_cfg(ax, path, zero_mm, window_ps, recon=None):
         mu = xc["mu"]
         slope = abs(recon["slope"]) * (1.0 if xc["rising"] else -1.0)
         f_rec = recon["f_c"] + slope * (tc - mu)
-        ax2.plot(tc, np.abs(f_rec), "C4", lw=1.2, ls="--", label="spectral reconstruction")
+        # recon["slope"] is GHz/ps; d|slope| = d|Delta_beta| / (4 pi), in THz -> 1e6 GHz/ns.
+        slope_rec = 1e3 * abs(recon["slope"])
+        s_slope_rec = 1e6 * recon["sig"]["dbeta"] / (4.0 * np.pi)
+        print(f"       reconstruction df_cfg/dt = {slope_rec:.2f} +- {s_slope_rec:.2f} GHz/ns")
+        ax2.plot(tc, np.abs(f_rec), "C4", lw=1.2, ls="--",
+                 label=f"spectral reconstruction: {slope_rec:.1f} ± {s_slope_rec:.1f} GHz/ns, "
+                       f"FWHM {recon['T_cfg_fwhm']:.0f} ± {recon['sig']['T_cfg_fwhm']:.0f} ps")
+        for e in (mu - recon["T_cfg_fwhm"] / 2, mu + recon["T_cfg_fwhm"] / 2):
+            ax.axvline(e, color="C4", ls=":", lw=0.8)
         ax2.plot([mu - recon["T_cfg_fwhm"] / 2, mu + recon["T_cfg_fwhm"] / 2],
                  [recon["f_lo"], recon["f_hi"]] if slope > 0 else [recon["f_hi"], recon["f_lo"]],
                  "s", color="C4")
@@ -503,6 +530,179 @@ def report_uncertainty(rec, sig, budget):
         print(f"      {name:<28s} {b['f_lo']:7.3f}  {b['f_hi']:7.3f}  {b['f_c']:6.3f}  {b['T_cfg_fwhm']:6.3f}")
 
 
+# --- smoothed comparison figures ------------------------------------------------
+
+def smooth3(x, y):
+    """3-point moving average; the two end points, which lack a neighbour, are dropped."""
+    return np.asarray(x, float)[1:-1], np.convolve(y, np.ones(3) / 3.0, mode="valid")
+
+
+def normalize(y):
+    """Baseline (5th percentile) to 0, peak to 1."""
+    base = np.percentile(y, 5)
+    return (y - base) / (y.max() - base)
+
+
+def smoothed_traces(args):
+    """The one-arm and slow-centrifuge scans, 3-point averaged, each with a Gaussian fit
+    (a, mu, sigma, off). The fringed centrifuge traces only use the fit for their centre."""
+    tr = {}
+    for key, path in (("xp", args.xcorr_pulse), ("xc", args.xcorr_cfg)):
+        x, y, _, _ = load_xcorr(path)
+        tr[key] = smooth3(probe_mm_to_ps(x, args.zero_mm), y)
+    tr["sa"] = smooth3(*load_spectrum(args.spec_arm))
+    wl, inten = load_spectrum(args.spec_cfg)
+    m = (wl >= args.window_nm[0]) & (wl <= args.window_nm[1])
+    tr["sc"] = smooth3(wl[m], inten[m])
+    fits = {k: fit_gauss(*v) for k, v in tr.items()}
+    return tr, fits
+
+
+def figure_smoothed(plt, tr, fits, window_nm):
+    """Window 2: xcorr one arm | spectrum one arm | spectrum slow centrifuge."""
+    fig, axs = plt.subplots(1, 3, figsize=(20, 5.5))
+    for ax, key, xl, yl, name in ((axs[0], "xp", "delay (ps)", "signal", "XCORR one arm"),
+                                  (axs[1], "sa", "wavelength (nm)", "counts", "Spectrum one arm"),
+                                  (axs[2], "sc", "wavelength (nm)", "counts", "Spectrum slow centrifuge")):
+        x, y = tr[key]
+        ax.plot(x, y, color="0.4", lw=0.8, label="3-pt average")
+        unit = "ps" if key[0] == "x" else "nm"
+        if key != "sc":
+            p, perr, _ = fits[key]
+            fwhm, s_fwhm = FWHM_PER_SIGMA * abs(p[2]), FWHM_PER_SIGMA * perr[2]
+            ax.plot(x, ff.gauss(x, *p), "C3", label="Gaussian fit")
+            for e in (p[1] - fwhm / 2, p[1] + fwhm / 2):
+                ax.axvline(e, color="C3", ls="--", lw=0.8)
+            name += f": FWHM = {fwhm:.2f} ± {s_fwhm:.2f} {unit}"
+            ax.legend(fontsize=8)
+        if key == "sa":
+            ax.set_xlim(p[1] - 4 * fwhm, p[1] + 4 * fwhm)
+        if key == "sc":
+            ax.set_xlim(*window_nm)
+        ax.set_title(name)
+        ax.set_xlabel(xl)
+        ax.set_ylabel(yl)
+    fig.suptitle("3-point moving average")
+    fig.tight_layout()
+    return fig
+
+
+def figure_overlay(plt, tr, fits, window_nm):
+    """Window 3: centrifuge vs one arm, normalised -- xcorr (left), spectrum (right).
+
+    The two xcorrs were taken on different days with different stage settings, so each is
+    plotted against its own Gaussian centre; the spectra share an absolute wavelength axis.
+    """
+    fig, (a1, a2) = plt.subplots(1, 2, figsize=(15, 5.5))
+    for key, color, label in (("xp", "C0", "one arm"), ("xc", "C3", "slow centrifuge")):
+        t, y = tr[key]
+        a1.plot(t - fits[key][0][1], normalize(y), color=color, lw=1, label=label)
+    a1.set_xlabel("delay − Gaussian centre (ps)")
+    a1.set_ylabel("normalised signal")
+    a1.set_title("XCORR, 3-pt average")
+    a1.legend(fontsize=8)
+    for key, color, label in (("sa", "C0", "one arm"), ("sc", "C3", "slow centrifuge")):
+        wl, y = tr[key]
+        a2.plot(wl, normalize(y), color=color, lw=1, label=label)
+    a2.set_xlim(*window_nm)
+    a2.set_xlabel("wavelength (nm)")
+    a2.set_ylabel("normalised counts")
+    a2.set_title("Spectrum, 3-pt average")
+    a2.legend(fontsize=8)
+    fig.tight_layout()
+    return fig
+
+
+def figure_time_mapped(plt, tr, fits, chirp_sign="auto"):
+    """Window 4: slow-centrifuge xcorr with its spectrum mapped onto the delay axis.
+
+    Linear chirp, scale from the one arm: t = mu_t + s * (T_FWHM / dlambda_FWHM) * (lambda - lambda_c),
+    taking the centrifuge's FWHM equal to one arm's (true for small Delta_t between the arms).
+    mu_t and lambda_c are the Gaussian centres of the centrifuge xcorr and spectrum. The sign s
+    (which end of the spectrum comes first on the probe-delay axis) is not measured; the default
+    is -1 (red end at early delay). ``auto`` takes the one whose mapped spectrum
+    correlates best with the xcorr, which the fringes can fool.
+    """
+    T = FWHM_PER_SIGMA * abs(fits["xp"][0][2])
+    dl = FWHM_PER_SIGMA * abs(fits["sa"][0][2])
+    k = T / dl  # ps/nm
+    mu_t, lam_c = fits["xc"][0][1], fits["sc"][0][1]
+    t, yx = tr["xc"]
+    wl, ys = tr["sc"]
+    yx, ys = normalize(yx), normalize(ys)
+
+    def to_t(lam, s):
+        return mu_t + s * k * (np.asarray(lam) - lam_c)
+
+    def corr(s):
+        tm = to_t(wl, s)
+        order = np.argsort(tm)
+        m = (t >= tm.min()) & (t <= tm.max())
+        return np.corrcoef(yx[m], np.interp(t[m], tm[order], ys[order]))[0, 1]
+
+    cs = {s: corr(s) for s in (1, -1)}
+    s = max(cs, key=cs.get) if chirp_sign == "auto" else int(chirp_sign)
+    print("[7] spectrum -> delay mapping (slow centrifuge)")
+    print(f"    scale = {T:.2f} ps / {dl:.3f} nm = {k:.2f} ps/nm   centre {lam_c:.3f} nm -> {mu_t:.2f} ps")
+    print(f"    correlation with xcorr: sign +1 {cs[1]:+.3f}, sign -1 {cs[-1]:+.3f}  -> using {s:+d}")
+
+    fig, ax = plt.subplots(figsize=(11, 5.5))
+    ax.plot(t, yx, color="C0", lw=1, label="xcorr slow centrifuge")
+    tm = to_t(wl, s)
+    order = np.argsort(tm)
+    tm, ysm = tm[order], ys[order]
+    ax.plot(tm, ysm, color="C3", lw=1, label="spectrum slow centrifuge, mapped")
+
+    # Fringe fit, cubic phase Phi = c0 + c1 u + c2 u^2 + c3 u^3 (u = t - t0), on both traces.
+    # c2 (rad/ps^2) is the acceleration term, c3 (rad/ps^3) its change. The mapped spectrum's
+    # c_k scale as 1/k^n, and their errors leave out the error on k. Each fit is expanded about
+    # its own t0; to compare like with like, both are re-expanded about mu_t (the xcorr's
+    # Gaussian centre): c2(mu_t) = c2 + 3 c3 (mu_t - t0), c3 unchanged.
+    coef = {}
+    for tt, yy, color, name in ((t, yx, "navy", "xcorr"), (tm, ysm, "darkred", "spectrum")):
+        fit = fit_fringe_order(tt, yy, 3)
+        if not fit.ok:
+            print(f"    {name}: fringe fit failed ({fit.status})")
+            continue
+        d = mu_t - fit.t0_ps
+        # Only (c2, c3) are needed: c2(mu_t) = c2 + 3 d c3, so J = [[1, 3d], [0, 1]].
+        J = np.array([[1.0, 3.0 * d], [0.0, 1.0]])
+        c23 = J @ np.asarray(fit.csig, float)[2:4]
+        cov23 = J @ np.asarray(fit.cov, float)[2:4, 2:4] @ J.T
+        # The overall sign of Phi is not observable: fix it so c2 > 0.
+        c2, c3 = c23 * np.sign(c23[0])
+        s2, s3 = np.sqrt(np.clip(np.diag(cov23), 0.0, np.inf))
+        coef[name] = ((c2, s2), (c3, s3))
+        print(f"    {name}: t0 = {fit.t0_ps:.2f} ps   at mu_t: c2 = {c2:+.4e} +- {s2:.1e} rad/ps^2   "
+              f"c3 = {c3:+.4e} +- {s3:.1e} rad/ps^3   r2_fringe = {fit.r2_fringe:.3f}")
+        ax.plot(fit.t_core_ps, fit.signal_core, color=color, lw=1.2, ls="--",
+                label=f"{name} fit: c2 = {1e6 * c2:.0f} ± {1e6 * s2:.0f} rad/ns², "
+                      f"c3 = {1e9 * c3:.0f} ± {1e9 * s3:.0f} rad/ns³")
+
+    diff_txt = ""
+    if len(coef) == 2:
+        def pct(i):
+            """(spectrum - xcorr) / xcorr in %, with the two fit errors in quadrature."""
+            (cx, sx), (cp, sp) = coef["xcorr"][i], coef["spectrum"][i]
+            r = cp / cx
+            return 100.0 * (r - 1.0), 100.0 * abs(r) * np.hypot(sp / cp, sx / cx)
+
+        d2, d3 = pct(0), pct(1)
+        print(f"    spectrum vs xcorr: c2 {d2[0]:+.1f} +- {d2[1]:.1f} %   c3 {d3[0]:+.1f} +- {d3[1]:.1f} %")
+        diff_txt = f"\nspectrum vs xcorr: Δc2 = {d2[0]:+.1f} ± {d2[1]:.1f} %,  Δc3 = {d3[0]:+.1f} ± {d3[1]:.1f} %"
+    ax.set_xlabel("delay (ps)")
+    ax.set_ylabel("normalised")
+    ax.legend(fontsize=8)
+    sec = ax.secondary_xaxis("top", functions=(lambda tt: lam_c + (tt - mu_t) / (s * k),
+                                               lambda lam: to_t(lam, s)))
+    sec.set_xlabel("wavelength (nm)")
+    ax.set_title(f"{k:.1f} ps/nm (= {T:.1f} ps / {dl:.2f} nm, one arm), sign {s:+d}, "
+                 f"corr = {cs[s]:.2f}  |  3-pt average  |  c2, c3 at t = {mu_t:.0f} ps" + diff_txt,
+                 fontsize=10)
+    fig.tight_layout()
+    return fig
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--xcorr-pulse", default=str(XCORR_PULSE))
@@ -517,7 +717,12 @@ def main(argv=None) -> int:
     ap.add_argument("--zero-mm", type=float, default=0.0)
     ap.add_argument("--window-ps", type=float, default=None,
                     help="readout window for panel 2; default = FWHM from panel 1")
-    ap.add_argument("--save", default=None, help="write the figure here instead of showing it")
+    ap.add_argument("--chirp-sign", choices=["auto", "1", "-1"], default="-1",
+                    help="direction of the wavelength -> delay mapping in the last window "
+                         "(-1: red end at early delay; auto: best correlation, which picks "
+                         "the wrong one on the slow centrifuge)")
+    ap.add_argument("--save", default=None,
+                    help="write the figures here (extra ones get _smoothed/_overlay/_mapped suffixes)")
     args = ap.parse_args(argv)
 
     import matplotlib.pyplot as plt
@@ -560,8 +765,16 @@ def main(argv=None) -> int:
             ax.set_title("fast " + ax.get_title(), fontsize=9)
 
     fig.tight_layout()
+
+    tr, fits = smoothed_traces(args)
+    extra = {"_smoothed": figure_smoothed(plt, tr, fits, args.window_nm),
+             "_overlay": figure_overlay(plt, tr, fits, args.window_nm),
+             "_mapped": figure_time_mapped(plt, tr, fits, args.chirp_sign)}
     if args.save:
         fig.savefig(args.save, dpi=120)
+        out = Path(args.save)
+        for suffix, f in extra.items():
+            f.savefig(out.with_name(out.stem + suffix + out.suffix), dpi=120)
     else:
         plt.show()
     return 0
