@@ -15,23 +15,25 @@ XCORR files: tab-separated, no header, col0 = stage (mm), the rest = repeats at 
 Rows may be ragged (an aborted scan leaves a partial last row). Spectrum files: CSV with a
 ``wavelength_nm,intensity`` header.
 
-The fit code is vendored from App_Apps into ``_domain/spectrum_fit``. Runs on Windows
-(share on Z:) and Ubuntu (share under /mnt).
+The fit code is vendored from App_Apps into ``_domain/spectrum_fit``. Data come from the
+Valery share or the local copy (``--data``, see ``data_paths``); relative file arguments are
+day folders under that root.
 
 Usage:
     python manuscript_plotting_scripts/soeren_paper/spectrum_analyzer_detached.py [--xcorr-pulse F] [--xcorr-cfg F]
         [--spec-arm F] [--spec-cfg F] [--window-nm LO HI] [--zero-mm X] [--window-ps W] [--save PNG]
+        [--data {auto,online,offline}]
 """
 from __future__ import annotations
 
 import argparse
-import os
 from unittest import mock
 from pathlib import Path
 
 import numpy as np
 from scipy.optimize import curve_fit
 
+from data_paths import MODES, data_root
 from spectrum_fit import fringe_core as fc
 from spectrum_fit.stabilization_fit import (
     FitTunables, analyze_trace, display_curve,
@@ -47,29 +49,22 @@ def probe_mm_to_ps(probe_mm, zero_mm: float = 0.0):
     return 2.0 * (np.asarray(probe_mm, float) - float(zero_mm)) / C_MM_PER_PS
 
 
-#: Valery share: mapped to Z: on the Windows lab PCs. On Ubuntu, use /mnt/valeryshare if it
-#: is mounted, otherwise the GVFS mount that the file manager creates for smb://.
-_GVFS_SHARE = Path(f"/run/user/{os.getuid() if os.name != 'nt' else 0}/gvfs"
-                   "/smb-share:server=phas-researchfs.phas.ubc.ca,share=valeryshare")
-if os.name == "nt":
-    SHARE = Path(r"Z:\Droplets")
-elif Path("/mnt/valeryshare/Droplets").is_dir():
-    SHARE = Path("/mnt/valeryshare/Droplets")
-else:
-    SHARE = _GVFS_SHARE / "Droplets"
-DATA = SHARE / "20261002"
+#: Data files, relative to ``data_paths.data_root(DATA_GROUP)`` -- the Valery share's
+#: Droplets folder online, the "characterizing" folder of the local copy offline.
+DATA_GROUP = "characterizing"
+DATA = Path("20261002")
 # XCORR_PULSE = DATA / "XCORR" / "20261002202_DA_GA=8_DA=17p77_Scan4.csv"
 #: One-arm (DA only) xcorr, 2026-10-07: 20:0.3:170 mm, 7 waveforms/point, DA = 18.515 mm,
 #: GA = -53.68 mm.
-XCORR_PULSE = SHARE / "20261007" / "XCORR" / "DA1" / "20261007145_DA_GA=-53p68_DA=18p51.csv"
+XCORR_PULSE = Path("20261007") / "XCORR" / "DA1" / "20261007145_DA_GA=-53p68_DA=18p51.csv"
 XCORR_CFG = DATA / "XCORR" / "202610021156AM_CFG_GA=8_DA=17p77.csv"
 # SPEC_ARM = DATA / "spectrum_3_DA.csv"
 #: One-arm (DA only) spectrum, 2026-10-07.
-SPEC_ARM = SHARE / "20261007" / "spectrum_DA.csv"
+SPEC_ARM = Path("20261007") / "spectrum_DA.csv"
 SPEC_CFG = DATA / "spectrum_2.csv"
 #: Fast centrifuge, 2026-10-07: xcorr and the matching spectrum (third column of the figure).
-XCORR_FASTCFG = SHARE / "20261007" / "XCORR" / "fastCFG1" / "20261007334_DA_GA=-53p68_DA=18p51.csv"
-SPEC_FASTCFG = SHARE / "20261007" / "spectrum_fastCFG.csv"
+XCORR_FASTCFG = Path("20261007") / "XCORR" / "fastCFG1" / "20261007334_DA_GA=-53p68_DA=18p51.csv"
+SPEC_FASTCFG = Path("20261007") / "spectrum_fastCFG.csv"
 
 FWHM_PER_SIGMA = fc.FWHM_PER_SIGMA
 #: Speed of light, nm/ps.
@@ -723,7 +718,15 @@ def main(argv=None) -> int:
                          "the wrong one on the slow centrifuge)")
     ap.add_argument("--save", default=None,
                     help="write the figures here (extra ones get _smoothed/_overlay/_mapped suffixes)")
+    ap.add_argument("--data", choices=MODES, default=None,
+                    help="online (Valery share), offline (local copy) or auto; "
+                         "default: $SOEREN_DATA, else auto")
     args = ap.parse_args(argv)
+
+    # Relative data paths (the defaults) are day folders under the online/offline root.
+    root = data_root(DATA_GROUP, args.data)
+    for name in ("xcorr_pulse", "xcorr_cfg", "spec_arm", "spec_cfg", "xcorr_fastcfg", "spec_fastcfg"):
+        setattr(args, name, str(root / getattr(args, name)))
 
     import matplotlib.pyplot as plt
 

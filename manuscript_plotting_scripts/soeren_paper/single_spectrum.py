@@ -5,6 +5,7 @@ done in wavelength); data and fit are then put on nu = c / lambda.
 
 Usage:
     python manuscript_plotting_scripts/soeren_paper/single_spectrum.py [--spec F] [--window-nm LO HI] [--fit-thz LO HI] [--save PDF]
+        [--data {auto,online,offline}]
 """
 from __future__ import annotations
 
@@ -13,7 +14,8 @@ from pathlib import Path
 
 import numpy as np
 
-from spectrum_analyzer_detached import C_NM_PER_PS, SPEC_CFG, load_spectrum
+from data_paths import MODES, data_root
+from spectrum_analyzer_detached import C_NM_PER_PS, DATA_GROUP, SPEC_CFG, load_spectrum
 from spectrum_fit import fringe_core as fc
 from spectrum_fit.stabilization_fit import FitTunables, analyze_trace, display_curve
 
@@ -32,7 +34,12 @@ def main(argv=None) -> int:
                     help="frequency range the fit is drawn over (it is fitted on the whole window)")
     ap.add_argument("--save", default=str(Path(__file__).with_suffix(".pdf")),
                     help="PDF written before the figure is shown")
+    ap.add_argument("--data", choices=MODES, default=None,
+                    help="online (Valery share), offline (local copy) or auto; "
+                         "default: $SOEREN_DATA, else auto")
     args = ap.parse_args(argv)
+    # A relative --spec (the default) is a day folder under the online/offline root.
+    args.spec = str(data_root(DATA_GROUP, args.data) / args.spec)
 
     import matplotlib.pyplot as plt
 

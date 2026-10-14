@@ -11,7 +11,7 @@ import h5py
 import numpy as np
 from matplotlib import pyplot as plt
 
-from _data_io.dat_finder import MOST_RECENT_FOLDER, DatFinder
+from _data_io.dat_finder import DatFinder
 from _data_io.dat_loader import load_ion_data
 from apps.c2t_calculation.domain.analysis import run_pipeline
 from apps.scan_averaging.domain.averaging import average_scans
@@ -23,6 +23,12 @@ from base_core.math.models import Angle, Point, Range
 from base_core.plotting.enums import PlotColor
 from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Length
+from data_paths import data_root
+
+#Data source: "online" (Valery share), "offline" (local copy) or "auto" (share if reachable).
+#None = $SOEREN_DATA, else auto.
+DATA_MODE: str | None = None
+DATA_ROOT = data_root("stabilized_vs_unstabilized", DATA_MODE)
 
 #Update the matplotlib settings
 plt.style.use(str(REPO_ROOT / "stylefiles" / "compare_c2t_spectrogram.mplstyle"))
@@ -30,13 +36,14 @@ plt.style.use(str(REPO_ROOT / "stylefiles" / "compare_c2t_spectrogram.mplstyle")
 POSZEROSHIFT = 0  # millimetres :)
 
 #--- Spectrum-recording panel settings
-SPEC_FOLDER = MOST_RECENT_FOLDER / "20261006"  #Z:\Droplets on Windows, /mnt/valeryshare/Droplets on Linux
+SPEC_FOLDER = DATA_ROOT / "20261006"
 WL_RANGE: tuple[float, float] | None = (780, 825)  #nm; None = full detector range
 TIME_STRIDE = 10       #plot every Nth spectrum; 0.4 s/spectrum is far finer than the figure
 SHOW_METADATA = True   #dashed lines at rig-state changes
 
 #Folder to save figures
-savefig_folder = MOST_RECENT_FOLDER / "plots"
+savefig_folder = DATA_ROOT / "plots"
+savefig_folder.mkdir(exist_ok=True)
 
 
 #FUNCTION TO GENERATE THE PLOTTABLE DATA
@@ -103,7 +110,7 @@ common_config = IonDataAnalysisConfig(
     analysis_zone=Range[int](30, 90),
     transform_parameter=0.920)
 
-#One column per dataset, all sharing the common config above
+#One column per dataset, all sharing the common config above (day folders under DATA_ROOT)
 datasets: list[Path] = [
     Path("20261006/RotatingStabilized1"),  #forward slashes: '\' is not a separator on Linux
     Path("20261006/RotatingUnstabilized1"),
@@ -116,7 +123,8 @@ if len(spec_files) != len(datasets):
 for folder, spec in zip(datasets, spec_files):
     print(f"{folder.name} <- {spec.name}")
 
-scans = [calculating([folder], [common_config]) for folder in datasets]
+#Absolute paths: DatFinder still caches share folders to _temp, and reads the local copy in place
+scans = [calculating([DATA_ROOT / folder], [common_config]) for folder in datasets]
 recordings = [load_spectrum_recording(spec) for spec in spec_files]
 
 fig, axs = plt.subplots(
