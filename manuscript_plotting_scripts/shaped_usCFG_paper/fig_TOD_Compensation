@@ -26,6 +26,8 @@ from base_core.lab_specifics.helpers import calculate_time_delay
 
 from base_core.quantities.models import Length
 
+from scipy.fft import rfft, rfftfreq
+from base_core.math.functions import gaussian
 
 def load_xcorr_csv(path: Path, delay_center_mm: float, run_id: int = 0) -> ScanDataBase:
     """Read an XCORR csv into a ScanDataBase (delay-time vs mean intensity)."""
@@ -50,9 +52,29 @@ def load_xcorr_csv(path: Path, delay_center_mm: float, run_id: int = 0) -> ScanD
 
     return ScanDataBase(delays=delays, measured_values=measured, run_id=run_id)
 
+def calculate_xcorr_fft(scan: ScanDataBase,resample=False) -> tuple[np.ndarray, np.ndarray]:
+    """FFT of the XCORR trace along probe delay. Returns (frequency in GHz, complex spectrum).
 
-from scipy.fft import rfft, rfftfreq
-from base_core.math.functions import gaussian
+    The delay grid is resampled onto a uniform axis first (same as the STFT path),oka
+    and the mean is removed so the DC bin doesn't swamp the fringe peak. The data
+    is real, so only the non-negative frequencies are returned (rfft).
+    """
+    config = StftAnalysisConfig([scan])
+    if resample: 
+        resampled = resample_scans([scan], config.axis)[0]
+        intensity = np.array([m.value for m in resampled.measured_values], dtype=float)
+    else:
+        intensity = np.array([m.value for m in scan.measured_values], dtype=float)
+    
+    intensity = intensity[np.isfinite(intensity)]  # drop points outside the measured range
+    intensity -= intensity.mean()
+
+    dt_ps = config.resample_time.value(Prefix.PICO)
+    spectrum = rfft(intensity)
+    frequency_ghz = rfftfreq(intensity.size, d=dt_ps) * 1e3  # cycles/ps = THz -> GHz
+
+    return frequency_ghz, spectrum
+
 
 CSV_PATH_4f = Path(r"Z:\Droplets\20261015\XCORR\202610151201_CFG_4F_Flipped_Slow_ish.csv")
 CSV_PATH_cf = Path(r"Z:\Droplets\20261015\XCORR\20261015132_CFG_cf_slow.csv")
