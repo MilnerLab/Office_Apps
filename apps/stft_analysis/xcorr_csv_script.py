@@ -24,6 +24,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 import matplotlib as mpl
 from matplotlib import pyplot as plt
 import numpy as np
+from scipy.fft import rfft, rfftfreq
 
 from apps.stft_analysis.domain.config import StftAnalysisConfig
 from apps.stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
@@ -38,12 +39,12 @@ from base_core.quantities.models import Length, Time
 
 # --- User config ------------------------------------------------------------
 CSV_PATH = Path(
-    r"D:\Documents\University\UBC research\2026\Data\20260718\XCORR\DA19.0_GA-75.0\202607181045_.csv"
+    r"Z:\Droplets\20261014\XCORR\20261014749_CFG_CF.csv"
 )
 
 # Stage position (mm) that corresponds to probe delay t = 0 (pump/probe overlap).
 # Only shifts the absolute time axis; it does NOT affect the extracted frequencies.
-DELAY_CENTER_MM = 135.0
+DELAY_CENTER_MM = 160
 
 # STFT window length in time. Larger -> better frequency resolution, worse time
 # resolution. Should be a fraction of the total scan span.
@@ -92,9 +93,33 @@ def load_xcorr_csv(path: Path, delay_center_mm: float, run_id: int = 0) -> ScanD
     return ScanDataBase(delays=delays, measured_values=measured, run_id=run_id)
 
 
+def calculate_xcorr_fft(scan: ScanDataBase,resample=False) -> tuple[np.ndarray, np.ndarray]:
+    """FFT of the XCORR trace along probe delay. Returns (frequency in GHz, complex spectrum).
+
+    The delay grid is resampled onto a uniform axis first (same as the STFT path),oka
+    and the mean is removed so the DC bin doesn't swamp the fringe peak. The data
+    is real, so only the non-negative frequencies are returned (rfft).
+    """
+    config = StftAnalysisConfig([scan])
+    if resample: 
+        resampled = resample_scans([scan], config.axis)[0]
+        intensity = np.array([m.value for m in resampled.measured_values], dtype=float)
+    else:
+        intensity = np.array([m.value for m in scan.measured_values], dtype=float)
+    
+    intensity = intensity[np.isfinite(intensity)]  # drop points outside the measured range
+    intensity -= intensity.mean()
+
+    dt_ps = config.resample_time.value(Prefix.PICO)
+    spectrum = rfft(intensity)
+    frequency_ghz = rfftfreq(intensity.size, d=dt_ps) * 1e3  # cycles/ps = THz -> GHz
+
+    return frequency_ghz, spectrum
+
+
 def main() -> None:
     scan = load_xcorr_csv(CSV_PATH, DELAY_CENTER_MM)
-
+    
     stft_config = StftAnalysisConfig([scan], WINDOWSIZE)
     resampled_scans = resample_scans([scan], stft_config.axis)
     spectrogram = StftAnalysis(resampled_scans, stft_config).calculate_averaged_spectrogram()

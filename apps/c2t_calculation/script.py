@@ -15,6 +15,8 @@ from base_core.math.models import Angle, Point, Range
 from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Length
 from base_core.fitting.functions import fit_gaussian
+from base_core.math.functions import gaussian
+import numpy as np
 
 POSZEROSHIFT = 0 #millimetres :)
 
@@ -22,32 +24,45 @@ def get_scan_number(folder_path: Path = MOST_RECENT_FOLDER) -> int:
         scan_files = DatFinder(folder_path).find_scanfiles()
         return len(scan_files)
 
-folder_path = Path(r"Z:\Droplets\20260904\Scan4_CFG")
+
+folder_path = Path(r"Z:\Droplets\20260924\Scan9_CFG")
 file_paths = DatFinder(folder_path,is_full_path=True).find_datafiles()
 
 config = IonDataAnalysisConfig(
-    delay_center= Length(64.5, Prefix.MILLI),
-    center=Point(162,220),
+    delay_center= Length(172, Prefix.MILLI),
+    center=Point(100,100),
     angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](30, 120),
-    transform_parameter=0.85)
+    analysis_zone= Range[int](20, 50),
+    transform_parameter=0.8)
 
 raw_scans = load_ion_data(file_paths)
-calculated_Scan = run_pipeline(raw_scans, [config])
-scan_avg = averaging.average_scans(calculated_Scan)
+calculated_Scan = run_pipeline(raw_scans, [config])[0]
+#scan_avg = averaging.average_scans(calculated_Scan)
+
+x = [time*1e12 for time in calculated_Scan.delays]
+y = [c2t.value for c2t in calculated_Scan.measured_values]
+
+fit_result = fit_gaussian(x,y)
+
+print(fit_result.center)
 
 num_scans = get_scan_number()
 fig,ax = plt.subplots()
 #ax_ions = ax.twinx()
 
-label = str(num_scans) + " scans averaged.\nCenter = (" + str(config.center.x) + ", " + str(config.center.y) + "), Angle = " + str(round(config.angle.Deg,1)) + "\n"\
+'''label = str(num_scans) + " scans averaged.\nCenter = (" + str(config.center.x) + ", " + str(config.center.y) + "), Angle = " + str(round(config.angle.Deg,1)) + "\n"\
+        + "Ring: (" + str(config.analysis_zone.min) + ", " + str(config.analysis_zone.max) + "), ScaleX = " + str(config.transform_parameter)'''
+label = "Time Zero = " + str(round(fit_result.center,1)) + ". Center = (" + str(config.center.x) + ", " + str(config.center.y) + "), Angle = " + str(round(config.angle.Deg,1)) + "\n"\
         + "Ring: (" + str(config.analysis_zone.min) + ", " + str(config.analysis_zone.max) + "), ScaleX = " + str(config.transform_parameter)
 #plot_calculated_scan(ax3, calculated_Scan[0],label=label)
 
 ax.grid(visible=True,which='major',alpha=1.0)
-plot_ScanData(ax,scan_avg,label=label)
-fig.tight_layout()
+#plot_ScanData(ax,scan_avg,label=label)
+plot_ScanData(ax,calculated_Scan,label=label)
+x_a = np.array(x)
+ax.plot(x_a,gaussian(x_a,fit_result.amplitude,fit_result.center,fit_result.sigma,fit_result.offset),'r-')
 
+fig.suptitle("GA = 28.015, DA = 16.66 Time Zero Delay Scan")
 
 
 #fit = fit_gaussian(scan_avg.delays,scan_avg.measured_values)
