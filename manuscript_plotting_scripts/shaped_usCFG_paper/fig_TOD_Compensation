@@ -28,6 +28,11 @@ from base_core.quantities.models import Length
 
 from scipy.fft import rfft, rfftfreq
 from base_core.math.functions import gaussian
+from manuscript_plotting_scripts.shaped_usCFG_paper import config
+
+
+NAME = "fig_TOD_Compensation"
+# in jet.TRUNCATION_SCANS order: full centrifuge, prism 15.0, 14.5, 13.5 mm
 
 def load_xcorr_csv(path: Path, delay_center_mm: float, run_id: int = 0) -> ScanDataBase:
     """Read an XCORR csv into a ScanDataBase (delay-time vs mean intensity)."""
@@ -127,7 +132,6 @@ def main() -> None:
     freq_4f, spectrum_4f = calculate_xcorr_fft(scan_4f)
     freq_cf, spectrum_cf = calculate_xcorr_fft(scan_cf)
     
-    fig, ax = plt.subplots(figsize=(8, 6))
 
     # Top: the cross-correlation trace (intensity vs probe delay).
     # delay_4f = [d.value(Prefix.PICO) for d in scan_4f.delays]
@@ -171,21 +175,22 @@ def main() -> None:
     # ax1.set_ylabel("Photodiode (V)")
     # ax1.legend(loc="upper right")
     # ax1.set_visible(False)
-
+    fig, ax = plt.subplots(figsize=config.FIGURE_SIZES_IN[NAME])
     # Bottom: FFT magnitude of the trace inside FFT_DELAY_RANGE_PS.
-    ax.plot(freq_4f, np.abs(spectrum_4f), color="tab:blue", label="cfCFG4f compensated")
-    ax.plot(freq_cf,np.abs(spectrum_cf),color="tab:red",label="cfCFG")
-    ax.plot(f_ghz,power,color="tab:green",lw=1.2,label=f"Simulated single frequency")
+    ax.plot(freq_4f, 0.53*np.abs(spectrum_4f),linestyle='-',markersize=0, color="k", label="cfCFG4f compensated")
+    ax.plot(freq_cf,0.56*np.abs(spectrum_cf),linestyle='--',markersize=0,color="r",label="cfCFG")
+    ax.plot(f_ghz,0.56*power,linestyle='-.',markersize=0,color="b",label=f"Simulated single frequency")
     
     ax.set_xlabel("Frequency (GHz)")
-    ax.set_ylabel("|FFT| (arb.)")
-    ax.legend(loc="upper right")
-    ax.set_xlim(10,150)
-    #ax.set_ylim(0,1)
+    ax.set_ylabel("Normalized Power (arb. u.)")
+    #ax.get_legend().remove()
+    ax.set_xlim(60,120)
+    ax.set_ylim(0,1.1)
 
     #fig.suptitle(f"XCORR FFT: {CSV_PATH.parent.name}/{CSV_PATH.name}", fontsize=11)
     fig.tight_layout()
     plt.show()
+    config.save_figure(fig, NAME)
 
 
 if __name__ == "__main__":

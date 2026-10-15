@@ -26,6 +26,7 @@ FIGURE_SIZES_IN: dict[str, tuple[float, float]] = {
     "fig_char_truncation": (3.4, 5.2),
     "fig_jet_oscillations": (3.375, 5.15),
     "fig_jet_truncation": (3.375, 2.5),
+    "fig_TOD_Compensation": (3.375, 2.5),
 }
 
 # --- Style (manuscript_plotting_scripts/figuremaker.py) -----------------------
