@@ -63,11 +63,11 @@ def main(argv=None) -> int:
         return (y - base) / scale
 
     fig, ax = plt.subplots(figsize=(8.6 / 2.54, 6.0 / 2.54))
-    ax.plot(nm_to_thz(wl), norm(inten), color="0.5", lw=0.5, label="spectrum")
+    ax.plot(nm_to_thz(wl), norm(inten), color="0.5", lw=0.5)
     if r.accepted:
         xx = np.linspace(fit_nm[0], fit_nm[1], 4000)
         mid, half, phase = display_curve(r, xx)
-        ax.plot(nm_to_thz(xx), norm(mid + half * np.cos(phase)), "C3", lw=1, label="fit")
+        ax.plot(nm_to_thz(xx), norm(mid + half * np.cos(phase)), "C3", lw=1)
         print(f"fit: status={r.status}  l0 = {r.l0:.3f} nm ({nm_to_thz(r.l0):.3f} THz)  "
               f"rms_frac={r.rms_frac:.3f}")
     else:
