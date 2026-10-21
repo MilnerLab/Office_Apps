@@ -22,10 +22,11 @@
 },
   "settings": {
     "python.defaultInterpreterPath": "${workspaceFolder:Office_Apps}/.venv/",
+    "python.defaultInterpreterPath": "${workspaceFolder:Office_Apps}/.venv/",
     "python.terminal.activateEnvInCurrentTerminal": true,
     "python.analysis.indexing": true,
     "python.analysis.autoImportCompletions": true,
-    "python.analysis.extraPaths": [ "$../Base_Core"],
+    "python.analysis.extraPaths": [ "../Base_Core"],
     "python.analysis.packageIndexDepths": [
 
   { "name": "base_core", "depth": 5, "includeAllSymbols": true },
