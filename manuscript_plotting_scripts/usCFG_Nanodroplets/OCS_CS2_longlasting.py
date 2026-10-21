@@ -149,6 +149,7 @@ ax.set_ylabel(None)
 ax.grid()
 ax.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 ax.set_xlabel('Probe Delay (ps)')
+ax.legend_.remove()
 mainfig.supylabel('$\langle \cos^2 \\theta_{\mathrm{2D}} \\rangle$\n',horizontalalignment = 'right')
 
 

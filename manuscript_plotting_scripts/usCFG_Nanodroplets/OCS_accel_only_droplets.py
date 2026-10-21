@@ -80,7 +80,7 @@ configs_1.append(IonDataAnalysisConfig(
 #--------------------------------------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------------------------------------
 # SIMULATION
-simulation_filename1 = r"/mnt/data/git/Milner_Lab/Latex/droplet_theory_paper/theory_calc/OCS_accelerating_droplets_OCS_cos2theta2D_vs_t_model_only.csv"
+simulation_filename1 = r"C:\git\Milner_Lab\Latex\droplet_theory_paper\theory_calc\OCS_accelerating_droplets_OCS_cos2theta2D_vs_t_model_only.csv"
 
 forward = pd.read_csv(simulation_filename1,names = ['time','signal_raw','signal_scaled'])
 
@@ -113,6 +113,7 @@ plot_averaged_scan(a, plottable_scan_1, PlotColor.BLUE,ecolor=PlotColor.RED,mark
 a.plot(forward.time,forward.signal_scaled,color=PlotColor.RED) #plot theory simulation
 
 a.grid()
+a.legend_.remove()
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 a.set_xlabel(None)
 a.text(textx, texty, '(a)',color='k', family='DejaVu Sans', usetex=False, fontsize=9, horizontalalignment='center', verticalalignment='center', transform=a.transAxes, bbox=dict(boxstyle='round,pad=0.4', facecolor='lightgray', edgecolor='none'))
@@ -123,7 +124,7 @@ a.axhline(36, color='w', linestyle='--', linewidth=1)
 a.set_ylim([0,100])
 a.set_ylabel('Oscillation\nFrequency (GHz)')
 a.yaxis.set_label_coords(YLABELX,0.5)
-
+a.tick_params(axis='both',color="white")
 #plot_nyquist_frequency(a, plottable_scan_1)
 #a.set_xlabel(None)
 a.text(textx, texty, '(b)',color='k', family='DejaVu Sans', usetex=False, fontsize=9, horizontalalignment='center', verticalalignment='center', transform=a.transAxes, bbox=dict(boxstyle='round,pad=0.4', facecolor='lightgray', edgecolor='none'))

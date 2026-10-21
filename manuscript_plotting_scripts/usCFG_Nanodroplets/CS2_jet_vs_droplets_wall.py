@@ -125,7 +125,7 @@ fig1, axs = plt.subplots(
             ncols=2,
             figsize=(6.75, 2.8),
             sharex='col',
-            gridspec_kw={'hspace': 0.1,'wspace': 0.45,'width_ratios': [3,2]}
+            gridspec_kw={'hspace': 0.1,'wspace': 0.25,'width_ratios': [3,2]}
         )
 ax1, axB = axs[0,0], axs[0,1] #jet: scan, spectrogram
 ax2, axD = axs[1,0], axs[1,1] #droplets: scan, spectrogram
@@ -174,18 +174,32 @@ ax2.plot(x,y,'k--',linewidth=1)
 
 #(a) (b) (c) (d) placement etc
 textx = 0.1
-texty = 0.85
+texty = 0.82
 label_kwargs = dict(color='k', family='DejaVu Sans', usetex=False, fontsize=9, horizontalalignment='center', verticalalignment='center', bbox=dict(boxstyle='round,pad=0.4', facecolor='lightgray', edgecolor='none'))
 ax1.text(textx, texty, '(a)', transform=ax1.transAxes, **label_kwargs)
 axB.text(textx, texty, '(b)', transform=axB.transAxes, **label_kwargs)
 ax2.text(textx, texty, '(c)', transform=ax2.transAxes, **label_kwargs)
 axD.text(textx, texty, '(d)', transform=axD.transAxes, **label_kwargs)
 
+axB.tick_params(axis='both',color="white")
+axD.tick_params(axis='both',color="white")
+
+
 ax1.set_xlabel(None)
 axB.set_xlabel(None)
 
-ax1.set_ylabel(r'$\langle \cos^2\theta_{2D}\rangle$')
-ax2.set_ylabel(r'$\langle \cos^2\theta_{2D}\rangle$')
+#ax1.set_ylabel(r'$\langle \cos^2\theta_{2D}\rangle$')
+#ax2.set_ylabel(r'$\langle \cos^2\theta_{2D}\rangle$')
+ax1.set_ylabel(None)
+ax2.set_ylabel(None)
+fig1.text(0.05,0.5,r'$\langle \cos^2\theta_{2D}\rangle$',va="center",rotation="vertical")
+
+axB.set_ylabel(None)
+axD.set_ylabel(None)
+fig1.text(0.56,0.5,r'Oscillation Frequency (GHz)',va="center",rotation="vertical")
+
+ax1.legend_.remove()
+ax2.legend_.remove()
 
 fig1.savefig(savefig1_filename,format='pdf',dpi=300)
 plt.show()

@@ -23,7 +23,7 @@ xtick.bottom: True
 #xtick.minor.size: 1.5
 #xtick.major.width: 0.5
 #xtick.minor.width: 0.5
-#xtick.direction: in
+xtick.direction: in
 #xtick.minor.visible: True
 #xtick.major.top: True
 #xtick.major.bottom: True
@@ -33,13 +33,13 @@ xtick.bottom: True
 #xtick.minor.pad: 5.0
 #ytick.labelsize: 9
 
-#ytick.left: True
-#ytick.right: True
+ytick.left: True
+ytick.right: True
 #ytick.major.size: 3.0
 #ytick.minor.size: 1.5
 #ytick.major.width: 0.5
 #ytick.minor.width: 0.5
-#ytick.direction: in
+ytick.direction: in
 #ytick.minor.visible: True
 #ytick.major.left: True
 #ytick.major.right: True

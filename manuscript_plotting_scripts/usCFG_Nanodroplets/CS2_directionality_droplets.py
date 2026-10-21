@@ -155,8 +155,8 @@ configs_2.append(IonDataAnalysisConfig(
 #--------------------------------------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------------------------------------
 # SIMULATION
-simulation_filename1 = r"/mnt/data/git/Milner_Lab/Latex/droplet_theory_paper/theory_calc/CS2_accelerating_droplets_CS2_cos2theta2D_vs_t_model_only.csv"
-simulation_filename2 = r"/mnt/data/git/Milner_Lab/Latex/droplet_theory_paper/theory_calc/CS2_decelerating_droplets_CS2_cos2theta2D_vs_t_model_only.csv"
+simulation_filename1 = r"C:\git\Milner_Lab\Latex\droplet_theory_paper\theory_calc\CS2_accelerating_droplets_CS2_cos2theta2D_vs_t_model_only.csv"
+simulation_filename2 = r"C:\git\Milner_Lab\Latex\droplet_theory_paper\theory_calc\CS2_decelerating_droplets_CS2_cos2theta2D_vs_t_model_only.csv"
 
 forward = pd.read_csv(simulation_filename1,names = ['time','signal_raw','signal_scaled'])
 reverse = pd.read_csv(simulation_filename2,names = ['time','signal_raw','signal_scaled'])
@@ -183,9 +183,9 @@ mainfig, (axs) = plt.subplots(
             ncols=1,
             figsize=(3.375, 3.5),
             sharex=True,
-            gridspec_kw={'hspace': 0.1}
+            gridspec_kw={'hspace': 0.1},
         )
-
+mainfig.tight_layout()
 #Plot first experiment
 a = axs[0]
 plot_averaged_scan(a, plottable_scan_1, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d', label = None,elinewidth=0)
@@ -195,16 +195,21 @@ a.text(textx, texty, '(a)',color='k', family='DejaVu Sans', usetex=False, fontsi
 a.grid()
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 a.set_xlabel(None)
+a.set_ylabel(None)
+a.legend_.remove()
 
 #Plot second experiment
 a = axs[1]
 plot_averaged_scan(a, plottable_scan_2, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d',label=None,elinewidth=0)
 a.plot(forward.time,reverse.signal_scaled,color=PlotColor.RED) #plot theory simulation
 a.text(textx, texty, '(b)',color='k', family='DejaVu Sans', usetex=False, fontsize=9, horizontalalignment='center', verticalalignment='center', transform=a.transAxes, bbox=dict(boxstyle='round,pad=0.4', facecolor='lightgray', edgecolor='none'))
+a.set_ylabel(None)
+a.legend_.remove()
 
 a.grid()
 
 #mainfig.suptitle(PlotTitle,fontsize=MAJORTITLEFONTSIZE,color='black')
+mainfig.supylabel("$\langle \cos^2\\theta_{2D}\\rangle$\n",horizontalalignment="center")
 
 #Save scans
 plottable_scan_1.to_csv(savedata_filename_1)
