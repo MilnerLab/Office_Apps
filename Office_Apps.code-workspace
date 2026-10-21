@@ -21,7 +21,7 @@
   ]
 },
   "settings": {
-    "python.defaultInterpreterPath": "${workspaceFolder:Office_Apps}/.venv_camp06/Scripts/python.exe",
+    "python.defaultInterpreterPath": "${workspaceFolder:Office_Apps}/.venv/bin/python.exe",
     "python.terminal.activateEnvInCurrentTerminal": true,
     "python.analysis.indexing": true,
     "python.analysis.autoImportCompletions": true,

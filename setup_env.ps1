@@ -32,7 +32,7 @@ $extensionsFile    = Join-Path $root "_extensions.txt"
 
 # Windows-only: which Python to use via the py launcher (if present)
 # If you need 32-bit on Windows, set to "-3.13-32" (or your exact installed version)
-$windowsPySpec = "-3.13"   # e.g. "-3.13" or "-3.13-32"
+$PySpec = "-3.13"   # e.g. "-3.13" or "-3.13-32"
 
 # -----------------------------
 # Helpers
@@ -53,10 +53,10 @@ function Invoke-Native {
 function Resolve-PythonRunner {
     # Prefer Windows py launcher if available (nur auf Windows sinnvoll)
     if ($script:OnWindows -and (Get-Command py -ErrorAction SilentlyContinue)) {
-        return @{ Exe = "py"; Args = @($windowsPySpec) }
+        return @{ Exe = "py"; Args = @($PySpec) }
     }
 
-    foreach ($cmd in @("python3", "python")) {
+    foreach ($cmd in @($PySpec, "python")) {
         if (Get-Command $cmd -ErrorAction SilentlyContinue) {
             return @{ Exe = $cmd; Args = @() }
         }
