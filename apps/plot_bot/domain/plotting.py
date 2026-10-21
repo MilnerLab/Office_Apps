@@ -19,6 +19,7 @@ from apps.stft_analysis.domain.config import StftAnalysisConfig
 from apps.stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
 from apps.stft_analysis.domain.resampling import resample_scans
 from apps.stft_analysis.domain.stft_calculation import StftAnalysis
+from plot_bot.domain.config import USE_SPEC
 
 SPECTROGRAM_THRESHOLD = Time(10, Prefix.PICO)
 
@@ -48,7 +49,7 @@ class PlottingBotPlotting:
     def plot_double(self):
         use_spec = np.mean(np.abs(np.diff(self.current_scan.delays))) < SPECTROGRAM_THRESHOLD
 
-        if use_spec:
+        if use_spec and USE_SPEC:
             fig, (ax_scan, ax_avg, ax_spec) = plt.subplots(
                 nrows=3,
                 ncols=1,
@@ -57,7 +58,7 @@ class PlottingBotPlotting:
                 constrained_layout=True,
             )
 
-            plot_single_scan(ax_scan, self.current_scan, True, self.color_cos2, self.color_data_ions)
+            plot_single_scan(ax_scan, data = self.current_scan, show_ions = True, data_color = self.color_cos2, ion_color = self.color_data_ions)
             ax_scan.legend(loc="upper right")
 
             averagedScanData = average_scans(self.scans)
@@ -76,11 +77,11 @@ class PlottingBotPlotting:
                 constrained_layout=True,
             )
 
-            plot_single_scan(ax_scan, self.current_scan, True, self.color_cos2, self.color_data_ions)
+            plot_single_scan(ax_scan, data = self.current_scan, show_ions = True, data_color = self.color_cos2, ion_color = self.color_data_ions)
             ax_scan.legend(loc="upper right")
 
             averagedScanData = average_scans(self.scans)
-            plot_averaged_scan(ax_avg, averagedScanData)
+            plot_averaged_scan(ax_avg, averagedScanData, color = PlotColor.PURPLE)
             ax_avg.legend(loc="upper right")
 
         self.end(fig)

@@ -30,9 +30,9 @@ file_paths = DatFinder(folder_path,is_full_path=True).find_datafiles()
 
 config = IonDataAnalysisConfig(
     delay_center= Length(172, Prefix.MILLI),
-    center=Point(100,100),
+    center=Point(185,236),
     angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](20, 50),
+    analysis_zone= Range[int](40, 130),
     transform_parameter=0.8)
 
 raw_scans = load_ion_data(file_paths)

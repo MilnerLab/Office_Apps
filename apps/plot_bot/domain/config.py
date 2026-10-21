@@ -11,6 +11,7 @@ class BotConfig:
     CHECK_INTERVAL = 5.0
     INACTIVITY_THRESHOLD = 100
     DYNAMIC_INACTIVITY_MULTIPLIER = 3
+    USE_SPEC = False
 
     
     # MTQ0NTkwNjE2Mjg3NTc2MDc5Mw. GRgFDk. utLEQVHiwHTZONkCTbnJv7lytkoWqqZGnlWick   <- remove spaces
