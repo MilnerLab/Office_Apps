@@ -25,14 +25,14 @@ def get_scan_number(folder_path: Path = MOST_RECENT_FOLDER) -> int:
         return len(scan_files)
 
 
-folder_path = Path(r"Z:\Droplets\20261021\Scan1_FREQ")
+folder_path = Path(r"Z:\Droplets\20261021\Scan2_FREQ")
 file_paths = DatFinder(folder_path,is_full_path=True).find_datafiles()
 
 config = IonDataAnalysisConfig(
     delay_center= Length(15.735, Prefix.MILLI),
     center=Point(185,236),
     angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](25, 120),
+    analysis_zone= Range[int](30, 120),
     transform_parameter=0.8)
 
 raw_scans = load_ion_data(file_paths)
@@ -46,7 +46,7 @@ y_error = np.array([c.error for c in calculated_Scan.measured_values])
 freq = 2*46.7*np.array(x)/6.6#cameron's slope from 2026/10/16 to convert mm to ghz and then from mm to ps
 fit_result = fit_gaussian(x,y)
 
-print(fit_result.center)
+#print(fit_result.center)
 
 num_scans = get_scan_number()
 fig,ax = plt.subplots()
