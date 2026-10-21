@@ -72,8 +72,8 @@ def main(argv=None) -> int:
               f"rms_frac={r.rms_frac:.3f}")
     else:
         print(f"fit rejected: {r.status} {r.msg}")
-    ax.set_xlabel("frequency (THz)")
-    ax.set_ylabel("normalised intensity")
+    ax.set_xlabel("Optical Frequency (THz)")
+    ax.set_ylabel("Intensity (arb. u.)")
     ax.legend(frameon=False)
     fig.tight_layout(pad=0.2)
     fig.savefig(args.save)

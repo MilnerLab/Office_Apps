@@ -236,6 +236,7 @@ class CfgProjectionThroughPBS(ThreeDScene):
         transmitted_beam = self._make_transmitted_beam(layout, colors, geometry, amplitude, angle, s_end)
         reflected_beam = self._make_reflected_beam(layout, colors, geometry, amplitude, angle, s_end)
         pbs, wall = self._make_pbs(layout, colors)
+        pbs_label = self._make_pbs_label(layout, colors)
         transmitted_e_vector, transmitted_label = self._make_transmitted_e_vector(layout, colors, s_end)
         reflected_e_vector, reflected_label = self._make_reflected_e_vector(layout, colors, s_end)
 
@@ -248,7 +249,7 @@ class CfgProjectionThroughPBS(ThreeDScene):
             transmitted_e_vector,
             reflected_e_vector,
         )
-        self.add_fixed_orientation_mobjects(transmitted_label, reflected_label)
+        self.add_fixed_orientation_mobjects(transmitted_label, reflected_label, pbs_label)
 
     def _geometry_resolution(self, mode: RenderMode) -> dict[str, tuple[int, int]]:
         if mode.high_detail:
@@ -414,6 +415,11 @@ class CfgProjectionThroughPBS(ThreeDScene):
         wall.set_shade_in_3d(True)
 
         return cube, wall
+
+    def _make_pbs_label(self, layout: SceneLayout, colors: SceneColors) -> Tex:
+        label = Tex("PBS", font_size=44, color=colors.pbs)
+        label.move_to(layout.pbs_center + np.array([0.0, 0.0, -(layout.pbs_size / 2.0 + 0.8)]))
+        return label
 
     def _make_cfg_e_vector(self, layout: SceneLayout, colors: SceneColors, angle, s_end: float) -> tuple[VGroup, MathTex]:
         # Sits at the output end of the centrifuge, pointing along the local

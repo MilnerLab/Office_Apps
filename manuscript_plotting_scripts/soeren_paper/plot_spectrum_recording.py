@@ -56,7 +56,7 @@ MAX_ROWS = 1500                           # time rows plotted; longer recordings
 N_FIT: int | None = 400                   # spectra fitted per recording; None = all (~0.6 s each)
 LAMBDA_REF = 802.0                        # nm; phase reported here (the lock's lambda_ref)
 FIT_WORKERS: int | None = None            # fit processes; None = all cores
-SHOW_PHASE = True                         # write mean phase +- standard error into each panel
+SHOW_PHASE = False                        # write mean phase +- standard error into each panel
 
 
 def find_group(f: h5py.File, name: str | None) -> h5py.Group:
@@ -218,7 +218,7 @@ def main() -> None:
                     bbox=dict(boxstyle="round,pad=0.25", facecolor="0.85", edgecolor="k", lw=0.6))
         print(f"({chr(ord('a') + i)}) {label}: {r['n']} spectra over {t_min[-1]:.1f} min"
               + (f", mean of {r['block']} per row" if r["block"] > 1 else ""))
-    axs[-1].set_xlabel("Frequency (THz)")
+    axs[-1].set_xlabel("Optical Frequency (THz)")
 
     if SAVE:
         fig.savefig(SAVE, dpi=300)  # also the resolution of the rasterized maps in a PDF
