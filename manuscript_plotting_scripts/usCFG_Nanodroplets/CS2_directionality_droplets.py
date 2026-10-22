@@ -155,8 +155,9 @@ configs_2.append(IonDataAnalysisConfig(
 #--------------------------------------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------------------------------------
 # SIMULATION
-simulation_filename1 = r"C:\git\Milner_Lab\Latex\droplet_theory_paper\theory_calc\CS2_accelerating_droplets_CS2_cos2theta2D_vs_t_model_only.csv"
-simulation_filename2 = r"C:\git\Milner_Lab\Latex\droplet_theory_paper\theory_calc\CS2_decelerating_droplets_CS2_cos2theta2D_vs_t_model_only.csv"
+folder_ML_Latex = r"C:\milnergitfolder\Latex"
+simulation_filename1 = folder_ML_Latex + r"\droplet_theory_paper\theory_calc\CS2_accelerating_droplets_CS2_cos2theta2D_vs_t_model_only.csv"
+simulation_filename2 = folder_ML_Latex+ r"\droplet_theory_paper\theory_calc\CS2_decelerating_droplets_CS2_cos2theta2D_vs_t_model_only.csv"
 
 forward = pd.read_csv(simulation_filename1,names = ['time','signal_raw','signal_scaled'])
 reverse = pd.read_csv(simulation_filename2,names = ['time','signal_raw','signal_scaled'])

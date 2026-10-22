@@ -17,8 +17,8 @@ lines.markersize :1
 #patch.antialiased   : True
 
 ### Ticks
-xtick.top: True
-xtick.bottom: True
+xtick.top: false
+xtick.bottom: false
 #xtick.major.size: 3.0
 #xtick.minor.size: 1.5
 #xtick.major.width: 0.5
@@ -33,8 +33,8 @@ xtick.direction: in
 #xtick.minor.pad: 5.0
 #ytick.labelsize: 9
 
-ytick.left: True
-ytick.right: True
+ytick.left: false
+ytick.right: false
 #ytick.major.size: 3.0
 #ytick.minor.size: 1.5
 #ytick.major.width: 0.5

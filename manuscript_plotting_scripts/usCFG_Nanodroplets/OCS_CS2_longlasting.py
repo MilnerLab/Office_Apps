@@ -142,7 +142,7 @@ mainfig, ax = plt.subplots(
             figsize=(3.375, 2)
         )
 
-plot_averaged_scan(ax, OCS_usCFG, marker='x',color='magenta',ecolor=PlotColor.RED, label = None)
+plot_averaged_scan(ax, OCS_usCFG, marker='s',color='black',ecolor=PlotColor.GRAY, label = None)
 plot_averaged_scan(ax, cs2_droplets_CFG, marker='d',color=PlotColor.BLUE,ecolor=PlotColor.RED, label = None)
 
 ax.set_ylabel(None)
