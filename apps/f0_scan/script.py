@@ -34,15 +34,15 @@ for i,j in enumerate(j_arr):
         transitions[i] = mol.twophoton(ocs,j).value(Prefix.GIGA)
 
 
-folder_path = Path(r"Z:\Droplets\20261021\Scan2_FREQ")
+folder_path = Path(r"Z:\Droplets\20261026\Scan3_FREQ")
 file_paths = DatFinder(folder_path,is_full_path=True).find_datafiles()
 
 config = IonDataAnalysisConfig(
     delay_center= Length(15.735, Prefix.MILLI),
-    center=Point(185,236),
+    center=Point(186,196),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](30, 120),
-    transform_parameter=0.8)
+    transform_parameter=0.7)
 
 raw_scans = load_ion_data(file_paths)
 calculated_Scan = run_pipeline(raw_scans, [config])[0]
@@ -65,7 +65,7 @@ ax.grid(visible=True,which='major',alpha=1.0)
 #plot_ScanData(ax,scan_avg,label=label)
 #plot_ScanData(ax,calculated_Scan,label=label)
 ax.errorbar(freq,y,y_error,elinewidth=1,ecolor="r")
-ax.plot(transitions,0.56*np.ones(n_transitions),linestyle='',marker='|',markersize=150,color='k')
+#ax.plot(transitions,0.56*np.ones(n_transitions),linestyle='',marker='|',markersize=150,color='k')
 ax.set_xlabel('Centrifuge Two-Photon Frequency (GHz)')
 ax.set_ylabel(r"$\langle \cos^2 \theta_\mathrm{2D} \rangle$")
 
