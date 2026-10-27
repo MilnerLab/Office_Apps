@@ -27,17 +27,19 @@ Chain:
   2. lam_cut(x) is fitted with a line over the positions where the cut lies within
      +-2 sigma of the spectral envelope. That is the calibration curve.
   3. lam_cut -> omega_cut -> t' with the SHAPER ARM's map, omega(t') = omega0 + 2 beta_s t' + 3 gamma_s t'^2,
-     beta_s = beta0 + Delta beta(L), then t_cut = t' - dt/2 (Eq. tcut_inv of the paper).
-     omega0 is the open spectrum's centre. beta0, gamma0 and the Delta beta(L) law are the
-     paper's Sec. IV B values.
+     beta_s = beta0 + Delta beta(L). omega0 is the open spectrum's centre. beta0, gamma0 and
+     the Delta beta(L) law are the paper's Sec. IV B values.
+     The model (Eq. 8, as in ``jet_prediction.py``) centres the two arms at -+dt/2 about the
+     cross-correlation's envelope centre, shaper arm at t' = u + dt/2 with the model's
+     dt = -(2 delay_base/c - zero_dt) < 0 (delay arm first). So u_cut = t' - dt/2, on the
+     accompanying 09-03 cross-correlation's axis, with nothing fitted.
   4. The two truncated cross-correlations are fitted with a plain erfc edge (the delay arm
      is absent, so the ripples before the cut are the chirp-limited edge's Fresnel fringes,
-     not a two-arm beat; they are left in the residuals). They give t_cut directly on the jet axis
-     for two prism positions. The spectrometer-derived t_cut for the same two positions
-     differ from them by one constant (the map's zero is the spectral centre, the
-     cross-correlation's zero is its envelope centre), which is fitted as ONE offset. The
-     two positions fix it to ~1 ps, which is the test of the map's scale.
-  5. f_trunc(x) = f_CFG(u_cut(x)) from the accompanying fit.
+     not a two-arm beat; they are left in the residuals). They were taken on 09-18 on the
+     cross-correlator's probe axis, which is neither the jet axis nor the 09-03 axis, so
+     only their SEPARATION is used: it tests the map's scale against u_cut(14.50) - u_cut(12.86).
+  5. f_trunc(x) = f_CFG(u_cut(x)) from the accompanying fit; on the jet axis the cut sits at
+     u_cut + JET_OFFSET_PS (the 09-03 xcorr envelope centre on the jet axis, Fig. 5).
 
 `calibrate` runs the chain and returns everything, including what only the figure
 (``fig_char_truncation``) draws; `run` writes ``truncation_calibration.json`` and
@@ -294,21 +296,21 @@ def calibrate() -> dict:
         dw = 2 * np.pi * C_NM_PS / lam - w0
         return dw / (bs + np.sqrt(bs ** 2 + 3 * gs * dw))
 
-    u_map = lambda x: t_prime(lam_of_x(x)) - dt / 2.0     # xcorr-centre frame, before anchoring
+    zero_dt = json.load(open(config.TEMP_DIR / "scan_fits.json"))["zero_dt"]
+    dt_model = -(dt - zero_dt)                  # Eq. (8) sign: delay arm first -> dt < 0
+    u_cut = lambda x: t_prime(lam_of_x(x)) - dt_model / 2.0   # about the 09-03 envelope centre
+    t_jet_cut = lambda x: u_cut(x) + JET_OFFSET_PS
 
-    # 4. the two measured edges
+    # 4. the two measured edges: their separation tests the map's scale
     edges = []
     for x, path in XC.items():
         sc_x = load_xc(path)
         edges.append(EdgeScan(delays=sc_x.delays, measured_values=sc_x.measured_values,
                               run_id=sc_x.run_id, prism=Length(x, Prefix.MILLI), fit=fit_edge(sc_x)))
     tc = {x: E.fit.tc.value(Prefix.PICO) for x, E in zip(XC, edges)}
-    # one offset between the map's zero and the cross-correlation axis
-    offs = np.array([tc[x] - JET_OFFSET_PS - u_map(x) for x in XC])
-    anchor = float(offs.mean())
-    anchor_spread = float(np.ptp(offs))
-    u_cut = lambda x: u_map(x) + anchor
-    t_jet_cut = lambda x: u_cut(x) + JET_OFFSET_PS
+    x1, x2 = XC
+    sep_measured = float(tc[x2] - tc[x1])
+    sep_map = float(u_cut(x2) - u_cut(x1))
 
     # 5. the chirp-limited floor for a perfectly sharp cut, at each cut's local GDD
     #    GDD = 1/(2 beta_s + 6 gamma_s t'), the reciprocal of the shaper arm's chirp slope at the cut
@@ -334,8 +336,9 @@ def calibrate() -> dict:
         calib=dict(slope_nm_per_mm=c[0], slope_err=c_err[0], intercept_nm=c[1], intercept_err=c_err[1],
                    rms_resid_nm=float(resid.std()), n=int(ok.sum()),
                    x_range=[float(rows[ok, 0].min()), float(rows[ok, 0].max())]),
-        map=dict(beta_s_over_beta0=bs / BETA0, dbeta_rad_ps2=_dbeta_of_L(L), dt_per_mm_ps=float((u_map(14.5) - u_map(13.5))),
-                 anchor_ps=anchor, anchor_spread_ps=anchor_spread, jet_offset_ps=JET_OFFSET_PS),
+        map=dict(beta_s_over_beta0=bs / BETA0, dbeta_rad_ps2=_dbeta_of_L(L), dt_per_mm_ps=float((u_cut(14.5) - u_cut(13.5))),
+                 dt_model_ps=dt_model, edge_sep_measured_ps=sep_measured, edge_sep_map_ps=sep_map,
+                 jet_offset_ps=JET_OFFSET_PS),
         edges={str(x): edge_record(E.fit) for x, E in zip(XC, edges)},
         edge_theory=edge_theory,
         f_cfg=dict(f0_ghz=float(f_of_u(0.0)), slope_ghz_ps=float((f_of_u(1.0) - f_of_u(-1.0)) / 2),
@@ -345,8 +348,6 @@ def calibrate() -> dict:
                                f_trunc_pm5ps=[float(f_of_u(u_cut(x) - 5)), float(f_of_u(u_cut(x) + 5))])
                   for x in list(XC) + list(PRISM_JET)},
     )
-    for x in XC:
-        res["releases"][str(x)]["t_jet_measured_ps"] = tc[x]
 
     nm = lambda v: Length(v, Prefix.NANO)
     cuts = [SpectrumCut(prism=Length(r[0], Prefix.MILLI), lam_cut=nm(r[1]), sigma_lam=nm(r[2]),
@@ -364,7 +365,6 @@ def run(out_dir: Path) -> None:
     k = calibrate()
     edge_theory, res = k["edge_theory"], k["res"]
     lam0, L, dt = res["lam0_nm"], res["L_mm"], res["dt_ps"]
-    anchor, anchor_spread = res["map"]["anchor_ps"], res["map"]["anchor_spread_ps"]
     cal = res["calib"]
     rows = np.array([(r.prism.value(Prefix.MILLI), r.lam_cut.value(Prefix.NANO),
                       r.sigma_lam.value(Prefix.NANO), r.lam_cut_err.value(Prefix.NANO), r.scale)
@@ -381,10 +381,11 @@ def run(out_dir: Path) -> None:
     print(f"map: beta_s/beta0 = {res['map']['beta_s_over_beta0']:.4f}; {res['map']['dt_per_mm_ps']:.1f} ps per mm of prism")
     for x in XC:
         E = res["edges"][str(x)]
-        print(f"xcorr edge, prism {x}: t_cut = {E['tc']:.2f} +- {E['tc_err']:.2f} ps (jet axis), "
+        print(f"xcorr edge, prism {x}: t_cut = {E['tc']:.2f} +- {E['tc_err']:.2f} ps (09-18 probe axis), "
               f"sigma {E['sigma']:.2f} +- {E['sigma_err']:.2f} ps, 10-90 {E['w1090']:.2f} ps; "
               f"post/pre {E['post']/E['pre']:.3f}, chi2/dof {E['chi2_dof']:.0f}")
-    print(f"anchor: map zero sits {anchor:.1f} ps after the xcorr envelope centre; the two edges agree to {anchor_spread:.1f} ps")
+    print(f"model dt = {res['map']['dt_model_ps']:.2f} ps; edge separation measured "
+          f"{res['map']['edge_sep_measured_ps']:.1f} ps, map {res['map']['edge_sep_map_ps']:.1f} ps")
     for x in XC:
         T, E = edge_theory[str(x)], res["edges"][str(x)]
         print(f"edge theory, prism {x}: t' {T['t_prime_ps']:.0f} ps, local GDD {T['gdd_ps2']:.2f} ps^2, "
@@ -392,4 +393,5 @@ def run(out_dir: Path) -> None:
               f"(measured {E['sigma']:.2f} +- {E['sigma_err']:.2f})")
     for x in list(XC) + list(PRISM_JET):
         r = res["releases"][str(x)]
-        print(f"prism {x}: lam_cut {r['lam_cut_nm']:.2f} nm -> t_cut {r['t_jet_ps']:.0f} ps (jet axis) -> f_trunc {r['f_trunc_ghz']:.1f} GHz")
+        print(f"prism {x}: lam_cut {r['lam_cut_nm']:.2f} nm -> u_cut {r['u_cut_ps']:.1f} ps (xcorr), "
+              f"{r['t_jet_ps']:.1f} ps (jet axis) -> f_trunc {r['f_trunc_ghz']:.1f} GHz")

@@ -1,6 +1,6 @@
 """The two centrifuge arms and the corkscrew they make.
 
-Theory schematic, no data. Four columns, each a pair of stacked panels on one time axis:
+Theory schematic, no data. Two columns, each a pair of stacked panels on one time axis:
 
   top     the time-frequency density of the two interferometer arms, each a chirped
           Gaussian about its instantaneous frequency
@@ -11,35 +11,44 @@ Theory schematic, no data. Four columns, each a pair of stacked panels on one ti
           i.e. half the vertical gap between the two ridges drawn above; the twist phase is
           its running integral, so the rows are registered by construction
 
-  (a) small dt                  (b) large dt
-  (c) (a) plus extra shaper chirp dbeta
-  (d) (a) truncated at t_cut (a frequency cut at omega_cut in the Fourier plane)
+  (a1) an ultraslow centrifuge that starts near zero frequency and accelerates
+  (b1) the same centrifuge truncated at t_cut (a frequency cut in the Fourier plane)
+  (a2), (b2) the corkscrews below (a1) and (b1); panel letters sit in each top-left corner
+The four-column version (delay, chirp and truncation side by side) is in git history; the
+review asked for the truncation alone, on one centrifuge.
 
 Model parameters (illustrative, dimensionless): base chirp BETA0, base TOD GAMMA0,
 envelope width ENV_W, per-column delay dt / extra chirp dbeta / extra TOD dgamma / t_cut,
 instantaneous-frequency spread SPREAD, and TWIST_SCALE tying Omega to the ribbon twist.
 
 Load-bearing choices (keep them):
-* The arms differ in LUMINANCE (delay L* ~40, shaper L* ~65) so a greyscale print still
-  tells them apart; column (d) is unreadable otherwise.
+* Each arm's density is coloured by optical frequency (a rainbow, red at the bottom), so
+  the chirp reads directly. Both arms carry the same plain black outline; the caption
+  tells them apart by position (shaper arm left, delay arm right).
 * The cut is masked in FREQUENCY, not time: a horizontal cut, and an edge in time blurred
   over the arm's own frequency spread.
-* The ribbon lives only where both arms are above the contour level, so a larger dt
-  shortens it; peak amplitudes are normalized column to column (the caption says so).
+* The ribbon and the grey band share FIELD units: the ribbon is the linear part
+  2*min(|E_s|, |E_d|), the grey band the delay arm's circular remainder |E_d| - |E_s|, both
+  over one peak. So the field drops to about half at t_cut, as it must when one of two
+  equal counter-rotating arms vanishes. (An earlier version drew the ribbon as a windowed
+  intensity and the grey band as a field, which hid that drop.)
 * The bold ribbon edge follows the arrow rule (an edge is bold where its tangential arrow
   points down the page), with the sense frozen once per column; it is what shows the
   direction of rotation and column (c)'s reversal.
 * In column (c) the shaper arm's duration goes as 1/beta, so both arms span the same
   frequency range: a grating pair re-times light, it cannot add bandwidth.
-* Past t_cut only the delay arm survives (a circular field, no torque); column (d) draws
-  nothing there on purpose.
+* Past t_cut only the delay arm survives (a circular field, no torque). Column (b) draws
+  it as a flat grey shaded envelope, distinct from the ribbon; circular remainders
+  elsewhere, including column (a)'s tail, are left out as clutter. It is deliberately NOT a helix: a drawn
+  winding would read as a corkscrew turning rate, but a circular field turns at the
+  optical frequency, orders of magnitude faster than the centrifuge.
 Every axis is in arbitrary units; lobe widths, delays and turn counts are exaggerated for
 legibility and are not calibrations.
 """
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.collections import LineCollection, PolyCollection
-from matplotlib.colors import LinearSegmentedColormap, to_rgb, to_rgba
+from matplotlib.colors import LinearSegmentedColormap, to_rgba
 from matplotlib.gridspec import GridSpec
 from matplotlib.patches import Rectangle
 
@@ -57,15 +66,15 @@ GAMMA0 = 0.10                # base TOD: enough that the ridges are visibly quad
 ENV_W = 0.34                 # Gaussian 1/e half-width of the pulse envelope
 
 # per column: delay dt, extra shaper chirp dbeta, extra shaper TOD dgamma, cut time t_cut
+# One ultraslow centrifuge, drawn whole and truncated. dt and dbeta put the zero of Omega
+# near the leading edge of the overlap window, so the corkscrew starts slow and accelerates.
+US_DT, US_DBETA = 0.13, 0.30
 COLUMNS = [
-    dict(label="(a)", dt=0.11, dbeta=0.0, dgamma=0.0, t_cut=None, show=()),
-    # (b) has the most widely separated arms and so sets the frame for every column
-    dict(label="(b)", dt=0.31, dbeta=0.0, dgamma=0.0, t_cut=None, show=("omega", "dt")),
-    # (c) keeps (a)'s delay, so it differs from (a) ONLY in the grating separation; the
-    # zero of Omega then sits off centre and the corkscrew turns, slows, stops and returns
-    dict(label="(c)", dt=0.11, dbeta=0.45, dgamma=0.0, t_cut=None, show=("dbeta",)),
-    # (d) cuts well inside the shaper lobe, mid-corkscrew
-    dict(label="(d)", dt=0.11, dbeta=0.0, dgamma=0.0, t_cut=0.13, show=()),
+    dict(labels=("(a1)", "(a2)"), dt=US_DT, dbeta=US_DBETA, dgamma=0.0, t_cut=None,
+         show=("dt", "dbeta")),
+    # (b) cuts well inside the shaper lobe, mid-corkscrew
+    dict(labels=("(b1)", "(b2)"), dt=US_DT, dbeta=US_DBETA, dgamma=0.0, t_cut=0.12,
+         show=()),
 ]
 
 SPREAD = 0.062               # instantaneous-frequency spread of each arm (exaggerated)
@@ -83,20 +92,26 @@ ISO_ELEV = 34.0              # rotation of the view about the propagation axis (
 LIGHT_OFFSET = 90.0          # shadow band offset from the edge-on pinch angle (deg)
 EDGE_LW = 1.15               # width of the traced edge helices where highlighted
 EDGE_DIM = 0.22              # weight an edge keeps where its arrow does not point down
+CIRC_COLOR = "#8a8a8a"       # the circular field: grey, so it reads apart from the ribbon
+CIRC_ALPHA = 0.35            # fill opacity of its envelope
+CIRC_LW = 0.45               # its envelope outline
+CIRC_END = 0.02              # envelope stops where it drops below this x ribbon peak
 
 # --- Annotation placement ----------------------------------------------------
 OMEGA_AT = -0.12             # time at which the 2*Omega split is measured (both arms bright)
 DT_AT = 0.21                 # time on the shaper ridge from which the delay is read off;
                              # above the 2*Omega bracket so the two marks do not cross
-DBETA_AT = (0.30, 0.50)      # times at which the steep and shallow chirps are labelled
+DBETA_AT = (0.42, 0.50)      # times at which the steep and shallow chirps are labelled
+DT_LABEL_OFFSET = (4.0, -4.0)  # Delta t label from the arrow's right end, points
 DBETA_S_OFFSET = (-17.0, -11.0)  # stand-off of the steep arm's label, points
 DBETA_D_XSHRINK = 0.35       # horizontal share of the shallow arm label's normal stand-off
 LABEL_CLEAR = 13.0           # label stand-off along the ridge NORMAL, display points
+PANEL_LABEL_AT = (3.0, -3.0)  # panel letter from the axes' top-left corner, points
 
 # --- Colours -----------------------------------------------------------------
 INK = PlotColor.BLACK        # labels, marks and the cut: the annotation layer
-ARM_D = "#b3261e"            # delay arm (red, L* ~40): survives the cut
-ARM_S = "#5b9ec9"            # shaper arm (blue, L* ~65): chirped and cut by the 4f line
+ARM_OUTLINE = INK            # both arm outlines: plain black
+SPECTRUM = ["#d7191c", "#f07c12", "#e3bb00", "#2ca02c", "#1f5fd6", "#6a2fb0"]  # low to high frequency
 RIBBON_LO, RIBBON_HI = "#7a3f10", "#e8b269"   # ribbon shading, dark to bright
 EDGE_COLOR = "#5c3008"       # the two traced ribbon-edge helices
 AXIS_GRAY = "#c0c0c0"        # the propagation axis the corkscrew winds around
@@ -148,21 +163,25 @@ def twist_phase(t, col):
     return TWIST_SCALE * (phase - phase[len(phase) // 2])
 
 
-def contour_taper(intensity):
-    """Window an envelope to reach zero exactly at the drawn contour level.
+def field_envelopes(t, col):
+    """Linear (ribbon) and circular (grey) envelopes of the two counter-rotating arms.
 
-    Linear in the intensity, so the ribbon closes to a finite-angle tip rather than a
-    blunt face (which only the truncated column may have).
+    Linear part 2*min(|E_s|, |E_d|), circular remainder |E_d| - |E_s|, both in field units
+    and normalized by the same peak, so the drop at t_cut is drawn to scale. Past t_cut the
+    shaper arm is zero. The circular part is kept only past t_cut, where the delay arm is
+    left on its own. The remainders elsewhere (including the untruncated column's tail)
+    are physical but would only clutter a schematic.
     """
-    w = np.clip((intensity - CONTOUR_LEVEL) / (1.0 - CONTOUR_LEVEL), 0.0, None)
-    return w / max(w.max(), 1e-12)
-
-
-def ribbon_envelope(t, col):
-    """Corkscrew envelope: alive only while BOTH arms are above the contour level."""
     (_, _, od, wed), (_, _, os_, wes) = arm_params(col)
-    both = np.minimum(envelope(t, od, wed) ** 2, envelope(t, os_, wes) ** 2)
-    return RIBBON_AMP * contour_taper(both)
+    e_d, e_s = envelope(t, od, wed), envelope(t, os_, wes)
+    if col["t_cut"] is not None:
+        e_s = np.where(t <= col["t_cut"], e_s, 0.0)
+        alone = t > col["t_cut"]
+    else:
+        alone = np.zeros_like(t, dtype=bool)
+    lin = 2.0 * np.minimum(e_s, e_d)
+    peak = lin.max()
+    return RIBBON_AMP * lin / peak, np.where(alone, RIBBON_AMP * (e_d - e_s) / peak, 0.0)
 
 
 def snap_cut(t, col):
@@ -190,11 +209,10 @@ def project(x, y, z):
     return x, y * np.cos(e) - z * np.sin(e), y * np.sin(e) + z * np.cos(e)
 
 
-def draw_ribbon(ax, t, col, cmap):
+def draw_ribbon(ax, t, col, cmap, env):
     """Draw the corkscrew as a depth-shaded helicoid twisting at Omega(t)."""
     s = np.linspace(-1.0, 1.0, NS)
     phi = twist_phase(t, col)
-    env = ribbon_envelope(t, col)
 
     T2, S2 = np.meshgrid(t, s)
     P2 = np.broadcast_to(phi, T2.shape)
@@ -260,8 +278,25 @@ def draw_ribbon(ax, t, col, cmap):
         ax.plot([xs[0, -1], xs[-1, -1]], [ys[0, -1], ys[-1, -1]], marker="",
                 color=INK, lw=1.0, zorder=5, solid_capstyle="butt")
 
-    # the propagation axis the corkscrew winds around
-    ax.plot([xs.min(), xs.max()], [0, 0], marker="", color=AXIS_GRAY, lw=0.5, zorder=0)
+    # the propagation axis the corkscrew winds around, across the whole window
+    ax.plot([t.min(), t.max()], [0, 0], marker="", color=AXIS_GRAY, lw=0.5, zorder=0)
+
+
+def draw_circular(ax, t, circ):
+    """The delay arm alone: a circularly polarized field, drawn as its envelope.
+
+    A shaded band between +-amplitude (a circle seen from any side spans +-a), with no
+    winding, since the field turns at the optical frequency. `circ` comes from
+    field_envelopes, in the ribbon's units; the band ends below CIRC_END of the ribbon peak.
+    """
+    sel = circ > CIRC_END * RIBBON_AMP
+    if not sel.any():
+        return
+    a = np.where(sel, circ, np.nan)
+    ax.fill_between(t, -a, a, facecolor=to_rgba(CIRC_COLOR, CIRC_ALPHA), edgecolor="none",
+                    zorder=2, rasterized=True)
+    for sgn in (+1.0, -1.0):
+        ax.plot(t, sgn * a, marker="", color=CIRC_COLOR, lw=CIRC_LW, zorder=4)
 
 
 def label_along_ridge(ax, t, w, at, txt, offset=None, ha="center", va="center",
@@ -294,20 +329,27 @@ def annotate_quantities(ax, t, col, wd, ws):
                     ha="right", va="center", color=INK, zorder=7)
 
     if "dt" in col["show"]:
-        # the arm delay, read along one frequency: the two arms reach it dt apart
-        w_ref = ws[int(np.argmin(np.abs(t - DT_AT)))]
+        # the arm delay, read along one frequency: the two arms reach it dt apart. At the
+        # common centre frequency the gap is exactly dt even when the chirps differ.
+        w_ref = 0.0 if col["dbeta"] else ws[int(np.argmin(np.abs(t - DT_AT)))]
         td = t[int(np.argmin(np.abs(wd - w_ref)))]
         ts = t[int(np.argmin(np.abs(ws - w_ref)))]
         ax.annotate("", xy=(td, w_ref), xytext=(ts, w_ref), arrowprops=arrow, zorder=7)
-        ax.annotate(r"$\Delta t$", xy=(0.5 * (td + ts), w_ref),
-                    xytext=(2, 0), textcoords="offset points",
-                    ha="center", va="bottom", color=INK, zorder=7)
+        # below and right of the arrow's delay-arm end, clear of both arms
+        ax.annotate(r"$\Delta t$", xy=(td, w_ref), xytext=DT_LABEL_OFFSET,
+                    textcoords="offset points", ha="left", va="top", color=INK, zorder=7)
 
     if "dbeta" in col["show"]:
         # name the two slopes, no leaders; the gap between the names is Delta beta
-        label_along_ridge(ax, t, ws, +DBETA_AT[0], r"$\beta+\Delta\beta$",
+        label_along_ridge(ax, t, ws, +DBETA_AT[0], r"$\beta_0+\Delta\beta$",
                           offset=DBETA_S_OFFSET, ha="right", va="center")
-        label_along_ridge(ax, t, wd, -DBETA_AT[1], r"$\beta$", x_shrink=DBETA_D_XSHRINK)
+        label_along_ridge(ax, t, wd, -DBETA_AT[1], r"$\beta_0$", x_shrink=DBETA_D_XSHRINK)
+
+
+def panel_label(ax, txt):
+    """Panel letter inside the top-left corner, which both rows leave empty."""
+    ax.annotate(txt, xy=(0, 1), xycoords="axes fraction", xytext=PANEL_LABEL_AT,
+                textcoords="offset points", ha="left", va="top", color=INK, zorder=8)
 
 
 def style_axes(ax):
@@ -319,10 +361,15 @@ def style_axes(ax):
         sp.set_linewidth(0.5)
 
 
-def density_layer(ax, dens, w_lim, color):
-    """One arm's density as a coloured alpha wash, so crossing arms both show."""
+def density_layer(ax, dens, w_lim, cmap, w_span):
+    """One arm's density as an alpha wash coloured by optical frequency (rows of `dens`).
+
+    The colour scale runs over w_span = (lo, hi), the frequencies inside the drawn outlines,
+    so the full spectrum shows within them rather than in the faint wings.
+    """
     rgba = np.zeros(dens.shape + (4,))
-    rgba[..., :3] = to_rgb(color)
+    w = np.linspace(-w_lim, w_lim, dens.shape[0])
+    rgba[..., :3] = cmap(np.clip((w - w_span[0]) / (w_span[1] - w_span[0]), 0.0, 1.0))[:, None, :3]
     rgba[..., 3] = np.clip(dens, 0, 1) ** DENS_GAMMA
     ax.imshow(rgba, origin="lower", aspect="auto", extent=[T_MIN, T_MAX, -w_lim, w_lim],
               interpolation="bilinear", zorder=1, rasterized=True)
@@ -330,6 +377,7 @@ def density_layer(ax, dens, w_lim, color):
 
 def main() -> None:
     ribbon_cmap = LinearSegmentedColormap.from_list("ribbon", [RIBBON_LO, RIBBON_HI])
+    spectrum_cmap = LinearSegmentedColormap.from_list("spectrum", SPECTRUM)
     t = np.linspace(T_MIN, T_MAX, NT)
     columns = [dict(c) for c in COLUMNS]
     for col in columns:                          # both rows use the same snapped cut
@@ -348,7 +396,7 @@ def main() -> None:
     # space. hspace = 0: each column reads as one panel about one pulse.
     fig = plt.figure(figsize=config.FIGURE_SIZES_IN[NAME], dpi=DPI)
     gs = GridSpec(2, len(columns), figure=fig, height_ratios=list(ROW_RATIO),
-                  hspace=0.0, wspace=0.07, left=0.045, right=0.992, top=0.915, bottom=0.105)
+                  hspace=0.0, wspace=0.07, left=0.06, right=0.992, top=0.985, bottom=0.09)
 
     for k, col in enumerate(columns):
         (bd, gd, od, wed), (bs, gs_, os_, wes) = arm_params(col)
@@ -366,16 +414,19 @@ def main() -> None:
             # the prism removes the shaper spectrum beyond omega_cut: mask on FREQUENCY
             w_cut = omega_of_t(np.array([col["t_cut"]]), bs, gs_, os_)[0]
             dens_s = dens_s_full * 0.5 * (1.0 - np.tanh((W - w_cut) / (0.55 * SPREAD)))
-        density_layer(axt, dens_s, w_lim, ARM_S)
-        density_layer(axt, dens_d, w_lim, ARM_D)
+        inside = w[np.maximum(dens_d, dens_s_full).max(axis=1) >= CONTOUR_LEVEL]
+        w_span = (inside.min(), inside.max())
+        density_layer(axt, dens_s, w_lim, spectrum_cmap, w_span)
+        density_layer(axt, dens_d, w_lim, spectrum_cmap, w_span)
 
         # Iso-intensity outline of each arm. The truncated arm's outline is contoured on
         # the UNMASKED density, clipped at omega_cut and closed with one straight rule,
         # so the severed side is flat, as the cut is.
-        for dens, c in ((dens_s_full, ARM_S), (dens_d, ARM_D)):
+        for dens, is_shaper in ((dens_s_full, True), (dens_d, False)):
+            c = ARM_OUTLINE
             cs = axt.contour(T, W, dens, levels=[CONTOUR_LEVEL], colors=[c],
                              linewidths=CONTOUR_LW, zorder=4)
-            if w_cut is not None and c == ARM_S:
+            if w_cut is not None and is_shaper:
                 cs.set_clip_path(Rectangle((T_MIN, -w_lim), T_MAX - T_MIN, w_cut + w_lim,
                                            transform=axt.transData))
                 live = dens_s_full[int(np.argmin(np.abs(w - w_cut)))] >= CONTOUR_LEVEL
@@ -385,24 +436,24 @@ def main() -> None:
                              lw=CONTOUR_LW, zorder=4, solid_capstyle="butt")
 
         if w_cut is not None:
-            axt.axhline(w_cut, marker="", color=INK, lw=0.7, ls=(0, (5, 2.5)), zorder=5)
+            # the cut shows as the shaper arm's flat edge; the dot pins it to t_cut
             axt.plot([col["t_cut"]], [w_cut], ls="", marker="o", ms=2.6, color=INK,
                      zorder=6, mec="none")
-            axt.annotate(r"$\omega_{\rm cut}$", xy=(T_MIN, w_cut), xytext=(3, 2.5),
-                         textcoords="offset points", color=INK, ha="left", va="bottom")
 
         axt.set_xlim(T_MIN, T_MAX)
         axt.set_ylim(-w_lim, w_lim)
         style_axes(axt)
-        axt.set_title(col["label"], color=INK, pad=3)
+        panel_label(axt, col["labels"][0])
         if k == 0:
-            axt.set_ylabel("Optical frequency", color=INK, labelpad=2)
+            axt.set_ylabel("optical frequency", color=INK, labelpad=5)
         annotate_quantities(axt, t, col, omega_of_t(t, bd, gd, od),
                             omega_of_t(t, bs, gs_, os_))
 
         # ---- bottom: the corkscrew, same time axis ----
         axb = fig.add_subplot(gs[1, k])
-        draw_ribbon(axb, t, col, ribbon_cmap)
+        lin, circ = field_envelopes(t, col)
+        draw_ribbon(axb, t, col, ribbon_cmap, lin)
+        draw_circular(axb, t, circ)
         if col["t_cut"] is not None:
             # right of the rule: the last lobe occupies the left side
             axb.annotate(r"$t_{\rm cut}$", xy=(col["t_cut"], RIBBON_AMP), xytext=(3, 0),
@@ -410,9 +461,10 @@ def main() -> None:
         axb.set_xlim(T_MIN, T_MAX)
         axb.set_ylim(-1.05 * RIBBON_AMP, 1.05 * RIBBON_AMP)
         style_axes(axb)
-        axb.set_xlabel("Time", color=INK, labelpad=1)
+        panel_label(axb, col["labels"][1])
+        axb.set_xlabel("time", color=INK, labelpad=4)
         if k == 0:
-            axb.set_ylabel("Corkscrew field", color=INK, labelpad=2)
+            axb.set_ylabel("centrifuge field", color=INK, labelpad=5)
 
         # the t_cut rule spans both rows: release is one instant on one time axis
         if col["t_cut"] is not None:

@@ -15,26 +15,33 @@ XCORR_SCAN_L = DATA_ROOT / "20260825" / "XCORR_scan_L_20260825_200235.h5"
 XCORR_SCAN_D = DATA_ROOT / "20260831" / "XCORR_scan_d_20260831_131421.h5"
 JET_ROOT = DATA_ROOT / "Jet"
 TRUNCATION_ROOT = DATA_ROOT / "truncation"
+XCORR_DEMO_ROOT = Path(r"Z:\Droplets\20261015\XCORR\Accelerating")
 
 # --- Figure sizes (inches) ---------------------------------------------------
-# Each figure is saved at exactly its V28 size so the manuscript layout does not move.
+# Each figure is saved at exactly this size and included at the column width (3.375 in), so 1:1.
 FIGURE_SIZES_IN: dict[str, tuple[float, float]] = {
-    "cfg_arms_truncation": (6.75, 2.55),
+    "cfg_arms_truncation": (3.375, 2.55),        # two columns, single-column figure
     "fig_char_fitdemo": (3.2514, 2.1888),
     "fig_char_freqtime": (3.3797, 3.8827),
-    "fig_char_scans": (6.1601, 2.9972),
+    "fig_char_scans": (3.375, 1.75),             # two panels, single column
+    "fig_char_todcomp": (3.375, 3.0),            # (a) measured, (b) and (c) to be measured
     "fig_char_truncation": (3.4, 5.2),
-    "fig_jet_oscillations": (3.375, 5.15),
+    "fig_char_xcorr_truncation": (3.375, 1.9),   # the two truncated xcorrs, single column
+    "fig_char_xcorr_demo": (3.375, 2.2),         # full and truncated xcorr, one axis
+    "fig_char_xcorr_demo_swapped": (3.375, 2.2), # the same, colours swapped (figures/xcorr_alternatives)
+    "fig_char_xcorr": (7.0, 2.6),                # the two above merged: demo full width, edges inset
+    "fig_char_xcorr_swapped": (7.0, 2.6),        # the same, colours swapped, stacked under it
+    "fig_jet_oscillations": (3.375, 3.6),        # (a) jet, (b) its STFT
     "fig_jet_truncation": (3.375, 2.5),
-    "fig_TOD_Compensation": (3.375, 2.5),
+    "fig_TOD_Compensation": (3.375, 2.2),        # three power spectra, one axis
 }
 
-# --- Style (manuscript_plotting_scripts/figuremaker.py) -----------------------
+# --- Style (figuremaker.py, with text at manuscript size: 9 pt labels, 8 pt ticks) ---
 mpl.rcParams.update({
     
     # --- Axes ---
     "axes.titlesize": "medium",
-    "axes.labelsize": 6,
+    "axes.labelsize": 9,
     "axes.formatter.use_mathtext": True,
     "axes.linewidth": 0.5,
     "axes.grid": True,
@@ -70,9 +77,9 @@ mpl.rcParams.update({
     #"xtick.major.top": True,
     "xtick.major.bottom": True,
     "xtick.minor.bottom": True,
-    "xtick.major.pad": 5.0,
+    "xtick.major.pad": 3.0,
     "xtick.minor.pad": 5.0,
-    "xtick.labelsize": 6,
+    "xtick.labelsize": 8,
 
     # --- Ticks (Y) ---
     "ytick.left": True,
@@ -88,19 +95,19 @@ mpl.rcParams.update({
     #"ytick.minor.left": True,
     "ytick.major.pad": 2.0,
     #"ytick.minor.pad": 5.0,
-    "ytick.labelsize": 6,
+    "ytick.labelsize": 8,
     
     
     # --- Legend ---
     "legend.frameon": True,
-    "legend.fontsize": 6,
+    "legend.fontsize": 8,
     "legend.handlelength": 1.375,
     "legend.labelspacing": 0.4,
     "legend.columnspacing": 1,
     "legend.facecolor": "white",
     "legend.edgecolor": "white",
     "legend.framealpha": 1,
-    "legend.title_fontsize": 6,
+    "legend.title_fontsize": 8,
  
     # --- Figure size ---
     #"figure.figsize": (3.375, 3),
@@ -111,7 +118,7 @@ mpl.rcParams.update({
     "figure.subplot.right": 0.95,
 
     # --- Fonts (computer modern) ---
-    "font.size": 6,
+    "font.size": 9,
     "text.usetex": True,      
     #"mathtext.fontset": "cm",
     "font.family": "serif",
