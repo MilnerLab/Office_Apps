@@ -34,15 +34,15 @@ for i,j in enumerate(j_arr):
         transitions[i] = mol.twophoton(ocs,j).value(Prefix.GIGA)
 
 
-folder_path = Path(r"Z:\Droplets\20261026\Scan3_FREQ")
+folder_path = Path(r"Z:\Droplets\20261027\Scan14_FREQ")
 file_paths = DatFinder(folder_path,is_full_path=True).find_datafiles()
 
 config = IonDataAnalysisConfig(
     delay_center= Length(15.735, Prefix.MILLI),
-    center=Point(186,196),
+    center=Point(194,194),
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](30, 120),
-    transform_parameter=0.7)
+    transform_parameter=0.77)
 
 raw_scans = load_ion_data(file_paths)
 calculated_Scan = run_pipeline(raw_scans, [config])[0]
