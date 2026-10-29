@@ -263,7 +263,7 @@ def ray_fan():
 # ---- output corkscrew -----------------------------------------------------
 # Cut out of Fig. 2 of the usCFG paper (PRA 113, 033107), rotated to point along the output
 # beam. Its axis runs through the middle row of the image.
-CORKSCREW_PNG = PAPER / "figures" / "corkscrew_uscfg.png"
+CORKSCREW_PNG = config.FIGURES_DIR / "corkscrew_uscfg.png"
 
 
 def corkscrew(xa, xb, y0):

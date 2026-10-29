@@ -241,9 +241,7 @@ def load_oscillations() -> AveragedScan:
     files = sorted(glob.glob(os.path.join(OSC_DIR, "*_ScanFile.dat")))
     if not files:
         raise FileNotFoundError(OSC_DIR)
-    # The lab loader carries an IonDataAnalysisConfig for provenance only; these files
-    # are already reduced by the acquisition VI, so there is none to give it.
-    scans = [load_time_scan(Path(f), None) for f in files]
+    scans = [load_time_scan(Path(f)) for f in files]
     ts = np.array([[d.value(Prefix.PICO) for d in s.delays] for s in scans])
     if not np.allclose(ts, ts[0]):
         raise ValueError("the oscillation scans do not share a delay grid")
