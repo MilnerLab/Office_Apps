@@ -56,9 +56,9 @@ def main() -> None:
     ax[1].plot(tb, np.abs(beat(tb - shift)), ls="-", marker="", lw=1.6, color=C_XC)
     ax[1].set_axisbelow(False)                          # grid over the image, joining (a)'s
     ax[1].set_ylim(0, jet.FMAX_GHZ)
-    ax[1].set_ylabel(r"$\langle\cos^2\theta_{\rm 2D}\rangle$ oscillation" "\n"
-                     r"frequency (GHz)")
-    ax[1].set_xlabel("probe delay (ps)")
+    ax[1].set_ylabel(r"$\langle\cos^2\theta_{\rm 2D}\rangle$ Oscillation" "\n"
+                     r"Frequency (GHz)")
+    ax[1].set_xlabel("Probe Delay (ps)")
     ax[1].text(.025, .895, r"\textbf{(b)}", transform=ax[1].transAxes, va="top",
                color=PlotColor.WHITE)
 

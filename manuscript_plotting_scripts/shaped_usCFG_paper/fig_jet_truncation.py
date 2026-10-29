@@ -34,7 +34,7 @@ def main() -> None:
         e = np.array([m.error for m in tr.measured_values])
         ax.errorbar(t, y, yerr=e, fmt="-", marker=mk, ms=2.4, mew=0, color=col, ecolor=col)
     ax.axhline(0.5, ls=":", marker="", color=PlotColor.GRAY)
-    ax.set_xlabel("probe delay (ps)")
+    ax.set_xlabel("Probe Delay (ps)")
     ax.set_ylabel(r"$\langle\cos^2\theta_{\rm 2D}\rangle$")
     ax.set_xlim(-520, 1570)
     ax.set_ylim(0.4975, 0.5625)

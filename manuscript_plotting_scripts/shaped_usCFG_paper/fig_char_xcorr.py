@@ -1,13 +1,15 @@
-"""Figs. 4 and 5 merged into one double-wide figure (Ian's review, 2026-10).
+"""Figs. 4 and 5 merged into one single-column figure (Ian's review, 2026-10).
 
-The full and truncated cross-correlation of one accelerating centrifuge across the full
-width (fig_char_xcorr_demo.draw), with the two truncation edges as a narrow inset in its
-empty upper right (fig_char_xcorr_truncation.draw). This script only places the two panels.
+The full and truncated cross-correlation of one accelerating centrifuge
+(fig_char_xcorr_demo.draw), with the two truncation edges as an inset
+(fig_char_xcorr_truncation.draw, black and red lines). The time axis runs past the end of
+the traces to leave the upper right empty for the inset, rather than squeezing the traces
+vertically. This script only places the two panels.
 
     python -m manuscript_plotting_scripts.shaped_usCFG_paper.fig_char_xcorr [--flip]
 
 ``--flip`` draws the full trace red and solid instead (Ian's colour suggestion) and saves
-fig_char_xcorr_swapped, which the paper stacks under the unswapped one.
+fig_char_xcorr_swapped.
 """
 import sys
 
@@ -18,21 +20,24 @@ from manuscript_plotting_scripts.shaped_usCFG_paper import fig_char_xcorr_demo a
 from manuscript_plotting_scripts.shaped_usCFG_paper import fig_char_xcorr_truncation as trunc
 
 NAME = "fig_char_xcorr"
-Y_TOP = 1.5                           # headroom above the full trace for the inset
-INSET = (0.775, 0.585, 0.215, 0.40)   # axes fraction: x0, y0, width, height
+X_LIM = (-300, 400)                   # ps; the traces end at +301 ps, the inset sits beyond
+INSET = (0.715, 0.45, 0.255, 0.51)    # axes fraction: x0, y0, width, height
 
 
 def main(flip: bool = False) -> None:
     fig, ax = plt.subplots(figsize=config.FIGURE_SIZES_IN[NAME], layout="constrained")
     demo.draw(ax, flip=flip)
-    ax.set_ylim(0, Y_TOP)
+    ax.set_xlim(*X_LIM)
     b = ax.inset_axes(INSET)
-    trunc.draw(b, ms=1.3)
+    trunc.draw(b, lines=True)
     b.set_xlim(-20, 20)
     b.set_xticks([-20, 0, 20])
-    b.tick_params(labelsize=7)
-    b.xaxis.label.set_fontsize(8)
-    b.set_ylabel("")                  # same quantity as the main axis; the caption gives the normalization
+    b.set_yticks([0, 1])
+    b.tick_params(labelsize=7, pad=1.5)
+    for a in (b.xaxis, b.yaxis):
+        a.label.set_fontsize(7)
+    b.xaxis.labelpad = 1
+    b.yaxis.labelpad = 1
     config.save_figure(fig, NAME + ("_swapped" if flip else ""))
 
 

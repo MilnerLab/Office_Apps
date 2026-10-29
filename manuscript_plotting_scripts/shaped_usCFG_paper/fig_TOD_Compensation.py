@@ -242,7 +242,7 @@ def main() -> None:
                 color=col, zorder=3)
     ax.set_xlim(*PLOT_WINDOW_GHZ)
     ax.set_ylim(0, 1.05)
-    ax.set_xlabel("frequency (GHz)")
+    ax.set_xlabel("Frequency (GHz)")
     ax.set_ylabel("Power (arb. u.)")
     config.save_figure(fig, NAME)
 

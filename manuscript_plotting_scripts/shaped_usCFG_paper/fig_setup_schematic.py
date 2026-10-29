@@ -9,17 +9,30 @@ axis between L1 and L2, and refocus on the focal plane of L2 (L = 0).
 """
 import math
 import os
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
 
-PAPER = Path(r"D:\Documents\University\UBC research\2026\MilnerLab code\Latex\shaped_usCFG_paper")
-SVG = PAPER / "figures" / "fig_setup_schematic.svg"
-PDF = PAPER / "figures" / "fig_setup_schematic.pdf"
-INKSCAPE = Path(r"C:\Program Files\Inkscape\bin\inkscape.exe")
+from manuscript_plotting_scripts.shaped_usCFG_paper import config
+
+SVG = config.FIGURES_DIR / "fig_setup_schematic.svg"
+PDF = config.FIGURES_DIR / "fig_setup_schematic.pdf"
+INKSCAPE = Path(shutil.which("inkscape") or r"C:\Program Files\Inkscape\bin\inkscape.exe")
+
+
+def _cmu_dir() -> Path:
+    """The TeX distribution's CMU fonts, found with kpsewhich wherever TeX is installed."""
+    try:
+        hit = subprocess.run(["kpsewhich", "cmunrm.otf"], capture_output=True, text=True).stdout.strip()
+    except OSError:
+        hit = ""
+    return Path(hit).parent if hit else Path(r"C:\texlive\2025\texmf-dist\fonts\opentype\public\cm-unicode")
+
+
 # Computer Modern, to match the manuscript and the matplotlib figures. CMU Serif ships with
 # TeX Live, so Inkscape is pointed at it through a fontconfig file rather than an install.
-CMU_DIR = Path(r"C:\texlive\2025\texmf-dist\fonts\opentype\public\cm-unicode")
+CMU_DIR = _cmu_dir()
 FONTS_CONF = ('<?xml version="1.0"?><fontconfig>'
               f'<include ignore_missing="yes">{INKSCAPE.parents[1] / "etc" / "fonts" / "fonts.conf"}</include>'
               f'<dir>{CMU_DIR}</dir></fontconfig>')

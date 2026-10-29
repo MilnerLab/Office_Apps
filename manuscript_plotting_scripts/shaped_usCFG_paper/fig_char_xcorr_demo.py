@@ -68,8 +68,8 @@ def draw(ax, flip: bool = False) -> float:
                 mfc=face, mec=col, color=col)
     ax.set_xlim(t.min() - t0, t.max() - t0)
     ax.set_ylim(0, 1.05)
-    ax.set_xlabel("probe delay (ps)")
-    ax.set_ylabel("XCORR signal (arb. u.)")
+    ax.set_xlabel("Probe Delay (ps)")
+    ax.set_ylabel("Intensity (arb. u.)")
     return t0
 
 

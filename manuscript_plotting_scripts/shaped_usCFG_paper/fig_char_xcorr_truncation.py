@@ -1,8 +1,8 @@
 """The two truncated cross-correlations.
 
 Panel (b) of fig_char_truncation on its own: the two truncated cross-correlations,
-normalised and drawn against the delay from their fitted cut, prism at 12.86 mm (orange)
-and 14.50 mm (green). The erfc fits set the cut but are not drawn. The marks are named in the caption, so the
+normalised and drawn against the delay from their fitted cut, prism at 12.86 mm (black)
+and 14.50 mm (red). The erfc fits set the cut but are not drawn. The marks are named in the caption, so the
 figure carries no legend.
 
 Data: Z:\Droplets\shaped_usCFG_paper\truncation (xcorr\Scan8/Scan9 truncated
@@ -17,12 +17,12 @@ from manuscript_plotting_scripts.shaped_usCFG_paper import config
 from manuscript_plotting_scripts.shaped_usCFG_paper.domain import truncation
 
 NAME = "fig_char_xcorr_truncation"
-C_EDGE = {12.86: "tab:orange", 14.50: PlotColor.GREEN}   # caption: orange, green
+C_EDGE = {12.86: PlotColor.BLACK, 14.50: PlotColor.RED}   # caption: black, red
 
 
-def draw(b, ms: float = 1.9) -> None:
+def draw(b, ms: float = 1.9, lines: bool = False) -> None:
     """The two edges on ``b``, each against the delay from its fitted cut. No error bars, as
-    in the main panel of fig_char_xcorr, which draws this as its inset."""
+    in the main panel of fig_char_xcorr, which draws this as its inset with ``lines``."""
     k = truncation.calibrate()
     for E in k["edges"]:
         col = C_EDGE[round(E.prism.value(Prefix.MILLI), 2)]
@@ -30,11 +30,12 @@ def draw(b, ms: float = 1.9) -> None:
         t = np.array([d.value(Prefix.PICO) for d in E.delays])
         y = np.array([m.value for m in E.measured_values])
         tc, lo, hi = F.tc.value(Prefix.PICO), F.post, F.pre
-        b.plot(t - tc, (y - lo) / (hi - lo), ls="", marker="o", ms=ms, mew=0, color=col)
+        style = dict(ls="-", lw=0.8, marker="") if lines else dict(ls="", marker="o", ms=ms, mew=0)
+        b.plot(t - tc, (y - lo) / (hi - lo), color=col, **style)
     b.set_xlim(-22, 22)
     b.set_ylim(-0.08, 1.45)
-    b.set_xlabel("delay from the cut (ps)")
-    b.set_ylabel("XCORR signal (arb. u.)")
+    b.set_xlabel("Time (ps)")
+    b.set_ylabel("Intensity")
 
 
 def main() -> None:

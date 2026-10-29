@@ -29,8 +29,8 @@ FIGURE_SIZES_IN: dict[str, tuple[float, float]] = {
     "fig_char_xcorr_truncation": (3.375, 1.9),   # the two truncated xcorrs, single column
     "fig_char_xcorr_demo": (3.375, 2.2),         # full and truncated xcorr, one axis
     "fig_char_xcorr_demo_swapped": (3.375, 2.2), # the same, colours swapped (figures/xcorr_alternatives)
-    "fig_char_xcorr": (7.0, 2.6),                # the two above merged: demo full width, edges inset
-    "fig_char_xcorr_swapped": (7.0, 2.6),        # the same, colours swapped, stacked under it
+    "fig_char_xcorr": (3.375, 2.4),              # the two above merged: single column, edges inset
+    "fig_char_xcorr_swapped": (3.375, 2.4),      # the same, colours swapped
     "fig_jet_oscillations": (3.375, 3.6),        # (a) jet, (b) its STFT
     "fig_jet_truncation": (3.375, 2.5),
     "fig_TOD_Compensation": (3.375, 2.2),        # three power spectra, one axis

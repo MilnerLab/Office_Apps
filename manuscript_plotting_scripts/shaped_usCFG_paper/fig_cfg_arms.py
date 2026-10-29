@@ -445,7 +445,7 @@ def main() -> None:
         style_axes(axt)
         panel_label(axt, col["labels"][0])
         if k == 0:
-            axt.set_ylabel("optical frequency", color=INK, labelpad=5)
+            axt.set_ylabel("Optical Frequency", color=INK, labelpad=5)
         annotate_quantities(axt, t, col, omega_of_t(t, bd, gd, od),
                             omega_of_t(t, bs, gs_, os_))
 
@@ -462,9 +462,9 @@ def main() -> None:
         axb.set_ylim(-1.05 * RIBBON_AMP, 1.05 * RIBBON_AMP)
         style_axes(axb)
         panel_label(axb, col["labels"][1])
-        axb.set_xlabel("time", color=INK, labelpad=4)
+        axb.set_xlabel("Time", color=INK, labelpad=4)
         if k == 0:
-            axb.set_ylabel("centrifuge field", color=INK, labelpad=5)
+            axb.set_ylabel("Centrifuge Field", color=INK, labelpad=5)
 
         # the t_cut rule spans both rows: release is one instant on one time axis
         if col["t_cut"] is not None:
