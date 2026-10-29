@@ -24,7 +24,7 @@ NAME = "fig_char_xcorr"
 X_LIM = (-270, 400)                 # ps; the traces end at +301 ps, the inset sits beyond
 INSET_W, INSET_H = 0.23, 0.33       # axes fraction
 INSET_GAP_PT = 6.0                  # inset frame to the main frame's right edge and to its 1.0 grid line
-
+INSET_TOP_GAP_FRACTION = -0.5       # if you want the gap to the top (1.0 line) to be different from the gap to the right 
 
 def inset_bounds(fig, ax) -> tuple[float, float, float, float]:
     """Inset (x0, y0, w, h) in axes fraction, its top right corner INSET_GAP_PT from the
@@ -33,7 +33,7 @@ def inset_bounds(fig, ax) -> tuple[float, float, float, float]:
     fig.canvas.draw()                                   # settle the constrained layout first
     bb, gap = ax.get_window_extent(), INSET_GAP_PT * fig.dpi / 72
     right = 1 - gap / bb.width
-    top = ax.transAxes.inverted().transform(ax.transData.transform((0, 1.0)))[1] - gap / bb.height
+    top = ax.transAxes.inverted().transform(ax.transData.transform((0, 1.0)))[1] - gap*INSET_TOP_GAP_FRACTION / bb.height
     return right - INSET_W, top - INSET_H, INSET_W, INSET_H
 
 

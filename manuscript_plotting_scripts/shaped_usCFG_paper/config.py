@@ -136,3 +136,5 @@ def save_figure(fig: Figure, name: str) -> Path:
 
 
 TEMP_DIR.mkdir(parents=True, exist_ok=True)
+
+print("Figure saved in",FIGURES_DIR)
