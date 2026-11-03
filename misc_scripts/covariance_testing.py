@@ -1,6 +1,8 @@
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.widgets import Button, CheckButtons, TextBox
 
 from _data_io.dat_finder import DatFinder
 from _data_io.dat_loader import load_ion_data
@@ -13,6 +15,56 @@ from base_core.math.special_models import AngularCovariance
 from base_core.plotting.covariance_plotting import plot_covariance
 from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Length
+
+
+# ============================================================
+# Defaults (all editable on the figure)
+# ============================================================
+# Either a single .dat file or a folder of data files
+DEFAULT_PATH = r"Z:\Droplets\20261103\ProbeOnly\20261103132926DLY__15p7950mm.dat"
+
+# (label, default) for each widget in the right-hand column
+CONFIG_DEFAULTS = {
+    "delay_center": ("Delay center (mm) ", 93.3),
+    "center_x": ("Center x ", 98),
+    "center_y": ("Center y ", 102),
+    "angle": ("Angle (deg) ", 12),
+    "zone_min": ("Zone min ", 10),
+    "zone_max": ("Zone max ", 120),
+    "transform_parameter": ("ScaleX ", 0.76),
+    "scan_index": ("Scan index ", 0),
+    "ion_data_index": ("IonData index ", 0),
+}
+
+# (label, default) for the AngularCovariance widgets; leave a radial box blank for no radial cut
+COVARIANCE_DEFAULTS = {
+    "angle_bins": ("Angle bins ", "180"),
+    "radial_min": ("Radial min ", ""),
+    "radial_max": ("Radial max ", ""),
+}
+DEFAULT_BINARY_PER_FRAME = False
+
+# Optional alternative:
+# set this to a concrete stage position if you want to select by value
+TARGET_STAGE_POSITION = None
+# example:
+# TARGET_STAGE_POSITION = Length(0.0, Prefix.MILLI)
+
+
+def build_config(values: dict[str, float]) -> IonDataAnalysisConfig:
+    return IonDataAnalysisConfig(
+        delay_center=Length(values["delay_center"], Prefix.MILLI),
+        center=Point(values["center_x"], values["center_y"]),
+        angle=Angle(values["angle"], AngleUnit.DEG),
+        analysis_zone=Range[int](int(values["zone_min"]), int(values["zone_max"])),
+        transform_parameter=values["transform_parameter"],
+    )
+
+
+def find_file_paths(path: Path) -> list[list[Path]]:
+    if path.is_file():
+        return [[path]]
+    return DatFinder(path, is_full_path=True).find_datafiles()
 
 
 def select_ion_data_by_index(raw_scan, index: int):
@@ -30,73 +82,21 @@ def select_ion_data_by_stage_position(raw_scan, target_stage_position):
     raise ValueError(f"No IonData found for stage_position={target_stage_position}")
 
 
-def main() -> None:
-    # ============================================================
-    # Input
-    # ============================================================
-    folder_path = Path(
-        r"Z:\Droplets\20260909\Scan1_Probe"
-    )
-    #file_paths = DatFinder(folder_path, is_full_path=True).find_datafiles()
-    file_paths = r"Z:\Droplets\20260909131239.dat"
-    
-
-    config = IonDataAnalysisConfig(
-        delay_center=Length(93.3, Prefix.MILLI),
-        center=Point(100,100),
-        angle=Angle(12, AngleUnit.DEG),
-        analysis_zone=Range[int](10, 120),
-        #analysis_zone=Range[int](25, 65),
-        transform_parameter=0.76,
-    )
-    
-    ''' config = IonDataAnalysisConfig(
-        delay_center=Length(93.3, Prefix.MILLI),
-        center=Point(150, 145),
-        angle=Angle(12, AngleUnit.DEG),
-        analysis_zone=Range[int](40, 90),
-        #analysis_zone=Range[int](15, 35),
-        transform_parameter=0.9,
-    )'''
-
-    # ============================================================
-    # Selection settings
-    # ============================================================
-    SCAN_INDEX = 0
-    ION_DATA_INDEX = 0
-
-    # Optional alternative:
-    # set this to a concrete stage position if you want to select by value
-    TARGET_STAGE_POSITION = None
-    # example:
-    # TARGET_STAGE_POSITION = Length(0.0, Prefix.MILLI)
-
+def load_selected_ion_data(path: Path, scan_index: int, ion_data_index: int):
     # ============================================================
     # Load data
     # ============================================================
-    
-    ''' output = IonData(id=0,stage_position=0,ions_per_frame=hits.avg_points_per_marker(),points=hits,)
-                )
-    
-            raw_scans.append(
-                RawScanData(
-                    run_id=output[0].id,
-                    ion_datas=output,
-                    number_of_scans=number_of_scans,
-                )
-            )'''
-    
-    raw_scans = load_ion_data(file_paths)
+    raw_scans = load_ion_data(find_file_paths(path))
 
-    if SCAN_INDEX < 0 or SCAN_INDEX >= len(raw_scans):
+    if scan_index < 0 or scan_index >= len(raw_scans):
         raise IndexError(
-            f"SCAN_INDEX={SCAN_INDEX} out of range for {len(raw_scans)} raw_scans."
+            f"SCAN_INDEX={scan_index} out of range for {len(raw_scans)} raw_scans."
         )
 
-    raw_scan = raw_scans[SCAN_INDEX]
+    raw_scan = raw_scans[scan_index]
 
     print(f"Loaded {len(raw_scans)} scans.")
-    print(f"Selected scan {SCAN_INDEX} with {len(raw_scan.ion_datas)} ion_datas.\n")
+    print(f"Selected scan {scan_index} with {len(raw_scan.ion_datas)} ion_datas.\n")
 
     print("Available ion_datas:")
     for i, ion_data in enumerate(raw_scan.ion_datas):
@@ -111,11 +111,27 @@ def main() -> None:
     if TARGET_STAGE_POSITION is not None:
         ion_data = select_ion_data_by_stage_position(raw_scan, TARGET_STAGE_POSITION)
     else:
-        ion_data = select_ion_data_by_index(raw_scan, ION_DATA_INDEX)
+        ion_data = select_ion_data_by_index(raw_scan, ion_data_index)
 
     print("\nSelected ion_data:")
     print(f"stage_position={ion_data.stage_position}")
+    return ion_data
 
+
+def calculate_centroid(ion_data) -> Point:
+    # Mean position of all raw hits, in detector coordinates
+    return Point(float(np.mean(ion_data.points.x)), float(np.mean(ion_data.points.y)))
+
+
+def build_radial_range(radial_min: str, radial_max: str) -> Range[float] | None:
+    if not radial_min.strip() and not radial_max.strip():
+        return None
+    if not radial_min.strip() or not radial_max.strip():
+        raise ValueError("Set both radial min and max, or leave both blank.")
+    return Range[float](float(radial_min), float(radial_max))
+
+
+def plot_ions_and_covariance(fig, ax_l, ax_r, ion_data, config: IonDataAnalysisConfig, angle_bins: int, radial_range: Range[float] | None, binary_per_frame: bool):
     # ============================================================
     # Prepare hits
     # ============================================================
@@ -133,9 +149,9 @@ def main() -> None:
     # ============================================================
     cov = AngularCovariance.compute_covariance(
         hits,
-        angle_bins=180,
-        radial_range=None,
-        binary_per_frame=False,
+        angle_bins=angle_bins,
+        radial_range=radial_range,
+        binary_per_frame=binary_per_frame,
     )
 
     print(f"Computed covariance with n_frames={cov.n_frames}")
@@ -143,13 +159,6 @@ def main() -> None:
     # ============================================================
     # Plot ions + covariance
     # ============================================================
-    fig, (ax_l, ax_r) = plt.subplots(
-        1,
-        2,
-        figsize=(11, 5),
-        constrained_layout=True,
-    )
-
     plot_ions_square(
         ax_l,
         hits,
@@ -158,7 +167,6 @@ def main() -> None:
     )
     ax_l.set_title(
         "Ions\n"
-        f"stage_position={ion_data.stage_position}, "
         f"markers={hits.marker_max}, hits={len(hits)}"
     )
     ax_l.set_aspect("equal")
@@ -166,22 +174,100 @@ def main() -> None:
     mesh = plot_covariance(ax_r, cov)
     ax_r.set_title(
         "Angular covariance\n"
-        f"stage_position={ion_data.stage_position}, "
         f"frames={cov.n_frames}"
     )
-    fig.colorbar(mesh, ax=ax_r, label="covariance")
+    return fig.colorbar(mesh, ax=ax_r, label="covariance")
 
-    plt.show()
+
+def main() -> None:
+    fig, (ax_l, ax_r) = plt.subplots(1, 2, figsize=(14, 6))
+    # Reserve room for the widgets below and to the right
+    fig.subplots_adjust(left=0.05, bottom=0.18, right=0.76, wspace=0.3)
+
+    def column_axes(row: int):
+        return fig.add_axes((0.88, 0.88 - 0.06 * row, 0.08, 0.045))
+
+    config_boxes = {}
+    for i, (key, (label, default)) in enumerate(CONFIG_DEFAULTS.items()):
+        config_boxes[key] = TextBox(column_axes(i), label, initial=str(default))
+
+    covariance_boxes = {}
+    for i, (key, (label, default)) in enumerate(COVARIANCE_DEFAULTS.items(), start=len(config_boxes)):
+        covariance_boxes[key] = TextBox(column_axes(i), label, initial=default)
+
+    binary_axes = column_axes(len(config_boxes) + len(covariance_boxes))
+    binary_axes.set_frame_on(False)
+    binary_check = CheckButtons(binary_axes, ["Binary per frame"], [DEFAULT_BINARY_PER_FRAME])
+
+    path_box = TextBox(fig.add_axes((0.08, 0.03, 0.47, 0.05)), "Path ", initial=DEFAULT_PATH)
+    auto_center_button = Button(fig.add_axes((0.58, 0.03, 0.11, 0.05)), "Auto center")
+    refresh_button = Button(fig.add_axes((0.71, 0.03, 0.11, 0.05)), "Refresh")
+    save_button = Button(fig.add_axes((0.84, 0.03, 0.11, 0.05)), "Save")
+
+    def read_values() -> dict[str, float]:
+        return {key: float(box.text) for key, box in config_boxes.items()}
+
+    def read_ion_data(values: dict[str, float]):
+        return load_selected_ion_data(
+            Path(path_box.text.strip()),
+            int(values["scan_index"]),
+            int(values["ion_data_index"]),
+        )
+
+    colorbars = []
+
+    def on_refresh(event):
+        for colorbar in colorbars:
+            colorbar.remove()
+        colorbars.clear()
+        ax_l.clear()
+        ax_r.clear()
+        try:
+            values = read_values()
+            colorbars.append(plot_ions_and_covariance(
+                fig,
+                ax_l,
+                ax_r,
+                read_ion_data(values),
+                build_config(values),
+                int(covariance_boxes["angle_bins"].text),
+                build_radial_range(covariance_boxes["radial_min"].text, covariance_boxes["radial_max"].text),
+                binary_check.get_status()[0],
+            ))
+        except Exception as e:
+            ax_l.set_title(f"Error: {e}", color="r")
+        fig.canvas.draw_idle()
+
+    def on_auto_center(event):
+        try:
+            centroid = calculate_centroid(read_ion_data(read_values()))
+        except Exception as e:
+            ax_l.set_title(f"Error: {e}", color="r")
+            fig.canvas.draw_idle()
+            return
+        print(f"Centroid: ({centroid.x:.1f}, {centroid.y:.1f})")
+        config_boxes["center_x"].set_val(f"{centroid.x:.1f}")
+        config_boxes["center_y"].set_val(f"{centroid.y:.1f}")
+        on_refresh(event)
 
     # ============================================================
     # Save single plot
     # ============================================================
-    out_dir = folder_path / "single_covariance_with_ions"
-    out_dir.mkdir(parents=True, exist_ok=True)
+    def on_save(event):
+        path = Path(path_box.text.strip())
+        out_dir = (path.parent if path.is_file() else path) / "single_covariance_with_ions"
+        out_dir.mkdir(parents=True, exist_ok=True)
 
-    out_path = out_dir / "selected_iondata_covariance.png"
-    fig.savefig(out_path, dpi=150)
-    print(f"Saved plot to: {out_path}")
+        out_path = out_dir / "selected_iondata_covariance.png"
+        fig.savefig(out_path, dpi=150)
+        print(f"Saved plot to: {out_path}")
+
+    refresh_button.on_clicked(on_refresh)
+    save_button.on_clicked(on_save)
+    auto_center_button.on_clicked(on_auto_center)
+    on_refresh(None)
+
+    plt.show()
 
 
 if __name__ == "__main__":
