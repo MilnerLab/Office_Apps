@@ -1,3 +1,4 @@
+from dataclasses import replace
 from pathlib import Path
 import tkinter as tk
 from tkinter import filedialog
@@ -45,6 +46,7 @@ COVARIANCE_DEFAULTS = {
     "radial_max": ("Radial max ", ""),
 }
 DEFAULT_BINARY_PER_FRAME = False
+DEFAULT_NORMALIZE = True
 
 # Optional alternative:
 # set this to a concrete stage position if you want to select by value
@@ -152,7 +154,14 @@ def build_radial_range(radial_min: str, radial_max: str) -> Range[float] | None:
     return Range[float](float(radial_min), float(radial_max))
 
 
-def plot_ions_and_covariance(fig, ax_l, ax_r, ion_data, config: IonDataAnalysisConfig, angle_bins: int, radial_range: Range[float] | None, binary_per_frame: bool):
+def normalize_covariance(cov: AngularCovariance) -> AngularCovariance:
+    # Scale to [0, 1]; negatives are clipped, same as plot_covariance does by default
+    matrix = np.maximum(cov.matrix, 0.0)
+    peak = float(np.max(matrix)) if matrix.size else 0.0
+    return replace(cov, matrix=matrix / peak if peak > 0 else matrix)
+
+
+def plot_ions_and_covariance(fig, ax_l, ax_r, ion_data, config: IonDataAnalysisConfig, angle_bins: int, radial_range: Range[float] | None, binary_per_frame: bool, normalize: bool):
     # ============================================================
     # Prepare hits
     # ============================================================
@@ -192,12 +201,15 @@ def plot_ions_and_covariance(fig, ax_l, ax_r, ion_data, config: IonDataAnalysisC
     )
     ax_l.set_aspect("equal")
 
+    if normalize:
+        cov = normalize_covariance(cov)
+
     mesh = plot_covariance(ax_r, cov)
     ax_r.set_title(
         "Angular covariance\n"
         f"frames={cov.n_frames}"
     )
-    return fig.colorbar(mesh, ax=ax_r, label="covariance")
+    return fig.colorbar(mesh, ax=ax_r, label="normalized covariance" if normalize else "covariance")
 
 
 def main() -> None:
@@ -219,6 +231,10 @@ def main() -> None:
     binary_axes = column_axes(len(config_boxes) + len(covariance_boxes))
     binary_axes.set_frame_on(False)
     binary_check = CheckButtons(binary_axes, ["Binary per frame"], [DEFAULT_BINARY_PER_FRAME])
+
+    normalize_axes = column_axes(len(config_boxes) + len(covariance_boxes) + 1)
+    normalize_axes.set_frame_on(False)
+    normalize_check = CheckButtons(normalize_axes, ["Normalize"], [DEFAULT_NORMALIZE])
 
     path_box = TextBox(fig.add_axes((0.08, 0.03, 0.39, 0.05)), "Path ", initial=DEFAULT_PATH)
     browse_button = Button(fig.add_axes((0.48, 0.03, 0.08, 0.05)), "Browse...")
@@ -255,6 +271,7 @@ def main() -> None:
                 int(covariance_boxes["angle_bins"].text),
                 build_radial_range(covariance_boxes["radial_min"].text, covariance_boxes["radial_max"].text),
                 binary_check.get_status()[0],
+                normalize_check.get_status()[0],
             ))
         except Exception as e:
             ax_l.set_title(f"Error: {e}", color="r")
