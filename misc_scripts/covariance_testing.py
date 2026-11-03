@@ -1,4 +1,6 @@
 from pathlib import Path
+import tkinter as tk
+from tkinter import filedialog
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -59,6 +61,25 @@ def build_config(values: dict[str, float]) -> IonDataAnalysisConfig:
         analysis_zone=Range[int](int(values["zone_min"]), int(values["zone_max"])),
         transform_parameter=values["transform_parameter"],
     )
+
+
+def ask_for_file(fig, current_path: Path) -> str:
+    # Reuse matplotlib's Tk window when it has one, otherwise make a hidden one
+    get_tk_widget = getattr(fig.canvas, "get_tk_widget", None)
+    root = None if get_tk_widget else tk.Tk()
+    if root is not None:
+        root.withdraw()
+        root.attributes("-topmost", True)
+    initial_dir = current_path.parent if current_path.is_file() else current_path
+    try:
+        return filedialog.askopenfilename(
+            parent=get_tk_widget() if get_tk_widget else root,
+            initialdir=initial_dir if initial_dir.exists() else None,
+            filetypes=[("Data files", "*.dat"), ("All files", "*.*")],
+        )
+    finally:
+        if root is not None:
+            root.destroy()
 
 
 def find_file_paths(path: Path) -> list[list[Path]]:
@@ -199,7 +220,8 @@ def main() -> None:
     binary_axes.set_frame_on(False)
     binary_check = CheckButtons(binary_axes, ["Binary per frame"], [DEFAULT_BINARY_PER_FRAME])
 
-    path_box = TextBox(fig.add_axes((0.08, 0.03, 0.47, 0.05)), "Path ", initial=DEFAULT_PATH)
+    path_box = TextBox(fig.add_axes((0.08, 0.03, 0.39, 0.05)), "Path ", initial=DEFAULT_PATH)
+    browse_button = Button(fig.add_axes((0.48, 0.03, 0.08, 0.05)), "Browse...")
     auto_center_button = Button(fig.add_axes((0.58, 0.03, 0.11, 0.05)), "Auto center")
     refresh_button = Button(fig.add_axes((0.71, 0.03, 0.11, 0.05)), "Refresh")
     save_button = Button(fig.add_axes((0.84, 0.03, 0.11, 0.05)), "Save")
@@ -250,6 +272,13 @@ def main() -> None:
         config_boxes["center_y"].set_val(f"{centroid.y:.1f}")
         on_refresh(event)
 
+    def on_browse(event):
+        selected = ask_for_file(fig, Path(path_box.text.strip()))
+        if not selected:
+            return
+        path_box.set_val(str(Path(selected)))
+        on_refresh(event)
+
     # ============================================================
     # Save single plot
     # ============================================================
@@ -265,6 +294,7 @@ def main() -> None:
     refresh_button.on_clicked(on_refresh)
     save_button.on_clicked(on_save)
     auto_center_button.on_clicked(on_auto_center)
+    browse_button.on_clicked(on_browse)
     on_refresh(None)
 
     plt.show()
