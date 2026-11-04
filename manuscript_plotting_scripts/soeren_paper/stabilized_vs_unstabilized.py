@@ -67,7 +67,7 @@ datasets: list[Path] = [
 scans = [calculating([DATA_ROOT / folder], [common_config]) for folder in datasets]
 
 #Two journal columns (17.8 cm), fonts at final print size (as in single_spectrum.py)
-plt.rcParams.update({"font.size": 11, "axes.labelsize": 11, "xtick.labelsize": 10,
+plt.rcParams.update({"font.size": 10, "axes.labelsize": 10, "xtick.labelsize": 10,
                      "ytick.labelsize": 10, "pdf.fonttype": 42})
 
 #One shared y-axis: tick labels and y-label on the left panel only
