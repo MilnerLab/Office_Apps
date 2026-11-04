@@ -1,0 +1,251 @@
+"""FFT (frequency spectrum along probe delay) of a cross-correlation CSV.
+
+Companion to `xcorr_csv_script.py`: same CSV loader and config, but takes a
+single FFT of the whole trace instead of an STFT.
+"""
+
+import sys
+from pathlib import Path
+
+# Allow running this file directly (python xcorr_fft_script.py) by putting the
+# project root on sys.path; running as a module (-m) already handles this.
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
+from matplotlib import pyplot as plt
+import numpy as np
+from scipy.ndimage import uniform_filter1d
+
+from base_core.lab_specifics.base_models import Measurement, ScanDataBase
+from base_core.quantities.enums import Prefix
+
+from apps.stft_analysis.domain.config import StftAnalysisConfig
+from apps.stft_analysis.domain.resampling import resample_scans
+from base_core.lab_specifics.helpers import calculate_time_delay
+
+from base_core.quantities.models import Length
+
+from scipy.fft import rfft, rfftfreq
+from base_core.math.functions import gaussian
+from base_core.plotting.enums import PlotColor
+from manuscript_plotting_scripts.shaped_usCFG_paper import config
+
+
+NAME = "fig_TOD_Compensation"
+# in jet.TRUNCATION_SCANS order: full centrifuge, prism 15.0, 14.5, 13.5 mm
+
+def read_xcorr_csv(path: Path) -> tuple[np.ndarray, np.ndarray]:
+    """Stage position (mm) and the repeats at each position (one column per repeat)."""
+    # Rows may be jagged (a partial/interrupted acquisition leaves a short final
+    # row); keep only rows that have the full, most-common column count.
+    rows = [line.split() for line in path.read_text().splitlines() if line.strip()]
+    width = max(set(len(r) for r in rows), key=[len(r) for r in rows].count)
+    data = np.array([r for r in rows if len(r) == width], dtype=float)
+    return data[:, 0], data[:, 1:]
+
+
+def scan_from_repeats(stage_mm: np.ndarray, waveforms: np.ndarray, delay_center_mm: float,
+                      run_id: int = 0) -> ScanDataBase:
+    """ScanDataBase of the mean over repeats at each delay, with its standard error."""
+    mean_intensity = waveforms.mean(axis=1)
+    sem_intensity = waveforms.std(axis=1, ddof=1) / np.sqrt(waveforms.shape[1])
+
+    center = Length(delay_center_mm, Prefix.MILLI)
+    delays = [
+        calculate_time_delay(Length(float(mm), Prefix.MILLI), center)
+        for mm in stage_mm
+    ]
+    measured = [Measurement(float(v), float(e)) for v, e in zip(mean_intensity, sem_intensity)]
+
+    return ScanDataBase(delays=delays, measured_values=measured, run_id=run_id)
+
+
+def load_xcorr_csv(path: Path, delay_center_mm: float, run_id: int = 0) -> ScanDataBase:
+    """Read an XCORR csv into a ScanDataBase (delay-time vs mean intensity)."""
+    return scan_from_repeats(*read_xcorr_csv(path), delay_center_mm, run_id)
+
+def calculate_xcorr_fft(scan: ScanDataBase,resample=False) -> tuple[np.ndarray, np.ndarray]:
+    """FFT of the XCORR trace along probe delay. Returns (frequency in GHz, complex spectrum).
+
+    The delay grid is resampled onto a uniform axis first (same as the STFT path),oka
+    and the mean is removed so the DC bin doesn't swamp the fringe peak. The data
+    is real, so only the non-negative frequencies are returned (rfft).
+    """
+    config = StftAnalysisConfig([scan])
+    if resample: 
+        resampled = resample_scans([scan], config.axis)[0]
+        intensity = np.array([m.value for m in resampled.measured_values], dtype=float)
+    else:
+        intensity = np.array([m.value for m in scan.measured_values], dtype=float)
+    
+    intensity = intensity[np.isfinite(intensity)]  # drop points outside the measured range
+    intensity -= intensity.mean()
+
+    dt_ps = config.resample_time.value(Prefix.PICO)
+    spectrum = rfft(intensity)
+    frequency_ghz = rfftfreq(intensity.size, d=dt_ps) * 1e3  # cycles/ps = THz -> GHz
+
+    return frequency_ghz, spectrum
+
+
+CSV_PATH_4f = Path(r"Z:\Droplets\20261015\XCORR\202610151201_CFG_4F_Flipped_Slow_ish.csv")
+CSV_PATH_cf = Path(r"Z:\Droplets\20261015\XCORR\20261015132_CFG_cf_slow.csv")
+DELAY_CENTER_MM = 120
+
+# Probe-delay window (ps) the FFT is taken over.
+FFT_DELAY_RANGE_PS: tuple[float, float] = (-200, 200)
+
+# Number of neighbouring points averaged by the moving-average smoothing.
+SMOOTHING_POINTS = 3
+
+
+def crop_scan(scan: ScanDataBase, delay_range_ps: tuple[float, float]) -> ScanDataBase:
+    """Keep only the points whose probe delay lies inside delay_range_ps."""
+    lo, hi = delay_range_ps
+    kept = [
+        (d, m) for d, m in zip(scan.delays, scan.measured_values)
+        if lo <= d.value(Prefix.PICO) <= hi
+    ]
+    return ScanDataBase(
+        delays=[d for d, _ in kept],
+        measured_values=[m for _, m in kept],
+        run_id=scan.run_id,
+    )
+
+
+def smooth_scan(scan: ScanDataBase, n_points: int) -> ScanDataBase:
+    """n-point moving average of the intensity. Edges are padded by repeating the end values."""
+    intensity = np.array([m.value for m in scan.measured_values], dtype=float)
+    smoothed = uniform_filter1d(intensity, size=n_points, mode="nearest")
+    return ScanDataBase(
+        delays=list(scan.delays),
+        measured_values=[Measurement(float(v), 0) for v in smoothed],
+        run_id=scan.run_id,
+    )
+
+FREQ_WINDOW_GHZ: tuple[float, float] = (60, 120)   # normalisation and FWHM
+PLOT_WINDOW_GHZ: tuple[float, float] = (74, 104)   # drawn x range, around the peak
+
+
+def power_in_window(frequency_ghz: np.ndarray, spectrum: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """|spectrum|^2 inside FREQ_WINDOW_GHZ, normalised to its peak there."""
+    lo, hi = FREQ_WINDOW_GHZ
+    kept = (frequency_ghz >= lo) & (frequency_ghz <= hi)
+    power = np.abs(spectrum[kept]) ** 2
+    return frequency_ghz[kept], power / power.max()
+
+
+def fwhm(frequency_ghz: np.ndarray, power: np.ndarray) -> tuple[float, float]:
+    """Peak frequency and full width at half maximum, linearly interpolated between bins."""
+    i = int(np.argmax(power))
+    half = power[i] / 2
+    l = i
+    while power[l] > half:
+        l -= 1
+    r = i
+    while power[r] > half:
+        r += 1
+    f_l = np.interp(half, power[l:l + 2], frequency_ghz[l:l + 2])
+    f_r = np.interp(half, power[r - 1:r + 1][::-1], frequency_ghz[r - 1:r + 1][::-1])
+    return float(frequency_ghz[i]), float(f_r - f_l)
+
+
+# Bootstrap resamples for the FWHM uncertainty.
+N_BOOTSTRAP = 1000
+
+
+def fwhm_bootstrap(path: Path, n: int = N_BOOTSTRAP, seed: int = 0) -> np.ndarray:
+    """FWHM (GHz) of n spectra, each built from repeats resampled with replacement.
+
+    Every resample draws the same repeat columns at all delays, so a whole repeat
+    stays together. The spread of the widths is the statistical uncertainty.
+    """
+    stage_mm, waveforms = read_xcorr_csv(path)
+    rng = np.random.default_rng(seed)
+    widths = np.empty(n)
+    for k in range(n):
+        cols = rng.integers(0, waveforms.shape[1], waveforms.shape[1])
+        scan = scan_from_repeats(stage_mm, waveforms[:, cols], DELAY_CENTER_MM)
+        widths[k] = fwhm(*power_in_window(*calculate_xcorr_fft(scan)))[1]
+    return widths
+
+
+def xcorr_sim(f0,epsilon,gamma,tau,I,dt,offset):
+    x = np.arange(-800,800,dt)
+    sigma = tau / (2 * np.sqrt(2 * np.log(2))) 
+    U = gaussian(x,1,0,sigma,0)
+    phi = 2*np.pi*(f0*x + epsilon*x**2 + gamma*x**3 )
+    return (x, I*np.square(U * np.cos(phi))+offset)
+    
+
+def main() -> None:
+    scan_4f = load_xcorr_csv(CSV_PATH_4f, DELAY_CENTER_MM)
+    scan_cf = load_xcorr_csv(CSV_PATH_cf, DELAY_CENTER_MM)
+    #frequency_ghz, spectrum = calculate_xcorr_fft(crop_scan(scan, FFT_DELAY_RANGE_PS))
+    
+    freq_4f, spectrum_4f = calculate_xcorr_fft(scan_4f)
+    freq_cf, spectrum_cf = calculate_xcorr_fft(scan_cf)
+    
+
+    # Top: the cross-correlation trace (intensity vs probe delay).
+    # delay_4f = [d.value(Prefix.PICO) for d in scan_4f.delays]
+    # intensity_4f = [m.value for m in scan_4f.measured_values]
+    # delay_cf = [d.value(Prefix.PICO) for d in scan_cf.delays]
+    # intensity_cf = [m.value for m in scan_cf.measured_values]
+    
+    
+    
+    #ax1.plot(delay_4f, intensity_4f, color="tab:blue", label="cfCFG4f compensated")
+
+    # Resampled trace on the uniform grid, i.e. what calculate_xcorr_fft actually FFTs.
+    #resampled = resample_scans([scan], StftAnalysisConfig([scan]).axis)[0]
+    
+    #Simulated CFG 
+    f0 = 44.25*1e-3 # 2-photon in THz
+    #gamma = 0.015 # creates about 5 Ghz cfg bandwidth 
+    gamma = 0
+    epsilon = 0
+    tau = 400 # in ps
+    I = 0.06 # to match the photodiode voltage amplitude
+    dt = 0.1
+    offset = 0.0024
+    x, y = xcorr_sim(f0,epsilon,gamma,tau,I,dt,offset)
+    
+    f_ghz = rfftfreq(y.size, d=dt) * 1e3
+    spectrum_sim = rfft(y - y.mean())
+
+    # Power spectra |FFT|^2, each normalised to its own peak inside FREQ_WINDOW_GHZ.
+    # Simulated transform limit: grey filled area behind. Measured: uncompensated red,
+    # dashed, open circles; compensated blue, solid, filled circles (one mark per FFT bin).
+    # The marks are named in the caption, so the figure carries no legend.
+    fig, ax = plt.subplots(figsize=config.FIGURE_SIZES_IN[NAME], layout="constrained")
+    spectra = {tag: power_in_window(f, s) for tag, f, s in (("simulated", f_ghz, spectrum_sim),
+                                                             ("cfCFG", freq_cf, spectrum_cf),
+                                                             ("compensated", freq_4f, spectrum_4f))}
+    for tag, (f, p) in spectra.items():
+        peak, width = fwhm(f, p)
+        print(f"{tag:>12}: peak {peak:.2f} GHz, FWHM {width:.2f} GHz, "
+              f"bin spacing {np.diff(f).mean():.2f} GHz")
+    for tag, path in (("cfCFG", CSV_PATH_cf), ("compensated", CSV_PATH_4f)):
+        widths = fwhm_bootstrap(path)
+        print(f"{tag:>12}: bootstrap FWHM {widths.mean():.2f} +- {widths.std(ddof=1):.2f} GHz "
+              f"({N_BOOTSTRAP} resamples)")
+
+    f, p = spectra["simulated"]
+    ax.fill_between(f, p, color=PlotColor.GRAY, alpha=0.3, lw=0, zorder=1)
+    ax.plot(f, p, ls="-", lw=0.5, marker="", color=PlotColor.GRAY, zorder=1)
+    for tag, col, ls, face in (("cfCFG", PlotColor.RED, (0, (2, 1.5)), "white"),
+                               ("compensated", PlotColor.BLUE, "-", PlotColor.BLUE)):
+        f, p = spectra[tag]
+        ax.plot(f, p, ls=ls, lw=0.75, marker="o", ms=2.8, mew=0.6, mfc=face, mec=col,
+                color=col, zorder=3)
+    ax.set_xlim(*PLOT_WINDOW_GHZ)
+    ax.set_ylim(0, 1.05)
+    ax.set_xlabel("Frequency (GHz)")
+    ax.set_ylabel("Power (arb. u.)")
+    config.save_figure(fig, NAME)
+
+
+if __name__ == "__main__":
+    main()
