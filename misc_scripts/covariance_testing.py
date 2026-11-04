@@ -1,16 +1,26 @@
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
-import tkinter as tk
-from tkinter import filedialog
+import sys
 
-import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.widgets import Button, CheckButtons, TextBox
+from PySide6.QtWidgets import (
+    QApplication,
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
+from matplotlib.figure import Figure
 
 from _data_io.dat_finder import DatFinder
 from _data_io.dat_loader import load_ion_data
 
 from apps.c2t_calculation.domain.plotting import plot_ions_square
+from base_core.framework.events import EventBus
 from base_core.lab_specifics.base_models import IonDataAnalysisConfig
 from base_core.math.enums import AngleUnit
 from base_core.math.models import Angle, Point, Range
@@ -18,35 +28,38 @@ from base_core.math.special_models import AngularCovariance
 from base_core.plotting.covariance_plotting import plot_covariance
 from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Length
+from base_qt.app.dispatcher import QtDispatcher
+from base_qt.ui import LabMainWindow, MessageLevel, Panel, PanelViewModel
+from base_qt.ui.apply import install_ui
+from base_qt.ui.form import AngleSpec, BoolSpec, DirtyFormWidget, FloatSpec, IntSpec, LengthSpec, RangeSpec
 
 
 # ============================================================
-# Defaults (all editable on the figure)
+# Defaults (all editable in the window)
 # ============================================================
 # Either a single .dat file or a folder of data files
-DEFAULT_PATH = r"Z:\Droplets\20261103\ProbeOnly\20261103132926DLY__15p7950mm.dat"
+DEFAULT_PATH = r"Z:\Droplets\20261104\VerticalPump\20261104145650DLY__15p7950mm.dat"
 
-# (label, default) for each widget in the right-hand column
-CONFIG_DEFAULTS = {
-    "delay_center": ("Delay center (mm) ", 93.3),
-    "center_x": ("Center x ", 98),
-    "center_y": ("Center y ", 102),
-    "angle": ("Angle (deg) ", 12),
-    "zone_min": ("Zone min ", 10),
-    "zone_max": ("Zone max ", 120),
-    "transform_parameter": ("ScaleX ", 0.76),
-    "scan_index": ("Scan index ", 0),
-    "ion_data_index": ("IonData index ", 0),
-}
 
-# (label, default) for the AngularCovariance widgets; leave a radial box blank for no radial cut
-COVARIANCE_DEFAULTS = {
-    "angle_bins": ("Angle bins ", "180"),
-    "radial_min": ("Radial min ", ""),
-    "radial_max": ("Radial max ", ""),
-}
-DEFAULT_BINARY_PER_FRAME = False
-DEFAULT_NORMALIZE = True
+@dataclass
+class CovarianceSettings:
+    # IonDataAnalysisConfig
+    delay_center: Length = Length(93.3, Prefix.MILLI)
+    center_x: float = 98.0
+    center_y: float = 102.0
+    angle: Angle = Angle(12, AngleUnit.DEG)
+    analysis_zone: Range[int] = Range[int](10, 120)
+    transform_parameter: float = 0.76
+    # Which IonData to show
+    scan_index: int = 0
+    ion_data_index: int = 0
+    # AngularCovariance; the radial range is only used while radial_cut is on
+    angle_bins: int = 180
+    radial_cut: bool = False
+    radial_range: Range[float] = Range[float](0.0, 120.0)
+    binary_per_frame: bool = False
+    normalize: bool = True
+
 
 # Optional alternative:
 # set this to a concrete stage position if you want to select by value
@@ -55,33 +68,14 @@ TARGET_STAGE_POSITION = None
 # TARGET_STAGE_POSITION = Length(0.0, Prefix.MILLI)
 
 
-def build_config(values: dict[str, float]) -> IonDataAnalysisConfig:
+def build_config(settings: CovarianceSettings) -> IonDataAnalysisConfig:
     return IonDataAnalysisConfig(
-        delay_center=Length(values["delay_center"], Prefix.MILLI),
-        center=Point(values["center_x"], values["center_y"]),
-        angle=Angle(values["angle"], AngleUnit.DEG),
-        analysis_zone=Range[int](int(values["zone_min"]), int(values["zone_max"])),
-        transform_parameter=values["transform_parameter"],
+        delay_center=settings.delay_center,
+        center=Point(settings.center_x, settings.center_y),
+        angle=settings.angle,
+        analysis_zone=settings.analysis_zone,
+        transform_parameter=settings.transform_parameter,
     )
-
-
-def ask_for_file(fig, current_path: Path) -> str:
-    # Reuse matplotlib's Tk window when it has one, otherwise make a hidden one
-    get_tk_widget = getattr(fig.canvas, "get_tk_widget", None)
-    root = None if get_tk_widget else tk.Tk()
-    if root is not None:
-        root.withdraw()
-        root.attributes("-topmost", True)
-    initial_dir = current_path.parent if current_path.is_file() else current_path
-    try:
-        return filedialog.askopenfilename(
-            parent=get_tk_widget() if get_tk_widget else root,
-            initialdir=initial_dir if initial_dir.exists() else None,
-            filetypes=[("Data files", "*.dat"), ("All files", "*.*")],
-        )
-    finally:
-        if root is not None:
-            root.destroy()
 
 
 def find_file_paths(path: Path) -> list[list[Path]]:
@@ -146,14 +140,6 @@ def calculate_centroid(ion_data) -> Point:
     return Point(float(np.mean(ion_data.points.x)), float(np.mean(ion_data.points.y)))
 
 
-def build_radial_range(radial_min: str, radial_max: str) -> Range[float] | None:
-    if not radial_min.strip() and not radial_max.strip():
-        return None
-    if not radial_min.strip() or not radial_max.strip():
-        raise ValueError("Set both radial min and max, or leave both blank.")
-    return Range[float](float(radial_min), float(radial_max))
-
-
 def normalize_covariance(cov: AngularCovariance) -> AngularCovariance:
     # Scale to [0, 1]; negatives are clipped, same as plot_covariance does by default
     matrix = np.maximum(cov.matrix, 0.0)
@@ -212,109 +198,197 @@ def plot_ions_and_covariance(fig, ax_l, ax_r, ion_data, config: IonDataAnalysisC
     return fig.colorbar(mesh, ax=ax_r, label="normalized covariance" if normalize else "covariance")
 
 
-def main() -> None:
-    fig, (ax_l, ax_r) = plt.subplots(1, 2, figsize=(14, 6))
-    # Reserve room for the widgets below and to the right
-    fig.subplots_adjust(left=0.05, bottom=0.18, right=0.76, wspace=0.3)
+# ============================================================
+# GUI
+# ============================================================
+class CovarianceForm(DirtyFormWidget):
+    _specs = {
+        "delay_center": LengthSpec("Delay center", Prefix.MILLI),
+        "center_x": FloatSpec("Center x", min=-10_000.0, max=10_000.0, decimals=2, step=1.0),
+        "center_y": FloatSpec("Center y", min=-10_000.0, max=10_000.0, decimals=2, step=1.0),
+        "angle": AngleSpec("Angle"),
+        "analysis_zone": RangeSpec("Zone", IntSpec("", min=0, max=10_000)),
+        "transform_parameter": FloatSpec("ScaleX", min=0.0, max=10.0, decimals=3, step=0.01),
+        "scan_index": IntSpec("Scan index", min=0, max=10_000),
+        "ion_data_index": IntSpec("IonData index", min=0, max=100_000),
+        "angle_bins": IntSpec("Angle bins", min=1, max=3600),
+        "radial_cut": BoolSpec("Radial cut"),
+        "radial_range": RangeSpec("Radial range", FloatSpec("", min=0.0, max=10_000.0, decimals=1, step=1.0)),
+        "binary_per_frame": BoolSpec("Binary per frame"),
+        "normalize": BoolSpec("Normalize"),
+    }
+    _groups = [
+        ("Analysis config", ["delay_center", "center_x", "center_y", "angle", "analysis_zone", "transform_parameter"]),
+        ("Data selection", ["scan_index", "ion_data_index"]),
+        ("Covariance", ["angle_bins", "radial_cut", "radial_range", "binary_per_frame", "normalize"]),
+    ]
 
-    def column_axes(row: int):
-        return fig.add_axes((0.88, 0.88 - 0.06 * row, 0.08, 0.045))
+    def __init__(self, settings: CovarianceSettings, on_apply, parent: QWidget | None = None) -> None:
+        super().__init__(settings, parent)
+        self._on_apply = on_apply
 
-    config_boxes = {}
-    for i, (key, (label, default)) in enumerate(CONFIG_DEFAULTS.items()):
-        config_boxes[key] = TextBox(column_axes(i), label, initial=str(default))
+    def on_apply(self) -> None:
+        self._on_apply()
 
-    covariance_boxes = {}
-    for i, (key, (label, default)) in enumerate(COVARIANCE_DEFAULTS.items(), start=len(config_boxes)):
-        covariance_boxes[key] = TextBox(column_axes(i), label, initial=default)
 
-    binary_axes = column_axes(len(config_boxes) + len(covariance_boxes))
-    binary_axes.set_frame_on(False)
-    binary_check = CheckButtons(binary_axes, ["Binary per frame"], [DEFAULT_BINARY_PER_FRAME])
+class CovarianceViewModel(PanelViewModel):
+    def __init__(self, bus: EventBus, dispatcher: QtDispatcher, settings: CovarianceSettings, path: Path) -> None:
+        super().__init__(bus, dispatcher)
+        self.settings = settings
+        self.path = path
 
-    normalize_axes = column_axes(len(config_boxes) + len(covariance_boxes) + 1)
-    normalize_axes.set_frame_on(False)
-    normalize_check = CheckButtons(normalize_axes, ["Normalize"], [DEFAULT_NORMALIZE])
+    def load_ion_data(self):
+        return load_selected_ion_data(self.path, self.settings.scan_index, self.settings.ion_data_index)
 
-    path_box = TextBox(fig.add_axes((0.08, 0.03, 0.39, 0.05)), "Path ", initial=DEFAULT_PATH)
-    browse_button = Button(fig.add_axes((0.48, 0.03, 0.08, 0.05)), "Browse...")
-    auto_center_button = Button(fig.add_axes((0.58, 0.03, 0.11, 0.05)), "Auto center")
-    refresh_button = Button(fig.add_axes((0.71, 0.03, 0.11, 0.05)), "Refresh")
-    save_button = Button(fig.add_axes((0.84, 0.03, 0.11, 0.05)), "Save")
+    def radial_range(self) -> Range[float] | None:
+        return self.settings.radial_range if self.settings.radial_cut else None
 
-    def read_values() -> dict[str, float]:
-        return {key: float(box.text) for key, box in config_boxes.items()}
-
-    def read_ion_data(values: dict[str, float]):
-        return load_selected_ion_data(
-            Path(path_box.text.strip()),
-            int(values["scan_index"]),
-            int(values["ion_data_index"]),
-        )
-
-    colorbars = []
-
-    def on_refresh(event):
-        for colorbar in colorbars:
-            colorbar.remove()
-        colorbars.clear()
-        ax_l.clear()
-        ax_r.clear()
-        try:
-            values = read_values()
-            colorbars.append(plot_ions_and_covariance(
-                fig,
-                ax_l,
-                ax_r,
-                read_ion_data(values),
-                build_config(values),
-                int(covariance_boxes["angle_bins"].text),
-                build_radial_range(covariance_boxes["radial_min"].text, covariance_boxes["radial_max"].text),
-                binary_check.get_status()[0],
-                normalize_check.get_status()[0],
-            ))
-        except Exception as e:
-            ax_l.set_title(f"Error: {e}", color="r")
-        fig.canvas.draw_idle()
-
-    def on_auto_center(event):
-        try:
-            centroid = calculate_centroid(read_ion_data(read_values()))
-        except Exception as e:
-            ax_l.set_title(f"Error: {e}", color="r")
-            fig.canvas.draw_idle()
-            return
+    def auto_center(self) -> None:
+        centroid = calculate_centroid(self.load_ion_data())
         print(f"Centroid: ({centroid.x:.1f}, {centroid.y:.1f})")
-        config_boxes["center_x"].set_val(f"{centroid.x:.1f}")
-        config_boxes["center_y"].set_val(f"{centroid.y:.1f}")
-        on_refresh(event)
-
-    def on_browse(event):
-        selected = ask_for_file(fig, Path(path_box.text.strip()))
-        if not selected:
-            return
-        path_box.set_val(str(Path(selected)))
-        on_refresh(event)
+        self.settings.center_x = round(centroid.x, 1)
+        self.settings.center_y = round(centroid.y, 1)
+        self._msg(f"Centroid: ({centroid.x:.1f}, {centroid.y:.1f})")
 
     # ============================================================
     # Save single plot
     # ============================================================
-    def on_save(event):
-        path = Path(path_box.text.strip())
-        out_dir = (path.parent if path.is_file() else path) / "single_covariance_with_ions"
+    def save(self, fig: Figure) -> None:
+        out_dir = (self.path.parent if self.path.is_file() else self.path) / "single_covariance_with_ions"
         out_dir.mkdir(parents=True, exist_ok=True)
 
         out_path = out_dir / "selected_iondata_covariance.png"
         fig.savefig(out_path, dpi=150)
         print(f"Saved plot to: {out_path}")
+        self._msg(f"Saved plot to: {out_path}")
 
-    refresh_button.on_clicked(on_refresh)
-    save_button.on_clicked(on_save)
-    auto_center_button.on_clicked(on_auto_center)
-    browse_button.on_clicked(on_browse)
-    on_refresh(None)
+    def report_error(self, e: Exception) -> None:
+        self._msg(f"Error: {e}", MessageLevel.ERROR)
 
-    plt.show()
+
+class CovariancePanel(Panel):
+    def __init__(self, vm: CovarianceViewModel, parent: QWidget | None = None) -> None:
+        super().__init__("Angular covariance", vm, parent)
+
+    def setup(self) -> None:
+        self._fig = Figure(figsize=(12, 6))
+        self._ax_l, self._ax_r = self._fig.subplots(1, 2)
+        self._fig.subplots_adjust(left=0.06, right=0.94, wspace=0.3)
+        self._canvas = FigureCanvasQTAgg(self._fig)
+        self._colorbars = []
+
+        plot_col = QVBoxLayout()
+        plot_col.addWidget(NavigationToolbar2QT(self._canvas, self))
+        plot_col.addWidget(self._canvas, stretch=1)
+
+        # Edits stay pending (dirty) until Apply, which writes them to the settings and replots
+        self._form = CovarianceForm(self.vm.settings, self._replot)
+        apply_row = QHBoxLayout()
+        apply_row.addStretch(1)
+        apply_row.addWidget(self._form.apply_button)
+        side_panel = QWidget()
+        side_col = QVBoxLayout(side_panel)
+        side_col.setContentsMargins(0, 0, 0, 0)
+        side_col.addWidget(self._form)
+        side_col.addLayout(apply_row)
+        side_col.addStretch(1)
+        # Fixed, because the spin boxes' huge ranges make their size hints far too wide
+        side_panel.setFixedWidth(400)
+
+        plot_row = QHBoxLayout()
+        plot_row.addLayout(plot_col, stretch=1)
+        plot_row.addWidget(side_panel)
+
+        self._path_edit = QLineEdit(str(self.vm.path))
+        self._path_edit.textChanged.connect(self._on_path_changed)
+        self._path_edit.returnPressed.connect(self._replot)
+        browse_button = QPushButton("Browse...")
+        browse_button.clicked.connect(self._on_browse)
+        auto_center_button = QPushButton("Auto center")
+        auto_center_button.clicked.connect(self._on_auto_center)
+        refresh_button = QPushButton("Refresh")
+        refresh_button.clicked.connect(self._replot)
+        save_button = QPushButton("Save")
+        save_button.clicked.connect(lambda: self.vm.save(self._fig))
+
+        bottom_row = QHBoxLayout()
+        bottom_row.addWidget(QLabel("Path"))
+        bottom_row.addWidget(self._path_edit, stretch=1)
+        for button in (browse_button, auto_center_button, refresh_button, save_button):
+            bottom_row.addWidget(button)
+
+        self.body_layout.addLayout(plot_row, stretch=1)
+        self.body_layout.addLayout(bottom_row)
+        self._replot()
+
+    def _show_error(self, e: Exception) -> None:
+        self._ax_l.set_title(f"Error: {e}", color="r")
+        self._canvas.draw_idle()
+        self.vm.report_error(e)
+
+    def _replot(self) -> None:
+        for colorbar in self._colorbars:
+            colorbar.remove()
+        self._colorbars.clear()
+        self._ax_l.clear()
+        self._ax_r.clear()
+        settings = self.vm.settings
+        try:
+            self._colorbars.append(plot_ions_and_covariance(
+                self._fig,
+                self._ax_l,
+                self._ax_r,
+                self.vm.load_ion_data(),
+                build_config(settings),
+                settings.angle_bins,
+                self.vm.radial_range(),
+                settings.binary_per_frame,
+                settings.normalize,
+            ))
+        except Exception as e:
+            self._show_error(e)
+            return
+        self._canvas.draw_idle()
+
+    def _on_path_changed(self, text: str) -> None:
+        self.vm.path = Path(text.strip())
+
+    def _on_auto_center(self) -> None:
+        try:
+            self.vm.auto_center()
+        except Exception as e:
+            self._show_error(e)
+            return
+        self._form.refresh_fields(frozenset({"center_x", "center_y"}))
+        self._replot()
+
+    def _on_browse(self) -> None:
+        path = self.vm.path
+        initial_dir = path.parent if path.is_file() else path
+        selected, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select data file",
+            str(initial_dir) if initial_dir.exists() else "",
+            "Data files (*.dat);;All files (*.*)",
+        )
+        if not selected:
+            return
+        self._path_edit.setText(str(Path(selected)))
+        self._replot()
+
+
+def main() -> None:
+    app = QApplication.instance() or QApplication(sys.argv)
+    install_ui(app)
+    bus = EventBus()
+    dispatcher = QtDispatcher()
+
+    window = LabMainWindow("Covariance testing", bus, dispatcher)
+    vm = CovarianceViewModel(bus, dispatcher, CovarianceSettings(), Path(DEFAULT_PATH))
+    window.setCentralWidget(CovariancePanel(vm))
+    window.resize(1500, 750)
+    window.show()
+    app.exec()
 
 
 if __name__ == "__main__":

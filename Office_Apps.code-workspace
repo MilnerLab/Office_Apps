@@ -1,7 +1,8 @@
 {
   "folders": [
     { "path": ".", "name": "Office_Apps" },
-    { "path": "../Base_Core" }
+    { "path": "../Base_Core" },
+    { "path": "../Base_Qt" }
   ],
   "launch": {
   "version": "0.2.0",
@@ -25,10 +26,11 @@
     "python.terminal.activateEnvInCurrentTerminal": true,
     "python.analysis.indexing": true,
     "python.analysis.autoImportCompletions": true,
-    "python.analysis.extraPaths": ["${workspaceFolder:Base_Core}"],
+    "python.analysis.extraPaths": ["${workspaceFolder:Base_Core}", "${workspaceFolder:Base_Qt}"],
     "python.analysis.packageIndexDepths": [
 
   { "name": "base_core", "depth": 5, "includeAllSymbols": true },
+  { "name": "base_qt", "depth": 5, "includeAllSymbols": true },
     ],
     "git-blame.config.inlineBlame.hoverMessage.activeLine": false,
     "git-blame.config.showBlameInline": false,
