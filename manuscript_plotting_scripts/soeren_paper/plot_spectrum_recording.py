@@ -38,6 +38,10 @@ warnings.filterwarnings("ignore", category=OptimizeWarning)
 
 #: Speed of light, nm/ps: nu (THz) = C_NM_PER_PS / lambda (nm).
 C_NM_PER_PS = 299792.458
+#: Office_Apps root, for the shared paper stylefile.
+REPO_ROOT = Path(__file__).resolve().parents[2]
+#: The paper stylefile sets text.usetex; these characters would break the LaTeX run.
+_TEX_ESCAPES = str.maketrans({c: "\\" + c for c in "_%&#${}"} | {"\\": r"\textbackslash{}"})
 
 # -- settings -------------------------------------------------------------
 _DRIFT = OFFLINE_ROOT / "thermal drift spectra"
@@ -186,9 +190,13 @@ def main() -> None:
     else:
         norm = plt.Normalize(vmin=lo, vmax=hi)
 
-    # One journal column (8.6 cm), fonts at final print size.
-    plt.rcParams.update({"font.size": 10, "axes.labelsize": 10, "xtick.labelsize": 9,
-                         "ytick.labelsize": 9, "pdf.fonttype": 42})
+    # Same style as stabilized_vs_unstabilized.py; one journal column (8.6 cm), fonts at
+    # final print size.
+    plt.style.use(str(REPO_ROOT / "stylefiles" / "compare_c2t_spectrogram.mplstyle"))
+    # The style switches ticks off; turn them back on (it already points them inwards).
+    plt.rcParams.update({"font.size": 10, "axes.labelsize": 10, "xtick.labelsize": 10,
+                         "ytick.labelsize": 10, "xtick.bottom": True, "ytick.left": True,
+                         "pdf.fonttype": 42})
     fig, axs = plt.subplots(len(recs), 1, figsize=(8.6 / 2.54, (1.5 + 3.0 * len(recs)) / 2.54),
                             sharex=True, sharey=True, squeeze=False, constrained_layout=True)
     axs = axs[:, 0]
@@ -205,16 +213,18 @@ def main() -> None:
             y = y_s / 60.0
             if t_min[0] <= y <= t_min[-1]:
                 ax.axhline(y, color="w", lw=0.8, ls="--", alpha=0.7)
-                ax.text(nu.max(), y, f" {reason}", color="w", fontsize=8, va="bottom", ha="right")
+                ax.text(nu.max(), y, f" {reason.translate(_TEX_ESCAPES)}", color="w",
+                        va="bottom", ha="right")
         ax.set_xlim(nu.min(), nu.max())
         ax.set_ylabel("Time (min)")
-        ax.text(0.02, 0.93, f"({chr(ord('a') + i)})", transform=ax.transAxes, color="k",
-                fontweight="bold", va="top", ha="left",
+        # \textbf, not fontweight="bold": the style sets text.usetex, which ignores fontweight
+        ax.text(0.02, 0.93, rf"\textbf{{({chr(ord('a') + i)})}}", transform=ax.transAxes,
+                color="k", va="top", ha="left",
                 bbox=dict(boxstyle="round,pad=0.25", facecolor="0.85", edgecolor="k", lw=0.6))
         if SHOW_PHASE and r["fit"]["n_ok"]:
             p = r["fit"]
             ax.text(0.98, 0.05, rf"$\varphi_0 = {p['mean']:.2f} \pm {p['sem']:.2f}$ rad",
-                    transform=ax.transAxes, color="k", fontsize=8, va="bottom", ha="right",
+                    transform=ax.transAxes, color="k", va="bottom", ha="right",
                     bbox=dict(boxstyle="round,pad=0.25", facecolor="0.85", edgecolor="k", lw=0.6))
         print(f"({chr(ord('a') + i)}) {label}: {r['n']} spectra over {t_min[-1]:.1f} min"
               + (f", mean of {r['block']} per row" if r["block"] > 1 else ""))

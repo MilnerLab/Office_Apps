@@ -19,6 +19,9 @@ from spectrum_analyzer_detached import C_NM_PER_PS, DATA_GROUP, SPEC_CFG, load_s
 from spectrum_fit import fringe_core as fc
 from spectrum_fit.stabilization_fit import FitTunables, analyze_trace, display_curve
 
+#: Office_Apps root, for the shared paper stylefile.
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
 
 def nm_to_thz(wl_nm):
     """Wavelength (nm) -> optical frequency (THz): c / lambda with c in nm/ps."""
@@ -43,9 +46,13 @@ def main(argv=None) -> int:
 
     import matplotlib.pyplot as plt
 
-    # One journal column (8.6 cm), fonts at final print size.
-    plt.rcParams.update({"font.size": 10, "axes.labelsize": 10, "xtick.labelsize": 9,
-                         "ytick.labelsize": 9, "legend.fontsize": 8, "pdf.fonttype": 42})
+    # Same style as stabilized_vs_unstabilized.py; one journal column (8.6 cm), fonts at
+    # final print size.
+    plt.style.use(str(REPO_ROOT / "stylefiles" / "compare_c2t_spectrogram.mplstyle"))
+    # The style switches ticks off; turn them back on (it already points them inwards).
+    plt.rcParams.update({"font.size": 10, "axes.labelsize": 10, "xtick.labelsize": 10,
+                         "ytick.labelsize": 10, "legend.fontsize": 10, "xtick.bottom": True,
+                         "ytick.left": True, "pdf.fonttype": 42})
 
     wl_full, i_full = load_spectrum(args.spec)
     m = (wl_full >= args.window_nm[0]) & (wl_full <= args.window_nm[1])
