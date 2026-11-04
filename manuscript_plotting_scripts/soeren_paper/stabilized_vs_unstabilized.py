@@ -59,8 +59,8 @@ common_config = IonDataAnalysisConfig(
 
 #One column per dataset, all sharing the common config above (day folders under DATA_ROOT)
 datasets: list[Path] = [
-    Path("20261006/RotatingStabilized1"),  #forward slashes: '\' is not a separator on Linux
     Path("20261006/RotatingUnstabilized1"),
+    Path("20261006/RotatingStabilized1"),  #forward slashes: '\' is not a separator on Linux
 ]
 
 #Absolute paths: DatFinder still caches share folders to _temp, and reads the local copy in place
@@ -72,16 +72,16 @@ plt.rcParams.update({"font.size": 11, "axes.labelsize": 11, "xtick.labelsize": 1
 
 #One shared y-axis: tick labels and y-label on the left panel only
 fig, axs = plt.subplots(
-    nrows=1,
-    ncols=len(datasets),
-    figsize=(17.8 / 2.54, 4.5 / 2.54),
+    nrows=len(datasets),
+    ncols=1,
+    figsize=(17.8 / 2.54 / 2, 2 * 4.5 / 2.54),
     sharey=True,
     squeeze=False,
     constrained_layout=True)
 
 for col, folder in enumerate(datasets):
-    ax_scan = axs[0, col]
-
+    ax_scan = axs[col,0]
+    #The columns are actually rows....
     #Averaged <cos^2> trace
     with plt.rc_context({'lines.linewidth': 1.5}):
         plot_averaged_scan(ax_scan, scans[col], PlotColor.BLUE, ecolor=PlotColor.RED, marker='d')
@@ -93,7 +93,7 @@ for col, folder in enumerate(datasets):
     ax_scan.set_xlabel('Probe Delay (ps)')
     #\textbf, not fontweight="bold": the style sets text.usetex, which ignores fontweight
     ax_scan.text(0.965, 0.91, rf"\textbf{{({chr(ord('a') + col)})}}", transform=ax_scan.transAxes,
-                 color="k", fontsize=12, va="top", ha="right",
+                 color="k",  va="top", ha="right",
                  bbox=dict(boxstyle="round,pad=0.25", facecolor="0.85", edgecolor="k", lw=0.6))
     print(f"({chr(ord('a') + col)}) {folder.name}")
 
@@ -101,6 +101,7 @@ for col, folder in enumerate(datasets):
         ax_scan.set_ylabel('')
 
 axs[0, 0].set_ylabel(r'$\langle \cos^2\theta_{2D}\rangle$')
+axs[1, 0].set_ylabel(r'$\langle \cos^2\theta_{2D}\rangle$')
 
 fig.savefig(SAVE, format='pdf', dpi=300)
 print(f"Saved {SAVE}")
