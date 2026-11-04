@@ -74,13 +74,13 @@ plt.rcParams.update({"font.size": 11, "axes.labelsize": 11, "xtick.labelsize": 1
 fig, axs = plt.subplots(
     nrows=len(datasets),
     ncols=1,
-    figsize=(17.8 / 2.54 / 2, 2 * 4.5 / 2.54),
-    sharey=True,
-    squeeze=False,
-    constrained_layout=True)
-
+    figsize=(3 + 3/8, 4),
+    sharex=True,
+    sharey=False,
+    )
+#fig.subplots_adjust(hspace=0)
 for col, folder in enumerate(datasets):
-    ax_scan = axs[col,0]
+    ax_scan = axs[col]
     #The columns are actually rows....
     #Averaged <cos^2> trace
     with plt.rc_context({'lines.linewidth': 1.5}):
@@ -90,18 +90,15 @@ for col, folder in enumerate(datasets):
     if ax_scan.get_legend() is not None:
         ax_scan.get_legend().remove()
     ax_scan.grid(True)
-    ax_scan.set_xlabel('Probe Delay (ps)')
+    ax_scan.set_xlabel(None)
+    ax_scan.set_ylabel(r'$\langle \cos^2\theta_{2D}\rangle$')
     #\textbf, not fontweight="bold": the style sets text.usetex, which ignores fontweight
     ax_scan.text(0.965, 0.91, rf"\textbf{{({chr(ord('a') + col)})}}", transform=ax_scan.transAxes,
                  color="k",  va="top", ha="right",
                  bbox=dict(boxstyle="round,pad=0.25", facecolor="0.85", edgecolor="k", lw=0.6))
     print(f"({chr(ord('a') + col)}) {folder.name}")
 
-    if col > 0:
-        ax_scan.set_ylabel('')
-
-axs[0, 0].set_ylabel(r'$\langle \cos^2\theta_{2D}\rangle$')
-axs[1, 0].set_ylabel(r'$\langle \cos^2\theta_{2D}\rangle$')
+ax_scan.set_xlabel("Probe Delay (ps)")
 
 fig.savefig(SAVE, format='pdf', dpi=300)
 print(f"Saved {SAVE}")
