@@ -8,9 +8,9 @@ symbols, beam primitives and band colours follow
 manuscript_plotting_scripts/shaped_usCFG_paper/fig_setup_schematic.py.
 
 The pulse is chirped in a modified 4f (G1 L1 L2 G2) folded by a roof retroreflector, which
-returns it displaced vertically onto the pick-off mirror PO1. PBS1 splits it into the compensator
-arm (CA), a second modified 4f (G3 L3 L4 G4, picked off at PO2), and the delay arm (DA), folded by the
-retroreflector RR; PBS2 recombines the two into the centrifuge. The 4fs are drawn with chief
+returns it displaced vertically onto the pick-off mirror PO1. A half-wave plate (HWP) sets how
+PBS1 splits it into the compensator arm (CA), a second modified 4f (G3 L3 L4 G4, picked off at
+PO2), and the delay arm (DA), folded by the retroreflector RR; PBS2 recombines the two into the centrifuge. The 4fs are drawn with chief
 rays: they fan out from the first grating, run parallel between the lenses, head for the focal
 plane of the second lens (f = half the lens spacing) and leave the second grating collimated.
 """
@@ -67,6 +67,11 @@ SYMBOLS = {
             '<stop offset="1" style="stop-color:#89A4B6"/></linearGradient>'
             '<rect x="0.375" y="0.375" fill="url(#{id})" stroke="#000000" stroke-width="0.75" width="22.677" height="22.677"/>'
             '<line fill="none" stroke="#000000" stroke-width="0.75" x1="0.375" y1="0.375" x2="23.052" y2="23.052"/>'),
+    "wp": ((-1.792, -14.548),        # waveplate: a thin plate, origin at its centre
+           '<linearGradient id="{id}" gradientUnits="userSpaceOnUse" x1="0.375" y1="0" x2="3.209" y2="0">'
+           '<stop offset="0" style="stop-color:#C9B3D9"/><stop offset="0.5" style="stop-color:#F4EEF8"/>'
+           '<stop offset="1" style="stop-color:#C9B3D9"/></linearGradient>'
+           '<rect x="0.375" y="0.375" fill="url(#{id})" stroke="#000000" stroke-width="0.75" width="2.834" height="28.346"/>'),
 }
 _count = {}
 
@@ -150,6 +155,7 @@ RR1_DIST = 7.5                    # G2 to its roof retroreflector (in), out of t
 X_IM1, X_PO1 = 32.0, 29.5         # input mirror and pick-off, on the line onto G1 (past L1)
 M_S = (X_PO1, 16.5)               # straight below PO1, so its beam clears L1 on the L2 side
 PBS1 = (19.6, 16.5)
+X_HWP1 = 22.6                     # half-wave plate before PBS1, setting the CA/DA split
 
 # compensator arm
 F3, DL3 = 20.0 * CM, 5.0 * CM
@@ -201,7 +207,7 @@ OBSTACLE_LABELS = [
 X0, X1, Y0, Y1 = -8.0, 568.0, -524.0, 8.0
 WIDTH_IN = 3.375
 HALF_SPREAD = 7.0                 # chief-ray half height between the lenses (user units)
-MIR, GRAT, BSP, LENS = 0.5, 0.6, 0.55, 0.9
+MIR, GRAT, BSP, LENS, WP = 0.5, 0.6, 0.55, 0.9, 0.5
 MIR_HALF = 28.346 * MIR / 2
 
 
@@ -410,7 +416,8 @@ def build():
     optics += STRETCHER.optics() + COMPENSATOR.optics()
     optics += fold(path_in) + fold(path_pre) + fold(path_a_in) + fold(path_a_out)
     optics += fold(path_d) + fold(path_out)
-    optics += [symbol("bsp", *p(*PBS1), 90, BSP), symbol("bsp", *p(*PBS2), 90, BSP)]
+    optics += [symbol("bsp", *p(*PBS1), 90, BSP), symbol("bsp", *p(*PBS2), 90, BSP),
+               symbol("wp", *p(X_HWP1, PBS1[1]), 0, WP)]
 
     # 10 in scale bar, in the free corner at top left
     xa, xb, yb = S * 5.0, S * 15.0, -S * 45.0
@@ -440,11 +447,13 @@ def build():
         text(IM2[0] + 8, IM2[1] + 3, sub("IM", 2), anchor="start"),
         text(PO2[0] - 8, PO2[1] - 6, sub("PO", 2), anchor="end"),
         text(S * PBS1[0] - 6, -S * PBS1[1] - 12, sub("PBS", 1)),
+        text(S * X_HWP1, -S * PBS1[1] - 10, "HWP"),
         text(S * PBS2[0] - 9, -S * PBS2[1] + 14, sub("PBS", 2), anchor="end"),
         text(S * X_D_RET - 12, -S * Y_RR + 6, "RR", BLUE, "end"),
         text(S * 36.0, -S * 17.2, "DA", BLUE),
         text(S * (M_A1[0] + PBS1[0]) / 2, -S * M_A1[1] - 6, "CA", RED),
         text(S * 33.8, -S * 19.6, "stretcher", DIM),
+        text((COMPENSATOR.x_l1 + COMPENSATOR.x_l2) / 2, COMPENSATOR.y + 22, "compensator", DIM),
     ]
 
     def layer(i, name, items):
