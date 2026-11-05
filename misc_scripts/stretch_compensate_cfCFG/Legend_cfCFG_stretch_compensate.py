@@ -1,14 +1,15 @@
-"""Table layout of the pre-stretcher and the usCFG shaper, drawn to scale.
+"""Table layout of the pre-stretcher and the fCFG stretch compensator, drawn to scale.
 
-Writes fig_setup_layout.svg to config.OUTPUT_DIR, then exports the PDF with Inkscape (when it
-is installed). Positions are read off config.LAYOUT_PNG, whose optical table is 56 in wide.
+Writes Legend_cfCFG_stretch_compensate.svg to config.OUTPUT_DIR, then exports the PDF with
+Inkscape (when it is installed). Positions are read off config.LAYOUT_PNG, whose optical table
+is 56 in wide.
 Optics symbols are from Alexander Franzen's ComponentLibrary (gwoptics.org), CC BY-NC 3.0;
 symbols, beam primitives and band colours follow
 manuscript_plotting_scripts/shaped_usCFG_paper/fig_setup_schematic.py.
 
 The pulse is chirped in a modified 4f (G1 L1 L2 G2) folded by a roof retroreflector, which
-returns it displaced vertically onto the pick-off mirror PO1. PBS1 splits it into the shaper
-arm, a second modified 4f (G3 L3 L4 G4, picked off at PO2), and the delay arm, folded by the
+returns it displaced vertically onto the pick-off mirror PO1. PBS1 splits it into the compensator
+arm (CA), a second modified 4f (G3 L3 L4 G4, picked off at PO2), and the delay arm (DA), folded by the
 retroreflector RR; PBS2 recombines the two into the centrifuge. The 4fs are drawn with chief
 rays: they fan out from the first grating, run parallel between the lenses, head for the focal
 plane of the second lens (f = half the lens spacing) and leave the second grating collimated.
@@ -21,8 +22,8 @@ from pathlib import Path
 
 from misc_scripts.stretch_compensate_cfCFG import config
 
-SVG = config.OUTPUT_DIR / "fig_setup_layout.svg"
-PDF = config.OUTPUT_DIR / "fig_setup_layout.pdf"
+SVG = config.OUTPUT_DIR / "Legend_cfCFG_stretch_compensate.svg"
+PDF = config.OUTPUT_DIR / "Legend_cfCFG_stretch_compensate.pdf"
 
 FONT = 10.0                       # ~4 pt at 3.375 in wide
 PURPLE, BLUE, RED = "#d42ad4", "#2a6cff", "#ff2a2a"
@@ -150,10 +151,9 @@ X_IM1, X_PO1 = 32.0, 29.5         # input mirror and pick-off, on the line onto 
 M_S = (X_PO1, 16.5)               # straight below PO1, so its beam clears L1 on the L2 side
 PBS1 = (19.6, 16.5)
 
-# shaper arm
+# compensator arm
 F3, DL3 = 20.0 * CM, 5.0 * CM
-X_A = 14.0                        # the two fold mirrors after PBS1
-M_A1, M_A2, M_A3 = (X_A, 16.5), (X_A, 13.7), (17.1, 13.7)
+M_A1 = (10.0, 16.5)               # the fold mirror after PBS1, sending the beam on to IM2
 Y_A = 3.6
 X_G3 = 8.2
 X_L3, X_L4 = X_G3 + F3, X_G3 + 3 * F3
@@ -161,20 +161,20 @@ X_G4 = X_L4 + F3 + DL3
 GROOVES3 = 1500.0                 # G3, G4 (per mm)
 RR2_DIST = 4.1
 X_IM2, X_PO2 = 17.0, 14.5         # past L3, like IM1 and PO1
-M_A4 = (7.4, 9.3)
-PBS2 = (21.5, 9.3)
+PBS2 = (21.5, 11.3)
+M_A4 = (7.4, PBS2[1])
 
 # delay arm: from below PBS1 (Y_D) up to the mirror at (X_D, Y_D_OUT), down to the retroreflector,
-# up to (X_D_RET, Y_D_BACK) and back to above PBS2 (Y_D_RET). The outgoing leg passes above
+# up to (X_D_RET, Y_D_BACK) and back to below PBS2 (Y_D_RET). The outgoing leg passes above
 # the (X_D_RET, Y_D_BACK) mirror.
-Y_D, Y_D_RET, Y_RR = 13.2, 11.7, 2.0
+Y_D, Y_D_RET, Y_RR = 13.2, 9.3, 2.0
 X_D, X_D_RET = 52.6, 49.7
 Y_D_OUT, Y_D_BACK = 20.0, 18.0
-# path compensator between (X_D_RET, Y_D_BACK) and the mirror above PBS2: the beam zigzags left to
-# DC1, back right to DC2 and on; DC1's x (X_DC1, below) is solved so that DA is as long as TA
-Y_DC1, DC2 = 14.8, (47.0, 12.6)
+# path compensator between (X_D_RET, Y_D_BACK) and the mirror below PBS2: the beam zigzags left to
+# DC1, back right to DC2 and on; DC1's x (X_DC1, below) is solved so that DA is as long as CA
+Y_DC1, DC2 = 13.0, (47.0, 6.0)
 
-M_OUT = (38.3, 9.3)
+M_OUT = (38.3, PBS2[1])
 Y_CORK0, Y_CORK1 = 30.0, 39.0     # output corkscrew
 
 # table and the rectangles on it the beams must avoid (x0, y0, x1, y1). The png ends 51.6 in up
@@ -274,9 +274,10 @@ class FourF:
 
 
 STRETCHER = FourF(X_G1, X_L1, X_L2, X_G2, Y_S, GROOVES1, RR1_DIST)
-SHAPER = FourF(X_G3, X_L3, X_L4, X_G4, Y_A, GROOVES3, RR2_DIST)
+COMPENSATOR = FourF(X_G3, X_L3, X_L4, X_G4, Y_A, GROOVES3, RR2_DIST)
 IM1, PO1 = STRETCHER.on_input(X_IM1), STRETCHER.on_input(X_PO1)
-IM2, PO2 = SHAPER.on_input(X_IM2), SHAPER.on_input(X_PO2)
+IM2, PO2 = COMPENSATOR.on_input(X_IM2), COMPENSATOR.on_input(X_PO2)
+M_A5 = (M_A4[0], -PO2[1] / S)     # fold mirror after PO2, below M_A4 and level with PO2
 
 
 def fold(pts_in):
@@ -349,8 +350,8 @@ def beam_paths(x_dc1=None):
     x_dc1 = X_DC1 if x_dc1 is None else x_dc1
     path_in = [p(*IN_START), p(*M_IN1), p(*M_IN2), IM1, STRETCHER.g1]
     path_pre = [STRETCHER.g1, PO1, p(*M_S), p(*PBS1)]
-    path_a_in = [p(*PBS1), p(*M_A1), p(*M_A2), p(*M_A3), IM2, SHAPER.g1]
-    path_a_out = [SHAPER.g1, PO2, p(*M_A4), p(*PBS2)]
+    path_a_in = [p(*PBS1), p(*M_A1), IM2, COMPENSATOR.g1]
+    path_a_out = [COMPENSATOR.g1, PO2, p(*M_A5), p(*M_A4), p(*PBS2)]
     path_d = [p(*PBS1), p(PBS1[0], Y_D), p(X_D, Y_D_OUT), p(X_D, Y_RR), p(X_D_RET, Y_RR),
               p(X_D_RET, Y_D_BACK), p(x_dc1, Y_DC1), p(*DC2), p(PBS2[0], Y_D_RET), p(*PBS2)]
     path_out = [p(*PBS2), p(*M_OUT), p(M_OUT[0], Y_CORK0 + 0.15)]
@@ -358,23 +359,23 @@ def beam_paths(x_dc1=None):
 
 
 def arm_lengths(x_dc1=None):
-    """Geometric PBS1 -> PBS2 lengths (in) of TA and DA, along the central ray in air."""
+    """Geometric PBS1 -> PBS2 lengths (in) of CA and DA, along the central ray in air."""
     def length(path):
         return sum(math.dist(a, b) for a, b in zip(path, path[1:])) / S
     _, _, path_a_in, path_a_out, path_d, _ = beam_paths(x_dc1)
-    ta = length(path_a_in) + 2 * (X_G4 - X_G3 + RR2_DIST) + length(path_a_out)
-    return ta, length(path_d)
+    ca = length(path_a_in) + 2 * (X_G4 - X_G3 + RR2_DIST) + length(path_a_out)
+    return ca, length(path_d)
 
 
 def _solve_x_dc1():
-    """x of DC1 at which DA = TA (DA gets shorter as DC1 moves right, towards DC2)."""
+    """x of DC1 at which DA = CA (DA gets shorter as DC1 moves right, towards DC2)."""
     lo, hi = PBS2[0] + 2.0, DC2[0] - 2.0
     if not arm_lengths(hi)[1] <= arm_lengths(hi)[0] <= arm_lengths(lo)[1]:
-        raise ValueError("the compensator cannot match DA to TA: move Y_DC1 or DC2")
+        raise ValueError("the DC mirrors cannot match DA to CA: move Y_DC1 or DC2")
     for _ in range(50):
         mid = (lo + hi) / 2
-        ta, da = arm_lengths(mid)
-        lo, hi = (mid, hi) if da > ta else (lo, mid)
+        ca, da = arm_lengths(mid)
+        lo, hi = (mid, hi) if da > ca else (lo, mid)
     return (lo + hi) / 2
 
 
@@ -397,30 +398,30 @@ def build():
 
     path_in, path_pre, path_a_in, path_a_out, path_d, path_out = beam_paths()
 
-    beams += STRETCHER.fan() + SHAPER.fan()
+    beams += STRETCHER.fan() + COMPENSATOR.fan()
     beams += [line(path_in, PURPLE), line(path_pre, PURPLE), line(path_a_in, RED), line(path_a_out, RED),
               line(path_d, BLUE), line(path_out, PURPLE)]
     beams.append(head(p(IN_START[0], IN_START[1] - 3.0), (0, 1), PURPLE))
     over.append(over_mirror(PO1, IM1, STRETCHER.g1, PURPLE))
-    over.append(over_mirror(PO2, IM2, SHAPER.g1, RED))
+    over.append(over_mirror(PO2, IM2, COMPENSATOR.g1, RED))
     over.append(corkscrew_up(S * M_OUT[0], -S * Y_CORK1, -S * Y_CORK0))
 
     # optics
-    optics += STRETCHER.optics() + SHAPER.optics()
+    optics += STRETCHER.optics() + COMPENSATOR.optics()
     optics += fold(path_in) + fold(path_pre) + fold(path_a_in) + fold(path_a_out)
     optics += fold(path_d) + fold(path_out)
-    optics += [symbol("bsp", *p(*PBS1), 90, BSP), symbol("bsp", *p(*PBS2), 0, BSP)]
+    optics += [symbol("bsp", *p(*PBS1), 90, BSP), symbol("bsp", *p(*PBS2), 90, BSP)]
 
     # 10 in scale bar, in the free corner at top left
     xa, xb, yb = S * 5.0, S * 15.0, -S * 45.0
     dims.append(line([(xa, yb - 4), (xa, yb), (xb, yb), (xb, yb - 4)], DIM, 0.9))
     labels.append(text((xa + xb) / 2, yb - 5, "10 in", DIM))
-    ta, da = arm_lengths()
-    labels += [text(xa, yb + 1.6 * FONT, f"TA, PBS{sub('', 1)} to PBS{sub('', 2)}: {ta:.1f} in", RED, "start"),
+    ca, da = arm_lengths()
+    labels += [text(xa, yb + 1.6 * FONT, f"CA, PBS{sub('', 1)} to PBS{sub('', 2)}: {ca:.1f} in", RED, "start"),
                text(xa, yb + 2.9 * FONT, f"DA, PBS{sub('', 1)} to PBS{sub('', 2)}: {da:.1f} in", BLUE, "start")]
 
     # labels
-    g1, g2, g3, g4 = STRETCHER.g1, STRETCHER.g2, SHAPER.g1, SHAPER.g2
+    g1, g2, g3, g4 = STRETCHER.g1, STRETCHER.g2, COMPENSATOR.g1, COMPENSATOR.g2
     labels += [
         text(S * IN_START[0] - 6, -S * IN_START[1] + 14, "in", PURPLE, "end"),
         text(S * M_OUT[0], -S * Y_CORK1 - 6, "out", PURPLE),
@@ -433,16 +434,16 @@ def build():
         text(PO1[0] - 8, PO1[1] - 8, sub("PO", 1), anchor="end"),
         text(g3[0] - 10, g3[1] + 4, sub("G", 3), anchor="end"),
         text(g4[0] + 8, g4[1] + 12, sub("G", 4), anchor="start"),
-        text(SHAPER.x_l1, SHAPER.y + 20, sub("L", 3)),
-        text(SHAPER.x_l2, SHAPER.y + 20, sub("L", 4)),
-        text(SHAPER.rr[0], SHAPER.rr[1] - 12, "RR"),
+        text(COMPENSATOR.x_l1, COMPENSATOR.y + 20, sub("L", 3)),
+        text(COMPENSATOR.x_l2, COMPENSATOR.y + 20, sub("L", 4)),
+        text(COMPENSATOR.rr[0] - 8, COMPENSATOR.rr[1] + 4, "RR", anchor="end"),
         text(IM2[0] + 8, IM2[1] + 3, sub("IM", 2), anchor="start"),
-        text(PO2[0] - 22, PO2[1] + 2.5, sub("PO", 2), anchor="end"),
+        text(PO2[0] - 8, PO2[1] - 6, sub("PO", 2), anchor="end"),
         text(S * PBS1[0] - 6, -S * PBS1[1] - 12, sub("PBS", 1)),
-        text(S * PBS2[0], -S * PBS2[1] + 18, sub("PBS", 2)),
+        text(S * PBS2[0] - 9, -S * PBS2[1] + 14, sub("PBS", 2), anchor="end"),
         text(S * X_D_RET - 12, -S * Y_RR + 6, "RR", BLUE, "end"),
         text(S * 36.0, -S * 17.2, "DA", BLUE),
-        text(S * X_A - 12, -S * (M_A1[1] + M_A2[1]) / 2 + 7, "TA", RED, "end"),
+        text(S * (M_A1[0] + PBS1[0]) / 2, -S * M_A1[1] - 6, "CA", RED),
         text(S * 33.8, -S * 19.6, "stretcher", DIM),
     ]
 
@@ -452,7 +453,7 @@ def build():
     w, h = X1 - X0, Y1 - Y0
     return "\n".join([
         '<?xml version="1.0" encoding="UTF-8"?>',
-        "<!-- Generated by Office_Apps/misc_scripts/stretch_compensate_cfCFG/fig_setup_layout.py.\n"
+        "<!-- Generated by Office_Apps/misc_scripts/stretch_compensate_cfCFG/Legend_cfCFG_stretch_compensate.py.\n"
         "     Optics from Alexander Franzen's ComponentLibrary (gwoptics.org), CC BY-NC 3.0. -->",
         f'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" '
         f'xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="{WIDTH_IN}in" '
@@ -470,11 +471,11 @@ def build():
 if __name__ == "__main__":
     SVG.write_text(build(), encoding="utf-8")
     print(f"wrote {SVG}")
-    for name, f4, grooves in (("G1/G2", STRETCHER, GROOVES1), ("G3/G4", SHAPER, GROOVES3)):
+    for name, f4, grooves in (("G1/G2", STRETCHER, GROOVES1), ("G3/G4", COMPENSATOR, GROOVES3)):
         print(f"{name} ({grooves:.0f}/mm at {LAMBDA_NM:.0f} nm, {DEVIATION:.0f} deg deviation): "
               f"incidence {f4.alpha:.1f} deg, diffraction {f4.beta:.1f} deg")
-    ta, da = arm_lengths()
-    print(f"TA {ta:.1f} in, DA {da:.1f} in: TA - DA = {ta - da:.1f} in = {(ta - da) * 2.54:.1f} cm")
+    ca, da = arm_lengths()
+    print(f"CA {ca:.1f} in, DA {da:.1f} in: CA - DA = {ca - da:.1f} in = {(ca - da) * 2.54:.1f} cm")
     if config.INKSCAPE.exists():
         with tempfile.TemporaryDirectory() as tmp:
             conf = Path(tmp) / "fonts.conf"
