@@ -427,6 +427,12 @@ def build():
     labels += [text(xa, yb + 1.6 * FONT, f"CA, PBS{sub('', 1)} to PBS{sub('', 2)}: {ca:.1f} in", RED, "start"),
                text(xa, yb + 2.9 * FONT, f"DA, PBS{sub('', 1)} to PBS{sub('', 2)}: {da:.1f} in", BLUE, "start")]
 
+    # first grating to first lens, under each fan
+    for f4, f in ((STRETCHER, F1), (COMPENSATOR, F3)):
+        xg, xl, yd = f4.g1[0], f4.x_l1, f4.y + 14
+        dims.append(line([(xg, yd - 4), (xg, yd), (xl, yd), (xl, yd - 4)], DIM, 0.9))
+        labels.append(text((xg + xl) / 2, yd + FONT - 1, f"{f / CM:.0f} cm", DIM))
+
     # labels
     g1, g2, g3, g4 = STRETCHER.g1, STRETCHER.g2, COMPENSATOR.g1, COMPENSATOR.g2
     labels += [
@@ -434,14 +440,14 @@ def build():
         text(S * M_OUT[0], -S * Y_CORK1 - 6, "out", PURPLE),
         text(g1[0] - 10, g1[1] + 4, sub("G", 1), anchor="end"),
         text(g2[0] + 10, g2[1] + 2, sub("G", 2), anchor="start"),
-        text(STRETCHER.x_l1, STRETCHER.y + 20, sub("L", 1)),
+        text(STRETCHER.x_l1, STRETCHER.y - 14, sub("L", 1)),
         text(STRETCHER.x_l2, STRETCHER.y + 20, sub("L", 2)),
         text(STRETCHER.rr[0], STRETCHER.rr[1] - 12, "RR"),
         text(IM1[0] + 10, IM1[1] + 6, sub("IM", 1), anchor="start"),
         text(PO1[0] - 8, PO1[1] - 8, sub("PO", 1), anchor="end"),
         text(g3[0] - 10, g3[1] + 4, sub("G", 3), anchor="end"),
         text(g4[0] + 8, g4[1] + 12, sub("G", 4), anchor="start"),
-        text(COMPENSATOR.x_l1, COMPENSATOR.y + 20, sub("L", 3)),
+        text(COMPENSATOR.x_l1, COMPENSATOR.y - 14, sub("L", 3)),
         text(COMPENSATOR.x_l2, COMPENSATOR.y + 20, sub("L", 4)),
         text(COMPENSATOR.rr[0] - 8, COMPENSATOR.rr[1] + 4, "RR", anchor="end"),
         text(IM2[0] + 8, IM2[1] + 3, sub("IM", 2), anchor="start"),
