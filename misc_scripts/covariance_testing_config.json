@@ -1,11 +1,11 @@
 {
   "delay_center": 0.0933,
-  "center_x": 107.0,
+  "center_x": 106.0,
   "center_y": 97.0,
   "angle": 0.2094395102393194,
   "analysis_zone": {
     "min": 15,
-    "max": 50
+    "max": 30
   },
   "transform_parameter": 0.8,
   "scan_index": 0,
@@ -23,5 +23,9 @@
   "binary_per_frame": false,
   "blur": false,
   "blur_fwhm_bins": 1.5,
-  "normalize": true
+  "normalize": true,
+  "hist_mode": true,
+  "hist_bins": 50,
+  "hist_blur": false,
+  "hist_blur_fwhm_bins": 1.5
 }

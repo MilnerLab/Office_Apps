@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QMenu,
     QPushButton,
     QSlider,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -33,9 +34,10 @@ from base_core.framework.events import EventBus
 from base_core.lab_specifics.base_models import IonData, IonDataAnalysisConfig
 from base_core.math.enums import AngleUnit
 from base_core.math.models import Angle, MarkedPoints, Point, Range
-from base_core.math.special_models import AngularCovariance
+from base_core.math.special_models import AngularCovariance, Histogram2D
 from base_core.framework.serialization.serialization import from_primitive, to_primitive
 from base_core.plotting.covariance_plotting import plot_covariance
+from base_core.plotting.histogram_plotting import plot_histogram2d
 from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Length
 from base_qt.app.dispatcher import QtDispatcher
@@ -82,6 +84,17 @@ class CovarianceSettings:
     blur: bool = False
     blur_fwhm_bins: float = 1.5
     normalize: bool = True
+    # Covariance map's displayed angle origin: -90 deg (default) or 0 deg; whichever end
+    # is not the start wraps around to show as the other end plus 360 (e.g. -90 shows up
+    # as +360 when the start is 0)
+    zero_start_angle: bool = False
+    # Left panel display: binary ion scatter, or a 2D histogram of the same hits
+    hist_mode: bool = False
+    hist_bins: int = 50
+    # Gaussian blur of the 2D histogram, FWHM in histogram bins; only used while
+    # hist_blur is on (same technique as the covariance map's blur)
+    hist_blur: bool = False
+    hist_blur_fwhm_bins: float = 1.5
 
 
 # A separate, user-editable settings snapshot persisted next to this script. The "Save
@@ -226,6 +239,19 @@ def blur_covariance(cov: AngularCovariance, fwhm_bins: float) -> AngularCovarian
     return replace(cov, matrix=gaussian_filter(cov.matrix, sigma=sigma, mode="wrap"))
 
 
+def roll_covariance(cov: AngularCovariance, starting_angle: float) -> AngularCovariance:
+    # compute_covariance's matrix is rolled by angle_bins // 4 bins already, which is
+    # what makes a -90 degree start label the data correctly (see plot_covariance's
+    # shift_deg). To start somewhere else, roll by the extra amount needed on top of that.
+    angle_bins = cov.matrix.shape[0]
+    extra_bins = round((starting_angle + 90.0) / 360.0 * angle_bins)
+    if extra_bins % angle_bins == 0:
+        return cov
+    matrix = np.roll(cov.matrix, shift=-extra_bins, axis=0)
+    matrix = np.roll(matrix, shift=-extra_bins, axis=1)
+    return replace(cov, matrix=matrix)
+
+
 def normalize_covariance(cov: AngularCovariance) -> AngularCovariance:
     # Scale to [0, 1]; negatives are clipped, same as plot_covariance does by default
     matrix = np.maximum(cov.matrix, 0.0)
@@ -233,12 +259,23 @@ def normalize_covariance(cov: AngularCovariance) -> AngularCovariance:
     return replace(cov, matrix=matrix / peak if peak > 0 else matrix)
 
 
-def plot_ions_and_covariance(ax_l, ax_r, ion_data, config: IonDataAnalysisConfig, angle_bins: int, radial_range: Range[float] | None, binary_per_frame: bool, blur_fwhm_bins: float | None, normalize: bool, mask_text: str = "", n_body: int | None = None, n_body_at_least: bool = False):
+def blur_histogram(hist: Histogram2D, fwhm_bins: float) -> Histogram2D:
+    # x/y bins are not periodic (unlike the covariance map's angle bins), so this does
+    # not wrap at the edges
+    if fwhm_bins <= 0:
+        return hist
+    sigma = fwhm_bins / FWHM_PER_SIGMA
+    return replace(hist, matrix=gaussian_filter(hist.matrix, sigma=sigma, mode="nearest"))
+
+
+def plot_ions_and_covariance(ax_l, ax_r, ion_data, config: IonDataAnalysisConfig, angle_bins: int, radial_range: Range[float] | None, binary_per_frame: bool, blur_fwhm_bins: float | None, normalize: bool, mask_text: str = "", n_body: int | None = None, n_body_at_least: bool = False, hist_mode: bool = False, hist_bins: int = 50, hist_blur_fwhm_bins: float | None = None, starting_angle: float = -90.0):
     # ============================================================
     # Prepare hits
     # ============================================================
     # The config already drops hits outside the analysis zone
+    n_raw_hits = len(ion_data.points)
     hits = ion_data.get_points_after_config(config)
+    n_blocked = n_raw_hits - len(hits)
 
     print(f"hits={len(hits)}")
 
@@ -273,20 +310,32 @@ def plot_ions_and_covariance(ax_l, ax_r, ion_data, config: IonDataAnalysisConfig
 
     print(f"Computed covariance with n_frames={cov.n_frames}")
 
+    # compute_covariance always rolls its matrix by 90 degrees (so the default -90 degree
+    # start labels the data correctly); roll it further to make a different angle the start
+    cov = roll_covariance(cov, starting_angle)
+
     # ============================================================
     # Plot ions + covariance
     # ============================================================
-    plot_ions_square(
-        ax_l,
-        hits,
-        color="red",
-        label=None,
-    )
+    if hist_mode:
+        hist = Histogram2D.compute_histogram(hits, hist_bins, hist_bins)
+        if hist_blur_fwhm_bins is not None:
+            hist = blur_histogram(hist, hist_blur_fwhm_bins)
+        mesh_l = plot_histogram2d(ax_l, hist)
+    else:
+        plot_ions_square(
+            ax_l,
+            hits,
+            color="red",
+            label=None,
+        )
+        mesh_l = None
     c2t = IonData.avg_c2t(hits)
+    hist_blur_text = f", blur FWHM={hist_blur_fwhm_bins:g} bins" if hist_mode and hist_blur_fwhm_bins is not None else ""
     ax_l.set_title(
-        "Ions\n"
-        f"{hits.marker_max} frames, hits={len(hits)}{mask_text}{n_body_text}\n"
-        rf"$\langle\cos^2(\theta_{{\mathrm{{2D}}}})\rangle$={c2t.value:.3f}±{c2t.error:.3f}"
+        ("2D histogram\n" if hist_mode else "Ions\n")
+        + f"{hits.marker_max} frames, hits={len(hits)}, hits blocked={n_blocked}{mask_text}{n_body_text}{hist_blur_text}\n"
+        + rf"$\langle\cos^2(\theta_{{\mathrm{{2D}}}})\rangle$={c2t.value:.3f}±{c2t.error:.3f}"
     )
     ax_l.set_aspect("equal")
 
@@ -296,35 +345,44 @@ def plot_ions_and_covariance(ax_l, ax_r, ion_data, config: IonDataAnalysisConfig
     if normalize:
         cov = normalize_covariance(cov)
 
-    mesh = plot_covariance(ax_r, cov)
+    mesh = plot_covariance(ax_r, cov, shift_deg=-starting_angle)
     blur_text = f", blur FWHM={blur_fwhm_bins:g} bins" if blur_fwhm_bins is not None else ""
     ax_r.set_title(
         "Angular covariance\n"
         f"frames={cov.n_frames}{blur_text}"
     )
-    return mesh
+    return mesh_l, mesh
 
 
 # ============================================================
 # GUI
 # ============================================================
 class _FloatSliderWidget(QWidget):
-    # A slider with a spin box beside it, kept in sync; the spin box holds the value
-    def __init__(self, lo: float, hi: float, decimals: int, step: float) -> None:
+    # A slider with a spin box beside it, kept in sync; the spin box holds the value.
+    # The slider's handle position is a plain [0, _RESOLUTION] fraction of its track;
+    # when `mid` is given, the left half of the track covers lo..mid and the right half
+    # covers mid..hi (instead of lo..hi spread evenly across the whole track), so values
+    # near `mid` get finer control without narrowing the spin box's own range.
+    _RESOLUTION = 1000
+
+    def __init__(self, lo: float, hi: float, decimals: int, step: float, mid: float | None = None) -> None:
         super().__init__()
-        scale = 10 ** decimals
+        self._lo = lo
+        self._hi = hi
+        self._mid = mid
         self.slider = QSlider(Qt.Orientation.Horizontal)
-        self.slider.setRange(round(lo * scale), round(hi * scale))
-        self.slider.setSingleStep(max(1, round(step * scale)))
-        self.slider.setPageStep(max(1, round(10 * step * scale)))
+        self.slider.setRange(0, self._RESOLUTION)
+        span = hi - lo
+        self.slider.setSingleStep(max(1, round(step / span * self._RESOLUTION)))
+        self.slider.setPageStep(max(1, round(10 * step / span * self._RESOLUTION)))
         self.spin_box = QDoubleSpinBox()
         self.spin_box.setRange(lo, hi)
         self.spin_box.setDecimals(decimals)
         self.spin_box.setSingleStep(step)
         self.spin_box.setFixedWidth(70)
         # Setting an unchanged value emits nothing, so the two signals cannot loop
-        self.slider.valueChanged.connect(lambda v: self.spin_box.setValue(v / scale))
-        self.spin_box.valueChanged.connect(lambda v: self.slider.setValue(round(v * scale)))
+        self.slider.valueChanged.connect(lambda v: self.spin_box.setValue(self._value_at(v)))
+        self.spin_box.valueChanged.connect(lambda v: self.slider.setValue(self._position_for(v)))
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -332,17 +390,35 @@ class _FloatSliderWidget(QWidget):
         layout.addWidget(self.slider, stretch=1)
         layout.addWidget(self.spin_box)
 
+    def _value_at(self, position: int) -> float:
+        frac = position / self._RESOLUTION
+        if self._mid is None:
+            return self._lo + frac * (self._hi - self._lo)
+        if frac <= 0.5:
+            return self._lo + (frac / 0.5) * (self._mid - self._lo)
+        return self._mid + ((frac - 0.5) / 0.5) * (self._hi - self._mid)
+
+    def _position_for(self, value: float) -> int:
+        if self._mid is None:
+            frac = (value - self._lo) / (self._hi - self._lo)
+        elif value <= self._mid:
+            frac = 0.5 * (value - self._lo) / (self._mid - self._lo)
+        else:
+            frac = 0.5 + 0.5 * (value - self._mid) / (self._hi - self._mid)
+        return round(frac * self._RESOLUTION)
+
 
 class FloatSliderSpec(FieldSpec):
-    def __init__(self, label: str, lo: float, hi: float, decimals: int = 1, step: float = 0.1) -> None:
+    def __init__(self, label: str, lo: float, hi: float, decimals: int = 1, step: float = 0.1, mid: float | None = None) -> None:
         super().__init__(label)
         self._lo = lo
         self._hi = hi
         self._decimals = decimals
         self._step = step
+        self._mid = mid
 
     def create_widget(self) -> _FloatSliderWidget:
-        return _FloatSliderWidget(self._lo, self._hi, self._decimals, self._step)
+        return _FloatSliderWidget(self._lo, self._hi, self._decimals, self._step, self._mid)
 
     def set_value(self, widget: _FloatSliderWidget, value: float) -> None:  # type: ignore[override]
         widget.spin_box.setValue(float(value))
@@ -373,14 +449,49 @@ class CovarianceForm(DirtyFormWidget):
         "radial_range": RangeSpec("Radial range", FloatSpec("", min=0.0, max=10_000.0, decimals=1, step=1.0)),
         "binary_per_frame": BoolSpec("Binary per frame"),
         "blur": BoolSpec("Gaussian blur"),
-        "blur_fwhm_bins": FloatSliderSpec("Blur FWHM (bins)", 0.0, 10.0, decimals=1, step=0.1),
+        "blur_fwhm_bins": FloatSliderSpec("Blur FWHM (bins)", 0.0, 10.0, decimals=1, step=0.1, mid=2.0),
         "normalize": BoolSpec("Normalize"),
+        "zero_start_angle": BoolSpec("Start angle at 0° (else -90°)"),
+        "hist_mode": BoolSpec("2D histogram (else ions)"),
+        "hist_bins": IntSpec("Histogram bins", min=2, max=2000),
+        "hist_blur": BoolSpec("Gaussian blur"),
+        "hist_blur_fwhm_bins": FloatSliderSpec("Blur FWHM (bins)", 0.0, 10.0, decimals=1, step=0.1, mid=2.0),
     }
     _groups = [
         ("Analysis config", ["delay_center", "center_x", "center_y", "angle", "analysis_zone", "transform_parameter"]),
         ("Data selection", ["scan_index", "ion_data_index", "mask_brightest_n"]),
-        ("Covariance", ["n_body_filter", "n_body", "n_body_at_least", "angle_bins", "radial_cut", "radial_range", "binary_per_frame", "blur", "blur_fwhm_bins", "normalize"]),
+        ("Covariance", ["n_body_filter", "n_body", "n_body_at_least", "angle_bins", "radial_cut", "radial_range", "binary_per_frame", "blur", "blur_fwhm_bins", "normalize", "zero_start_angle"]),
+        ("Left panel", ["hist_mode", "hist_bins", "hist_blur", "hist_blur_fwhm_bins"]),
     ]
+    # Tabs group the sections above: (tab title, group titles shown on that tab)
+    _tabs = [
+        ("Analysis && data", ["Analysis config", "Data selection"]),
+        ("Covariance", ["Covariance"]),
+        ("Left panel", ["Left panel"]),
+    ]
+
+    def _build(self) -> None:
+        super()._build()
+        # super()._build() added one QGroupBox per _groups entry, in order, directly to
+        # form_layout; take them back out and sort them into tabs instead.
+        containers = {}
+        group_titles = [title for title, _ in self._groups]
+        for title in group_titles:
+            container = self.form_layout.takeAt(0).widget()
+            container.setStyleSheet("QGroupBox { background-color: #e8e8e8; }")
+            containers[title] = container
+
+        tabs = QTabWidget()
+        tabs.setStyleSheet("QTabBar::tab { color: red; }")
+        for tab_title, titles in self._tabs:
+            page = QWidget()
+            page_layout = QVBoxLayout(page)
+            page_layout.setContentsMargins(4, 4, 4, 4)
+            for title in titles:
+                page_layout.addWidget(containers[title])
+            page_layout.addStretch(1)
+            tabs.addTab(page, tab_title)
+        self.form_layout.addWidget(tabs)
 
     def __init__(self, settings: CovarianceSettings, on_apply, parent: QWidget | None = None) -> None:
         super().__init__(settings, parent)
@@ -409,6 +520,9 @@ class CovarianceViewModel(PanelViewModel):
 
     def blur_fwhm_bins(self) -> float | None:
         return self.settings.blur_fwhm_bins if self.settings.blur else None
+
+    def hist_blur_fwhm_bins(self) -> float | None:
+        return self.settings.hist_blur_fwhm_bins if self.settings.hist_blur else None
 
     def auto_center(self) -> None:
         ion_data, _ = self.load_ion_data()
@@ -458,13 +572,17 @@ class CovariancePanel(Panel):
         self._ax_l, self._ax_r = self._fig.subplots(1, 2)
         self._fig.subplots_adjust(left=0.06, right=0.94, wspace=0.3)
         self._canvas = FigureCanvasQTAgg(self._fig)
-        # A colour-limit slider stands where the colorbar would. Its axes are made once,
-        # after subplots_adjust, so replots do not keep shrinking ax_r to make room.
-        self._cax, _ = make_axes(self._ax_r)
-        self._cax.set_axis_off()
-        self._clim_slider: RangeSlider | None = None
+        # A colour-limit slider stands where the colorbar would, for each axis. Their axes
+        # are made once, after subplots_adjust, so replots do not keep shrinking the plots
+        # to make room.
+        cax_l, _ = make_axes(self._ax_l)
+        cax_r, _ = make_axes(self._ax_r)
+        self._caxes = {"l": cax_l, "r": cax_r}
+        for cax in self._caxes.values():
+            cax.set_axis_off()
+        self._clim_sliders: dict[str, RangeSlider | None] = {"l": None, "r": None}
         # Handle positions as fractions of the colour range, kept across replots
-        self._clim_frac = (0.0, 1.0)
+        self._clim_fracs: dict[str, tuple[float, float]] = {"l": (0.0, 1.0), "r": (0.0, 1.0)}
 
         plot_col = QVBoxLayout()
         plot_col.addWidget(NavigationToolbar2QT(self._canvas, self))
@@ -525,19 +643,21 @@ class CovariancePanel(Panel):
         self._canvas.draw_idle()
         self.vm.report_error(e)
 
-    def _clear_clim_slider(self) -> None:
-        if self._clim_slider is not None:
-            self._clim_slider.disconnect_events()
-            self._clim_slider = None
-        self._cax.clear()
-        self._cax.set_axis_off()
+    def _clear_clim_slider(self, side: str) -> None:
+        slider = self._clim_sliders[side]
+        if slider is not None:
+            slider.disconnect_events()
+            self._clim_sliders[side] = None
+        cax = self._caxes[side]
+        cax.clear()
+        cax.set_axis_off()
 
-    def _build_clim_slider(self, mesh, label: str) -> None:
+    def _build_clim_slider(self, side: str, mesh, label: str) -> None:
         # A colorbar whose two handles set the mesh's clim. The gradient shares the mesh's
         # norm, so it shows the same clipping as the map while the handles move.
         lo, hi = float(mesh.norm.vmin), float(mesh.norm.vmax)
         span = hi - lo
-        cax = self._cax
+        cax = self._caxes[side]
         cax.imshow(
             np.linspace(lo, hi, 256).reshape(-1, 1),
             extent=(0.0, 1.0, lo, hi),
@@ -546,7 +666,8 @@ class CovariancePanel(Panel):
             cmap=mesh.cmap,
             norm=mesh.norm,
         )
-        init = (lo + self._clim_frac[0] * span, lo + self._clim_frac[1] * span)
+        frac = self._clim_fracs[side]
+        init = (lo + frac[0] * span, lo + frac[1] * span)
         slider = RangeSlider(
             cax, "", lo, hi,
             valinit=init,
@@ -569,15 +690,16 @@ class CovariancePanel(Panel):
             vmin, vmax = val
             mesh.set_clim(vmin, vmax)
             if span > 0:
-                self._clim_frac = ((vmin - lo) / span, (vmax - lo) / span)
+                self._clim_fracs[side] = ((vmin - lo) / span, (vmax - lo) / span)
 
         slider.on_changed(on_changed)
         mesh.set_clim(*slider.val)
         # Keep a reference, or the slider is garbage collected and stops responding
-        self._clim_slider = slider
+        self._clim_sliders[side] = slider
 
     def _replot(self) -> None:
-        self._clear_clim_slider()
+        self._clear_clim_slider("l")
+        self._clear_clim_slider("r")
         self._ax_l.clear()
         self._ax_r.clear()
         settings = self.vm.settings
@@ -585,7 +707,7 @@ class CovariancePanel(Panel):
             ion_data, masked_hits = self.vm.load_ion_data()
             n_masked = settings.mask_brightest_n
             mask_text = f"\nmasked {n_masked} brightest pixels ({masked_hits} hits)" if n_masked > 0 else ""
-            mesh = plot_ions_and_covariance(
+            mesh_l, mesh_r = plot_ions_and_covariance(
                 self._ax_l,
                 self._ax_r,
                 ion_data,
@@ -598,8 +720,14 @@ class CovariancePanel(Panel):
                 mask_text,
                 self.vm.n_body(),
                 settings.n_body_at_least,
+                settings.hist_mode,
+                settings.hist_bins,
+                self.vm.hist_blur_fwhm_bins(),
+                0.0 if settings.zero_start_angle else -90.0,
             )
-            self._build_clim_slider(mesh, "normalized covariance" if settings.normalize else "covariance")
+            if mesh_l is not None:
+                self._build_clim_slider("l", mesh_l, "counts (log)")
+            self._build_clim_slider("r", mesh_r, "normalized covariance" if settings.normalize else "covariance")
         except Exception as e:
             self._show_error(e)
             return
