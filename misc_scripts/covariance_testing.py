@@ -1,4 +1,5 @@
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, fields as dataclass_fields, replace
+import json
 from pathlib import Path
 import sys
 
@@ -29,10 +30,11 @@ from _data_io.dat_loader import load_ion_data
 
 from apps.c2t_calculation.domain.plotting import plot_ions_square
 from base_core.framework.events import EventBus
-from base_core.lab_specifics.base_models import IonDataAnalysisConfig
+from base_core.lab_specifics.base_models import IonData, IonDataAnalysisConfig
 from base_core.math.enums import AngleUnit
 from base_core.math.models import Angle, MarkedPoints, Point, Range
 from base_core.math.special_models import AngularCovariance
+from base_core.framework.serialization.serialization import from_primitive, to_primitive
 from base_core.plotting.covariance_plotting import plot_covariance
 from base_core.quantities.enums import Prefix
 from base_core.quantities.models import Length
@@ -80,6 +82,21 @@ class CovarianceSettings:
     blur: bool = False
     blur_fwhm_bins: float = 1.5
     normalize: bool = True
+
+
+# A separate, user-editable settings snapshot persisted next to this script. The "Save
+# config" / "Load config" GUI buttons write/read it; it does NOT replace CovarianceSettings'
+# own field defaults above.
+SIDECAR_CONFIG_PATH = Path(__file__).with_name("covariance_testing_config.json")
+SIDECAR_CONFIG_DEFAULT = CovarianceSettings()
+
+
+def save_settings_to_sidecar(settings: CovarianceSettings, path: Path = SIDECAR_CONFIG_PATH) -> None:
+    path.write_text(json.dumps(to_primitive(settings), indent=2), encoding="utf-8")
+
+
+def load_settings_from_sidecar(path: Path = SIDECAR_CONFIG_PATH) -> CovarianceSettings:
+    return from_primitive(CovarianceSettings, json.loads(path.read_text(encoding="utf-8")))
 
 
 # Optional alternative:
@@ -265,9 +282,11 @@ def plot_ions_and_covariance(ax_l, ax_r, ion_data, config: IonDataAnalysisConfig
         color="red",
         label=None,
     )
+    c2t = IonData.avg_c2t(hits)
     ax_l.set_title(
         "Ions\n"
-        f"markers={hits.marker_max}, hits={len(hits)}{mask_text}{n_body_text}"
+        f"{hits.marker_max} frames, hits={len(hits)}{mask_text}{n_body_text}\n"
+        rf"$\langle\cos^2(\theta_{{\mathrm{{2D}}}})\rangle$={c2t.value:.3f}±{c2t.error:.3f}"
     )
     ax_l.set_aspect("equal")
 
@@ -400,6 +419,21 @@ class CovarianceViewModel(PanelViewModel):
         self._msg(f"Centroid: ({centroid.x:.1f}, {centroid.y:.1f})")
 
     # ============================================================
+    # Sidecar config
+    # ============================================================
+    def save_sidecar_config(self) -> None:
+        save_settings_to_sidecar(self.settings)
+        self._msg(f"Saved config to: {SIDECAR_CONFIG_PATH}")
+
+    def load_sidecar_config(self) -> frozenset[str]:
+        loaded = load_settings_from_sidecar()
+        names = [f.name for f in dataclass_fields(CovarianceSettings)]
+        for name in names:
+            setattr(self.settings, name, getattr(loaded, name))
+        self._msg(f"Loaded config from: {SIDECAR_CONFIG_PATH}")
+        return frozenset(names)
+
+    # ============================================================
     # Save single plot
     # ============================================================
     def save(self, fig: Figure) -> None:
@@ -438,8 +472,14 @@ class CovariancePanel(Panel):
 
         # Edits stay pending (dirty) until Apply, which writes them to the settings and replots
         self._form = CovarianceForm(self.vm.settings, self._replot)
+        save_config_button = QPushButton("Save config")
+        save_config_button.clicked.connect(self._on_save_config)
+        load_config_button = QPushButton("Load config")
+        load_config_button.clicked.connect(self._on_load_config)
         apply_row = QHBoxLayout()
         apply_row.addStretch(1)
+        apply_row.addWidget(save_config_button)
+        apply_row.addWidget(load_config_button)
         apply_row.addWidget(self._form.apply_button)
         side_panel = QWidget()
         side_col = QVBoxLayout(side_panel)
@@ -467,7 +507,7 @@ class CovariancePanel(Panel):
         auto_center_button.clicked.connect(self._on_auto_center)
         refresh_button = QPushButton("Refresh")
         refresh_button.clicked.connect(self._replot)
-        save_button = QPushButton("Save")
+        save_button = QPushButton("Save PNG")
         save_button.clicked.connect(lambda: self.vm.save(self._fig))
 
         bottom_row = QHBoxLayout()
@@ -575,6 +615,21 @@ class CovariancePanel(Panel):
             self._show_error(e)
             return
         self._form.refresh_fields(frozenset({"center_x", "center_y"}))
+        self._replot()
+
+    def _on_save_config(self) -> None:
+        try:
+            self.vm.save_sidecar_config()
+        except Exception as e:
+            self._show_error(e)
+
+    def _on_load_config(self) -> None:
+        try:
+            names = self.vm.load_sidecar_config()
+        except Exception as e:
+            self._show_error(e)
+            return
+        self._form.refresh_fields(names)
         self._replot()
 
     def _browse_start_dir(self) -> str:
