@@ -319,9 +319,17 @@ def plot_ions_and_covariance(ax_l, ax_r, ion_data, config: IonDataAnalysisConfig
     # ============================================================
     if hist_mode:
         hist = Histogram2D.compute_histogram(hits, hist_bins, hist_bins)
+        # Pin the color scale to the unblurred counts before smoothing touches the matrix:
+        # LogNorm autoscales vmin/vmax from whatever is left in the data, and any blur leaks
+        # tiny nonzero amounts into previously-empty bins, which would otherwise drag vmin
+        # down and distort the displayed range as the blur amount changes.
+        nonzero_counts = hist.matrix[hist.matrix > 0]
+        clim = (float(nonzero_counts.min()), float(hist.matrix.max())) if nonzero_counts.size else None
         if hist_blur_fwhm_bins is not None:
             hist = blur_histogram(hist, hist_blur_fwhm_bins)
         mesh_l = plot_histogram2d(ax_l, hist)
+        if clim is not None:
+            mesh_l.set_clim(*clim)
     else:
         plot_ions_square(
             ax_l,
@@ -449,13 +457,13 @@ class CovarianceForm(DirtyFormWidget):
         "radial_range": RangeSpec("Radial range", FloatSpec("", min=0.0, max=10_000.0, decimals=1, step=1.0)),
         "binary_per_frame": BoolSpec("Binary per frame"),
         "blur": BoolSpec("Gaussian blur"),
-        "blur_fwhm_bins": FloatSliderSpec("Blur FWHM (bins)", 0.0, 10.0, decimals=1, step=0.1, mid=2.0),
+        "blur_fwhm_bins": FloatSliderSpec("Blur FWHM (bins)", 0.0, 5.0, decimals=1, step=0.1, mid=0.5),
         "normalize": BoolSpec("Normalize"),
         "zero_start_angle": BoolSpec("Start angle at 0° (else -90°)"),
         "hist_mode": BoolSpec("2D histogram (else ions)"),
         "hist_bins": IntSpec("Histogram bins", min=2, max=2000),
         "hist_blur": BoolSpec("Gaussian blur"),
-        "hist_blur_fwhm_bins": FloatSliderSpec("Blur FWHM (bins)", 0.0, 10.0, decimals=1, step=0.1, mid=2.0),
+        "hist_blur_fwhm_bins": FloatSliderSpec("Blur FWHM (bins)", 0.0, 5.0, decimals=2, step=0.01, mid=0.5),
     }
     _groups = [
         ("Analysis config", ["delay_center", "center_x", "center_y", "angle", "analysis_zone", "transform_parameter"]),
