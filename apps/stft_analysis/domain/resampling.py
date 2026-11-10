@@ -23,6 +23,7 @@ def resample_scan(raw: ScanDataBase, axis: list[Time]) -> ResampledScan:
         delays=axis.copy(),
         measured_values=new_c2t,
         run_id=raw.run_id,
+        ions_per_point=raw.ions_per_point,
         scan_range=Range(min(resample_axis), max(resample_axis))
     )
 

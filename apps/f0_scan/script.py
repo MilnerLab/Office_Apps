@@ -24,7 +24,7 @@ from matplotlib.widgets import Button, TextBox
 POSZEROSHIFT = 0 #millimetres :)
 PS_TO_GHZ = 2*46.7/6.6 #cameron's slope from 2026/10/16 to convert mm to ghz and then from mm to ps
 
-DEFAULT_FOLDER = r"Z:\Droplets\20261102\Scan2_FREQ"
+DEFAULT_FOLDER = r"Z:\Droplets\20261110\FreqScan_2"
 DEFAULT_MOLECULE = "OCS"
 
 j_arr = np.arange(0,1,1)
@@ -32,12 +32,12 @@ j_arr = np.arange(0,1,1)
 # (label, default) for each IonDataAnalysisConfig widget
 CONFIG_DEFAULTS = {
     "delay_center": ("Delay center (mm) ", 15.735),
-    "center_x": ("Center x ", 192),
-    "center_y": ("Center y ", 202),
+    "center_x": ("Center x ", 140),
+    "center_y": ("Center y ", 209),
     "angle": ("Angle (deg) ", 12),
     "zone_min": ("Zone min ", 35),
     "zone_max": ("Zone max ", 120),
-    "transform_parameter": ("ScaleX ", 0.77),
+    "transform_parameter": ("ScaleX ", 0.8),
 }
 
 

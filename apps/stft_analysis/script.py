@@ -127,52 +127,22 @@ def get_scan_number(folder_path: Path = MOST_RECENT_FOLDER) -> int:
 
 vmi_config: list[IonDataAnalysisConfig] = []
 
-# vmi_config.append(IonDataAnalysisConfig(    #05/04 cs2 droplet scan
-#     delay_center= Length(93.3, Prefix.MILLI),
-#     center=Point(206, 194),
-#     angle= Angle(12, AngleUnit.DEG),
-#     analysis_zone= Range[int](60, 110),
-#     transform_parameter=0.78))
-
-# vmi_config.append(IonDataAnalysisConfig( #05/05 cs2 droplet scans
-#     delay_center= Length(93.3, Prefix.MILLI),
-#     center=Point(204, 196),
-#     angle= Angle(12, AngleUnit.DEG),
-#     analysis_zone= Range[int](60, 110),
-#     transform_parameter=0.78))
-
-# vmi_config.append(vmi_config[1])
-
-# vmi_config.append(IonDataAnalysisConfig( #CS2 Jet 05/11 config
-#     delay_center= Length(93.3, Prefix.MILLI),
-#     center=Point(228, 186),
-#     angle= Angle(12, AngleUnit.DEG),
-#     analysis_zone= Range[int](40, 110),
-#     transform_parameter=0.78))
-
-
-# vmi_config.append(IonDataAnalysisConfig( #CS2 droplets 05/12 config
-#     delay_center= Length(93.3, Prefix.MILLI),
-#     center=Point(197, 195),
-#     angle= Angle(12, AngleUnit.DEG),
-#     analysis_zone= Range[int](60, 110),
-#     transform_parameter=0.77))
 
 def main() -> None:
     folder_path: list[Path] = []
-    folder_path.append(Path(r"Z:/Droplets/20260910/Scan4_CFG"))
+    folder_path.append(Path(r"Z:/Droplets/20261110/DelayScan_1"))
     
     WINDOWSIZE = Time(180,Prefix.PICO)
     vmi_config.append(IonDataAnalysisConfig( 
-    delay_center= Length(139.5, Prefix.MILLI),
-    center=Point(115, 99),
+    delay_center= Length(129, Prefix.MILLI),
+    center=Point(140, 209),
     angle= Angle(12, AngleUnit.DEG),
-    analysis_zone= Range[int](18, 45),
-    transform_parameter=0.87))
+    analysis_zone= Range[int](30, 120),
+    transform_parameter=0.8))
     
     #vmi_config.append(vmi_config[0])
     
-    fig,(ax1,ax2) = plt.subplots(2,1,figsize=(8,5),gridspec_kw={"hspace":0})
+    fig,(ax1,ax2) = plt.subplots(2,1,sharex=True,figsize=(8,5),gridspec_kw={"hspace":0})
     date_scan = str([str(folder).replace("\\","/")[12:] for folder in folder_path])
     
     
@@ -193,8 +163,7 @@ def main() -> None:
     def on_refresh(event):
         files = DatFinder(folder_path,is_full_path=True)
         datafile_paths = files.find_datafiles()
-        num_scans = get_scan_number()
-        #num_scans = 0
+        num_scans = get_scan_number(folder_path)
         raw_scans = load_ion_data(datafile_paths)
         calculated_Scans = run_pipeline(raw_scans, vmi_config)   
         
@@ -229,6 +198,7 @@ def main() -> None:
         ax2.grid(visible=True,color='grey',linewidth=0.3,zorder=5)
         
         ax1_ions.tick_params(axis='y',left=False,right=True,labelleft=False)
+        ax1_ions.grid(False)
         fig.suptitle(date_scan, fontsize=12)
         fig.canvas.draw_idle()
     
