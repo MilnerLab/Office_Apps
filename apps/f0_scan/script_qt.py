@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 import sys
 
@@ -10,6 +11,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -31,7 +33,7 @@ from base_core.quantities.models import Length
 from base_qt.app.dispatcher import QtDispatcher
 from base_qt.ui import LabMainWindow, Panel, PanelViewModel
 from base_qt.ui.apply import install_ui
-from base_qt.ui.form import AngleSpec, DirtyFormWidget, FieldSpec, FloatSpec, IntSpec, LengthSpec, RangeSpec
+from base_qt.ui.form import AngleSpec, DirtyFormWidget, EnumSpec, FieldSpec, FloatSpec, IntSpec, LengthSpec, RangeSpec
 
 
 POSZEROSHIFT = 0 #millimetres :)
@@ -39,12 +41,35 @@ PS_TO_GHZ = 2*40.206/6.6 #kevin's fit from susCFG paper
 
 DEFAULT_FOLDER = r"Z:\Droplets\20261110\FreqScan_2"
 DEFAULT_MOLECULE = "OCS"
+DEFAULT_J_MAX = 4
 
-j_arr = np.arange(0,1,1)
+
+class JParity(Enum):
+    ALL = "all"
+    EVEN = "even"
+    ODD = "odd"
+
+
+DEFAULT_J_PARITY = JParity.ALL
+
+
+def get_molecule_names() -> list[str]:
+        return sorted(
+            name for name, obj in vars(mol).items()
+            if isinstance(obj, type) and obj is not mol.Molecule and issubclass(obj, mol.Molecule)
+        )
+
+
+# A dynamic Enum, one member per Molecule subclass in base_core.physics.molecules, so the
+# "Molecule" form field can use the same EnumSpec combo box as any other enum setting.
+MoleculeChoice = Enum("MoleculeChoice", {name: name for name in get_molecule_names()})
 
 
 @dataclass
 class F0ScanSettings:
+    molecule: MoleculeChoice = MoleculeChoice[DEFAULT_MOLECULE]
+    j_max: int = DEFAULT_J_MAX
+    j_parity: JParity = DEFAULT_J_PARITY
     delay_center: Length = Length(15.735, Prefix.MILLI)
     center_x: float = 139.0
     center_y: float = 210.0
@@ -67,16 +92,26 @@ def get_scan_number(folder_path: Path = MOST_RECENT_FOLDER) -> int:
         return len(scan_files)
 
 
-def get_transitions(molecule_name: str) -> np.ndarray:
+def get_j_arr(j_max: int, j_parity: JParity) -> np.ndarray:
+        j_arr = np.arange(0, j_max + 1)
+        if j_parity == JParity.EVEN:
+                return j_arr[j_arr % 2 == 0]
+        if j_parity == JParity.ODD:
+                return j_arr[j_arr % 2 == 1]
+        return j_arr
+
+
+def get_transitions(molecule_name: str, j_max: int, j_parity: JParity) -> np.ndarray:
         molecule_cls = getattr(mol, molecule_name.strip(), None)
         if not (isinstance(molecule_cls, type) and issubclass(molecule_cls, mol.Molecule)):
                 raise ValueError(f"Unknown molecule '{molecule_name}'")
         molecule = molecule_cls()
+        j_arr = get_j_arr(j_max, j_parity)
         return np.array([twophoton(molecule,j,True).value(Prefix.GIGA) for j in j_arr])
 
 
-def plot_f0_scan(ax, folder_path: Path, molecule_name: str, config: IonDataAnalysisConfig):
-        transitions = get_transitions(molecule_name)
+def plot_f0_scan(ax, folder_path: Path, molecule_name: str, config: IonDataAnalysisConfig, j_max: int, j_parity: JParity):
+        transitions = get_transitions(molecule_name, j_max, j_parity)
 
         file_paths = DatFinder(folder_path,is_full_path=True).find_datafiles()
         n_files = sum(len(group) for group in file_paths)
@@ -114,6 +149,9 @@ def plot_f0_scan(ax, folder_path: Path, molecule_name: str, config: IonDataAnaly
 # ============================================================
 class F0ScanForm(DirtyFormWidget):
     _specs: dict[str, FieldSpec] = {
+        "molecule": EnumSpec("Molecule", MoleculeChoice),
+        "j_max": IntSpec("J max", min=0, max=1000),
+        "j_parity": EnumSpec("J parity", JParity),
         "delay_center": LengthSpec("Delay center", Prefix.MILLI, extra_decimals=1),
         "center_x": FloatSpec("Center x", min=-10_000.0, max=10_000.0, decimals=2, step=1.0),
         "center_y": FloatSpec("Center y", min=-10_000.0, max=10_000.0, decimals=2, step=1.0),
@@ -122,8 +160,37 @@ class F0ScanForm(DirtyFormWidget):
         "transform_parameter": FloatSpec("ScaleX", min=0.0, max=10.0, decimals=3, step=0.01),
     }
     _groups = [
+        ("Molecule", ["molecule", "j_max", "j_parity"]),
         ("Analysis config", ["delay_center", "center_x", "center_y", "angle", "analysis_zone", "transform_parameter"]),
     ]
+    # Tabs group the sections above: (tab title, group titles shown on that tab)
+    _tabs = [
+        ("Analysis config", ["Analysis config"]),
+        ("Molecule", ["Molecule"]),
+    ]
+
+    def _build(self) -> None:
+        super()._build()
+        # super()._build() added one QGroupBox per _groups entry, in order, directly to
+        # form_layout; take them back out and sort them into tabs instead.
+        containers = {}
+        group_titles = [title for title, _ in self._groups]
+        for title in group_titles:
+            container = self.form_layout.takeAt(0).widget()
+            container.setStyleSheet("QGroupBox { background-color: #e8e8e8; }")
+            containers[title] = container
+
+        tabs = QTabWidget()
+        tabs.setStyleSheet("QTabBar::tab { color: red; }")
+        for tab_title, titles in self._tabs:
+            page = QWidget()
+            page_layout = QVBoxLayout(page)
+            page_layout.setContentsMargins(4, 4, 4, 4)
+            for title in titles:
+                page_layout.addWidget(containers[title])
+            page_layout.addStretch(1)
+            tabs.addTab(page, tab_title)
+        self.form_layout.addWidget(tabs)
 
     def __init__(self, settings: F0ScanSettings, on_apply, parent: QWidget | None = None) -> None:
         super().__init__(settings, parent)
@@ -134,11 +201,10 @@ class F0ScanForm(DirtyFormWidget):
 
 
 class F0ScanViewModel(PanelViewModel):
-    def __init__(self, bus: EventBus, dispatcher: QtDispatcher, settings: F0ScanSettings, folder: Path, molecule: str) -> None:
+    def __init__(self, bus: EventBus, dispatcher: QtDispatcher, settings: F0ScanSettings, folder: Path) -> None:
         super().__init__(bus, dispatcher)
         self.settings = settings
         self.folder = folder
-        self.molecule = molecule
 
     def report_error(self, e: Exception) -> None:
         self._msg(f"Error: {e}")
@@ -180,10 +246,6 @@ class F0ScanPanel(Panel):
         self._folder_edit = QLineEdit(str(self.vm.folder))
         self._folder_edit.textChanged.connect(self._on_folder_changed)
         self._folder_edit.returnPressed.connect(self._replot)
-        self._molecule_edit = QLineEdit(self.vm.molecule)
-        self._molecule_edit.setFixedWidth(100)
-        self._molecule_edit.textChanged.connect(self._on_molecule_changed)
-        self._molecule_edit.returnPressed.connect(self._replot)
         browse_button = QPushButton("Browse")
         browse_button.clicked.connect(self._on_browse_folder)
         refresh_button = QPushButton("Refresh")
@@ -193,8 +255,6 @@ class F0ScanPanel(Panel):
         bottom_row.addWidget(QLabel("Folder"))
         bottom_row.addWidget(self._folder_edit, stretch=1)
         bottom_row.addWidget(browse_button)
-        bottom_row.addWidget(QLabel("Molecule"))
-        bottom_row.addWidget(self._molecule_edit)
         bottom_row.addWidget(refresh_button)
 
         self.body_layout.addLayout(plot_row, stretch=1)
@@ -211,12 +271,15 @@ class F0ScanPanel(Panel):
             self._twin_ax.remove()
             self._twin_ax = None
         self._ax.clear()
+        settings = self.vm.settings
         try:
             self._twin_ax = plot_f0_scan(
                 self._ax,
                 self.vm.folder,
-                self.vm.molecule,
-                build_config(self.vm.settings),
+                settings.molecule.value,
+                build_config(settings),
+                settings.j_max,
+                settings.j_parity,
             )
         except Exception as e:
             self._show_error(e)
@@ -225,9 +288,6 @@ class F0ScanPanel(Panel):
 
     def _on_folder_changed(self, text: str) -> None:
         self.vm.folder = Path(text.strip())
-
-    def _on_molecule_changed(self, text: str) -> None:
-        self.vm.molecule = text.strip()
 
     def _on_browse_folder(self) -> None:
         folder = self.vm.folder
@@ -246,7 +306,7 @@ def main() -> None:
     dispatcher = QtDispatcher()
 
     window = LabMainWindow("F0 scan", bus, dispatcher)
-    vm = F0ScanViewModel(bus, dispatcher, F0ScanSettings(), Path(DEFAULT_FOLDER), DEFAULT_MOLECULE)
+    vm = F0ScanViewModel(bus, dispatcher, F0ScanSettings(), Path(DEFAULT_FOLDER))
     window.setCentralWidget(F0ScanPanel(vm))
     window.resize(1400, 700)
     window.show()
