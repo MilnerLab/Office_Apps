@@ -20,24 +20,33 @@ from manuscript_plotting_scripts.shaped_usCFG_paper.domain import jet
 
 NAME = "fig_jet_truncation"
 # in jet.TRUNCATION_SCANS order: full centrifuge, prism 15.0, 14.5, 13.5 mm
-STYLES = [(PlotColor.BLACK, "o"), (PlotColor.GREEN, "s"), (PlotColor.RED, "D"),
-          (PlotColor.BLUE, "^")]
+STYLES = [(PlotColor.BLACK, "o"), (PlotColor.GREEN, "s"), (PlotColor.BLUE, "D"),
+          (PlotColor.BLUE, "^")] #uses four 
+
+
+
+
 
 
 def main() -> None:
     _, traces = jet.truncation_traces()
-
+    simtraces = jet.simulation_traces()
     fig, ax = plt.subplots(figsize=config.FIGURE_SIZES_IN[NAME], layout="constrained")
     for tr, (col, mk) in zip(traces, STYLES):
         t = np.array([d.value(Prefix.PICO) for d in tr.delays])
         y = np.array([m.value for m in tr.measured_values])
         e = np.array([m.error for m in tr.measured_values])
-        ax.errorbar(t, y, yerr=e, fmt="-", marker=mk, ms=2.4, mew=0, color=col, ecolor=col)
+        ax.errorbar(t, y, yerr=e,ls="none", marker=mk, ms=2.4, mew=0, color=col, ecolor=col)
+        
+    for tr, (col, mk) in zip(simtraces, STYLES):
+        t = np.array([d.value(Prefix.PICO) for d in tr.delays])
+        y = np.array([m.value for m in tr.measured_values])
+        ax.plot(t,y,color=col,ms=0,lw=0.5)
     ax.axhline(0.5, ls=":", marker="", color=PlotColor.GRAY)
     ax.set_xlabel("Probe Delay (ps)")
     ax.set_ylabel(r"$\langle\cos^2\theta_{\rm 2D}\rangle$")
     ax.set_xlim(-520, 1570)
-    ax.set_ylim(0.4975, 0.5625)
+    ax.set_ylim(0.495, 0.55)
     config.save_figure(fig, NAME)
 
 
