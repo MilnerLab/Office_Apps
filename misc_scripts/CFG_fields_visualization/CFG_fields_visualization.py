@@ -27,8 +27,13 @@ for 320 ps / 14 %), which skips the solve, and with it the solve's need for a lo
 
 Extra GDD and TOD can be added to one arm only, on top of the shared dispersion. The arms then
 have different chirps, so the beat (and the rotation) is no longer near-constant; the solve,
-when used, still sets only the shared part. Both arms carry the same energy, so an arm stretched
-further by extra GDD comes out correspondingly weaker.
+when used, still sets only the shared part.
+
+An arm with only the shared dispersion is generated with a peak field amplitude of 1; both arms
+have the same spectrum and so the same energy, so an arm stretched further by extra GDD has a
+lower peak. Nothing is renormalized after the arms are combined (through the QWP and polarizer):
+the plot and the results show the combination's actual field, e.g. a peak |E| of sqrt 2 for the
+normal 3D centrifuge.
 
 Polarization: each arm starts linearly polarized (arm 1 at its angle, arm 2 offset from it).
 After they are combined, both can pass through a quarter-wave plate and then a linear polarizer.
@@ -70,6 +75,7 @@ from PySide6.QtWidgets import (
 )
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
 from matplotlib.cm import ScalarMappable
+from matplotlib.collections import LineCollection
 from matplotlib.colors import LinearSegmentedColormap, Normalize
 from matplotlib.figure import Figure
 from scipy.optimize import brentq
@@ -203,8 +209,7 @@ class Pulse:
         return np.exp(-2 * np.log(2) * (omega / self.d_omega) ** 2)
 
     def arm_field(self, phi2: float, phi3: float, delay: float, extra_phase: float = 0.0) -> np.ndarray:
-        """Complex scalar envelope E(t - delay) of one arm, unnormalized (every arm has the same
-        spectrum, and so the same energy, whatever its dispersion).
+        """Complex scalar envelope E(t - delay) of one arm, unnormalized (arms() scales it).
 
         With field ~ exp(+i Omega t), a spectral phase -phi(Omega) gives group delay +phi'(Omega),
         so phi2 > 0 is an up-chirp. Delaying the full field exp(i omega0 t) E(t) by `delay` also
@@ -218,9 +223,9 @@ class Pulse:
 
     def arms(self, phi2: float, phi3: float, extra: "ExtraDispersion | None" = None) -> tuple[np.ndarray, np.ndarray]:
         """Arm 1 leads by tau/2, arm 2 trails by tau/2, so the centrifuge is centred on t = 0.
-        Both have dispersion (phi2, phi3); `extra` adds more to one of them. Both are scaled by
-        one factor, so the arm without extra dispersion peaks at 1 and a further-stretched arm
-        comes out correspondingly weaker."""
+        Both have dispersion (phi2, phi3); `extra` adds more to one of them. A pulse with only the
+        shared dispersion peaks at |E| = 1; one with extra dispersion has the same energy, so a
+        lower peak."""
         d1 = d2 = (0.0, 0.0)
         if extra is not None:
             if extra.arm is Arm.ARM_1:
@@ -229,8 +234,11 @@ class Pulse:
                 d2 = (extra.gdd, extra.tod)
         e_1 = self.arm_field(phi2 + d1[0], phi3 + d1[1], -self.tau / 2)
         e_2 = self.arm_field(phi2 + d2[0], phi3 + d2[1], +self.tau / 2, self.relative_phase)
+        # One scale for both arms (they have the same spectrum, so the same energy): the arm with
+        # only the shared dispersion peaks at |E| = 1, and an arm stretched further by extra GDD
+        # comes out with a correspondingly lower peak
         reference = e_2 if extra is not None and extra.arm is Arm.ARM_1 else e_1
-        scale = 1 / np.sqrt(np.max(np.abs(reference) ** 2))
+        scale = 1 / np.max(np.abs(reference))
         return e_1 * scale, e_2 * scale
 
 
@@ -507,6 +515,7 @@ def summary(sol: Solution, s: CfgFieldsSettings) -> str:
     beta = AngularChirp(1 / (2 * sol.phi2))   # equivalent time-domain chirp, as base_core uses
     nyquist = Frequency(1 / (2 * pulse.grid.dt))
     j_1, j_2 = arm_jones_vectors(s)
+    peak_e = float(np.sqrt(combine(sol.e_1, sol.e_2, s).s0.max()))   # after QWP / polarizer, not renormalized
     source = "given" if sol.solve_seconds is None else "solved"
     extra_lines = []
     if sol.extra is not None:
@@ -522,6 +531,8 @@ def summary(sol: Solution, s: CfgFieldsSettings) -> str:
         f"  (BETA_0       {BETA_0.value(Prefix.PICO):.4g} rad/ps²)",
         f"Arm FWHM        {sol.arm1_fwhm.value(Prefix.PICO):.2f} / {sol.arm2_fwhm.value(Prefix.PICO):.2f} ps (arm 1 / 2)",
         f"Combined FWHM   {Time(sol.t_end - sol.t_start).value(Prefix.PICO):.2f} ps",
+        f"Arm peak |E|    {np.abs(sol.e_1).max():.3f} / {np.abs(sol.e_2).max():.3f} (arm 1 / 2, before optics)",
+        f"Combined peak   |E| {peak_e:.3f}, |E|² {peak_e**2:.3f}",
         f"Delay           {pulse.tau.value(Prefix.PICO):.3f} ps "
         f"({Length(pulse.tau * SPEED_OF_LIGHT).value(Prefix.MILLI):.3f} mm)",
         "f_rot (circular reference)",
@@ -553,14 +564,14 @@ def plot_ribbon(fig: Figure, sol: Solution, s: CfgFieldsSettings) -> None:
     pol = combine(e_1, e_2, s)
     if pol.s0.max() <= 0:
         raise ValueError("Nothing is transmitted: the polarizer blocks both arms.")
-    norm_s0 = pol.s0 / pol.s0.max()
+    # Not renormalized: each arm peaks at |E| = 1, and this is the combination's actual field
+    peak = float(np.sqrt(pol.s0.max()))
 
     # Strip the common optical phase (the chirp shared by both arms, which does not change the
     # ellipse) so what is left varies only at the slow beat and can be sampled coarsely.
     # Unwrapped before halving, otherwise each 2 pi wrap flips the sign of the field.
     common = np.exp(-0.5j * (np.unwrap(np.angle(e_1)) + np.unwrap(np.angle(e_2))))
-    scale = 1 / np.sqrt(pol.s0.max())
-    ex, ey = pol.ex * common * scale, pol.ey * common * scale
+    ex, ey = pol.ex * common, pol.ey * common
 
     keep = np.nonzero(pol.s0 > s.ribbon_cutoff * pol.s0.max())[0]
     t = np.linspace(grid.t[keep[0]], grid.t[keep[-1]], s.ribbon_points)
@@ -585,9 +596,14 @@ def plot_ribbon(fig: Figure, sol: Solution, s: CfgFieldsSettings) -> None:
     face[..., 3] = 0.6
 
     fig.clear()
-    # placed by hand: tight_layout and a 3D axes' colorbar do not get along
-    ax = fig.add_axes((0.0, 0.0, 0.9, 0.9), projection="3d")
-    cax = fig.add_axes((0.91, 0.25, 0.012, 0.5))
+    # Placed by hand: tight_layout and a 3D axes' colorbar do not get along. The zoomed 3D box
+    # spills past its axes on the right, so its colorbar goes underneath, and the xy projection
+    # sits to the right with its own (time) colorbar underneath
+    ax = fig.add_axes((0.03, 0.08, 0.66, 0.85), projection="3d")
+    cax = fig.add_axes((0.17, 0.07, 0.34, 0.018))
+    ax_xy = fig.add_axes((0.75, 0.25, 0.19, 0.55))
+    cax_xy = fig.add_axes((0.75, 0.07, 0.19, 0.018))
+    plot_xy_projection(ax_xy, cax_xy, t_ps, y, z, peak)
     # rcount/ccount: plot_surface otherwise resamples to at most 50 x 50 facets
     ax.plot_surface(x, y, z, facecolors=face, rcount=x.shape[0], ccount=x.shape[1],
                     linewidth=0, antialiased=False, shade=True)
@@ -595,25 +611,57 @@ def plot_ribbon(fig: Figure, sol: Solution, s: CfgFieldsSettings) -> None:
     # combined-FWHM edges, as rings in the field plane
     ring = np.linspace(0, 2 * np.pi, 100)
     for t_edge in (sol.t_start, sol.t_end):
-        r = np.interp(t_edge, grid.t, np.sqrt(norm_s0))
+        r = np.interp(t_edge, grid.t, np.sqrt(pol.s0))
         ax.plot(np.full_like(ring, t_edge.value(Prefix.PICO)), r * np.cos(ring), r * np.sin(ring),
                 color="k", lw=0.8, ls="--")
-    ax.set_box_aspect((5, 1, 1), zoom=1.5)
+    # zoom > 1 spills the box past its axes (it grows with the window height), so keep it modest
+    ax.set_box_aspect((5, 1, 1), zoom=1.15)
     ax.set_xlim(t_ps[0], t_ps[-1])
-    ax.set_ylim(-1, 1)
-    ax.set_zlim(-1, 1)
-    ax.set_yticks([-1, 0, 1])
-    ax.set_zticks([-1, 0, 1])
+    # Field axes span the combination's actual peak |E| (each arm alone peaks at 1)
+    ax.set_ylim(-peak, peak)
+    ax.set_zlim(-peak, peak)
+    ticks = [-peak, 0.0, peak]
+    ax.set_yticks(ticks, [f"{v:.2f}" for v in ticks])
+    ax.set_zticks(ticks, [f"{v:.2f}" for v in ticks])
     ax.set_xlabel("Time (ps)", labelpad=12)
     ax.set_ylabel("$E_x$")
     ax.set_zlabel("$E_y$")
     turns = abs(th[-1] - th[0]) / (2 * np.pi)
     ax.set_title(
         f"Polarization ellipse along the pulse ($\\tau$ = {sol.pulse.tau.value(Prefix.PICO):.2f} ps, "
-        f"{turns:.1f} turns shown)\n{polarization_label(s)}; dashed rings: combined FWHM"
+        f"{turns:.1f} turns shown)\n{polarization_label(s)}; dashed rings: combined FWHM\n"
+        f"peak |E| of the combination = {peak:.3f} (an arm with only the shared dispersion alone: 1)"
     )
     ax.view_init(elev=20, azim=-70)
-    fig.colorbar(ScalarMappable(norm=cnorm, cmap=cmap), cax=cax, label=r"$\chi$ (deg): 0 linear, $\pm$45 circular")
+    fig.colorbar(ScalarMappable(norm=cnorm, cmap=cmap), cax=cax, orientation="horizontal",
+                 label=r"ellipticity $\chi$ (deg): 0 linear, $\pm$45 circular")
+
+
+def plot_xy_projection(ax, cax, t_ps: np.ndarray, x_field: np.ndarray, y_field: np.ndarray, peak: float) -> None:
+    """The tube seen end-on, down the time axis: every sampled polarization ellipse (columns of
+    x_field / y_field, one optical cycle each) drawn in the Ex-Ey plane, coloured by time. For a
+    centrifuge, whose light is linear, each is a line through the origin and together they form a
+    rosette that turns as time goes on."""
+    segments = [np.column_stack((x_field[:, k], y_field[:, k])) for k in range(len(t_ps))]
+    tnorm = Normalize(t_ps[0], t_ps[-1])
+    lines = LineCollection(segments, cmap="viridis", norm=tnorm, linewidths=0.6, alpha=0.7)
+    lines.set_array(t_ps)
+    ax.add_collection(lines)
+    ring = np.linspace(0, 2 * np.pi, 200)
+    ax.plot(peak * np.cos(ring), peak * np.sin(ring), color="k", lw=0.6, ls=":")
+    lim = 1.05 * peak
+    ax.set_xlim(-lim, lim)
+    ax.set_ylim(-lim, lim)
+    ax.set_aspect("equal")
+    ax.set_xlabel("$E_x$")
+    ax.set_ylabel("$E_y$")
+    # E_y on the right: the 3D plot's own field axis sits just to the left of this panel
+    ax.yaxis.tick_right()
+    ax.yaxis.set_label_position("right")
+    ax.set_title(f"Projection onto the xy plane\n(dotted: peak |E| = {peak:.3f})")
+    ax.grid(alpha=0.3)
+    fig = ax.figure
+    fig.colorbar(ScalarMappable(norm=tnorm, cmap="viridis"), cax=cax, orientation="horizontal", label="Time (ps)")
 
 
 # ============================================================
