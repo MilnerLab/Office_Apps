@@ -151,6 +151,10 @@ class CfgFieldsSettings:
     ribbon_points: int = 300                              # samples along the 3D ribbon (whole pulse)
     ribbon_phase_points: int = 25                         # samples around each polarization ellipse
     ribbon_cutoff: float = 1e-2                           # ribbon drawn where the combined intensity exceeds this x peak
+    # Time span the plots show, separate from the computational window above: automatic (where the
+    # intensity exceeds ribbon_cutoff), or plot_window centred on t = 0 (clipped to the window)
+    plot_window_auto: bool = True
+    plot_window: Time = Time(800.0, Prefix.PICO)
 
 
 # The fields the GDD/TOD solve depends on; changing anything else reuses the cached solve (and
