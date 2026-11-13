@@ -397,13 +397,30 @@ def solve_dispersion(s: CfgFieldsSettings, pulse: Pulse) -> tuple[GDD, float, fl
 MAX_EDGE_INTENSITY = 3e-5   # x the peak
 
 
-def check_edges(grid: Grid, e_1: np.ndarray, e_2: np.ndarray, s: CfgFieldsSettings) -> None:
+def needed_window(pulse: Pulse, arm_dispersions: list[tuple[float, float]]) -> Time:
+    """Shortest window that holds every arm down to MAX_EDGE_INTENSITY. In a strongly chirped
+    pulse each frequency arrives at its group delay phi2 W + phi3 W^2 / 2, so the pulse reaches the
+    threshold at the delay of the frequency W where the spectrum does; the arms sit at +-tau/2 and
+    the window is centred on t = 0."""
+    w = pulse.d_omega * np.sqrt(np.log(1 / MAX_EDGE_INTENSITY) / (4 * np.log(2)))
+    reach = max(abs(p2 * sign * w + p3 * w**2 / 2) for p2, p3 in arm_dispersions for sign in (1, -1))
+    return Time(2 * (reach + pulse.tau / 2))
+
+
+def check_edges(grid: Grid, e_1: np.ndarray, e_2: np.ndarray, s: CfgFieldsSettings, needed: Time) -> None:
     total = np.abs(e_1) ** 2 + np.abs(e_2) ** 2
     edge = max(total[0], total[-1]) / total.max()
     if edge > MAX_EDGE_INTENSITY:
         raise ValueError(
-            f"Time window {s.window.value(Prefix.PICO):.0f} ps is too short: the pulse is still at "
-            f"{edge:.1e} of its peak at the window edges, so it wraps around. Increase the window."
+            f"Time window {s.window.value(Prefix.PICO):.0f} ps is too short for this pulse.\n"
+            "The fields are computed with an FFT, which treats the time window as repeating end to\n"
+            "end, so any part of the pulse that does not fit inside it wraps around onto the other end.\n"
+            f"Here the pulse is still at {edge:.1e} of its peak at the window edges (the limit is "
+            f"{MAX_EDGE_INTENSITY:.0e}).\n"
+            "Wrapped light comes from the far end of the chirp, several THz away in frequency, so even\n"
+            "this little of it makes the computed rotation rate wrong.\n"
+            f"This pulse needs a window of about {needed.value(Prefix.PICO):.0f} ps: increase the time "
+            "window\n(to make it faster, lower the grid points instead of the window)."
         )
 
 
@@ -412,7 +429,10 @@ def build_solution(s: CfgFieldsSettings, pulse: Pulse, phi2: GDD, phi3: float, s
     extra = extra_dispersion(s)
     grid = pulse.grid
     e_1, e_2 = pulse.arms(phi2, phi3, extra)
-    check_edges(grid, e_1, e_2, s)
+    arm_dispersions = [(phi2, phi3)]
+    if extra is not None:
+        arm_dispersions.append((phi2 + extra.gdd, phi3 + extra.tod))
+    check_edges(grid, e_1, e_2, s, needed_window(pulse, arm_dispersions))
     accel, t_start, t_end, f_start, f_end = acceleration(grid, e_1, e_2)
     f_centre = Frequency(np.interp(0.0, grid.t, beat_rotation_frequency(e_1, e_2, grid.dt)))
     return Solution(pulse, phi2, phi3, extra, e_1, e_2, accel, t_start, t_end, f_start, f_end, f_centre,
