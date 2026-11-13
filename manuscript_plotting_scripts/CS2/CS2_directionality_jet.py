@@ -29,12 +29,12 @@ from base_core.quantities.models import Length, Time
 JETRADIUSMIN = 40
 
 STFTWINDOWSIZE = Time(180,Prefix.PICO)  
-EARLIEST_DELAY_PS = -230
+EARLIEST_DELAY_PS = -400
 LATEST_DELAY_PS = -EARLIEST_DELAY_PS
-POSZEROSHIFT = 0 #millimetres :)
+POSZEROSHIFT = 6 #millimetres :)
 
 YMIN = 0.49
-YMAX = 0.6
+YMAX = 0.63
 
 MAJORTITLEFONTSIZE = 16
 YLABELX = -0.135
@@ -72,6 +72,7 @@ PlotTitle = r"CS$_2$ in 120 psi jet"
 
 
 #--------------------------------------------------------------------------------------------------------------
+#NICE COMPARISONS FOR DROPLET EXPERIMENTS
 #--------------------------------------------------------------------------------------------------------------
 # Accelerating
 configs_1: list[IonDataAnalysisConfig] = []
@@ -116,6 +117,56 @@ configs_2.append(IonDataAnalysisConfig(
     angle= Angle(12, AngleUnit.DEG),
     analysis_zone= Range[int](JETRADIUSMIN, 110),
     transform_parameter=0.77))
+#--------------------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------------------
+#EARLIER TESTING FOR JET SKEWNESS
+#--------------------------------------------------------------------------------------------------------------
+
+#TIME ZERO
+configs_0: list[IonDataAnalysisConfig] = []
+folders_0: list[Path] = []
+
+folders_0.append(Path(r"20260327\Scan6")) #GA only, GA=26.00, for time zero
+configs_0.append(IonDataAnalysisConfig(
+    delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(210, 194),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= Range[int](JETRADIUSMIN, 110),
+    transform_parameter=0.78))
+#--------------------------------------------------------------------------------------------------------------
+
+# Accelerating
+configs_1: list[IonDataAnalysisConfig] = []
+folders_1: list[Path] = []
+
+folders_1.append(Path(r"20260327\Scan3")) #DA = 15, GA = 26
+configs_1.append(IonDataAnalysisConfig(
+    delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(210, 194),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= Range[int](JETRADIUSMIN, 110),
+    transform_parameter=0.78))
+
+
+#--------------------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------------------
+# DECELERATING
+
+configs_2: list[IonDataAnalysisConfig] = []
+folders_2: list[Path] = []
+
+
+folders_2.append(Path(r"20260327\Scan5")) #DA = 15.95, GA = 26,, slowing down
+configs_2.append(IonDataAnalysisConfig(
+    delay_center= Length(93.3-POSZEROSHIFT, Prefix.MILLI),
+    center=Point(210, 194),
+    angle= Angle(12, AngleUnit.DEG),
+    analysis_zone= Range[int](JETRADIUSMIN, 110),
+    transform_parameter=0.78))
+
+
 
 
 
@@ -123,50 +174,44 @@ configs_2.append(IonDataAnalysisConfig(
 #Update the matplotlib settings
 
 #Pipeline 
+plottable_scan_0, plottable_spectrogram_0 = calculating(folders_0, configs_0)
 plottable_scan_1, plottable_spectrogram_1 = calculating(folders_1, configs_1)
 plottable_scan_2, plottable_spectrogram_2 = calculating(folders_2, configs_2)
 
 
 #Main figure
 mainfig, (axs) = plt.subplots(
-            nrows=2,
-            ncols=2,
+            nrows=3,
+            ncols=1,
             figsize=(6.75, 4.2),
             sharex=True,             
             gridspec_kw={'hspace': 0.1,'wspace': 0.3}
         )
 
 #Plot first experiment in top row
-a = axs[0,0]
-plot_averaged_scan(a, plottable_scan_1, PlotColor.BLACK,ecolor=PlotColor.RED,marker='d', label = None,elinewidth=0)
+a = axs[0]
+plot_averaged_scan(a, plottable_scan_1, PlotColor.BLACK,ecolor=PlotColor.RED,marker='d', label = None,elinewidth=1)
 a.grid()
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 a.set_ylim([YMIN,YMAX])
 
 a.set_xlabel(None)
 
-a = axs[0,1]
-plot_Spectrogram(a, plottable_spectrogram_1,shading="auto")
-a.set_ylim([0,100])
-a.set_ylabel('Oscillation\nFrequency (GHz)')
-a.yaxis.set_label_coords(YLABELX,0.5)
 
 #plot_nyquist_frequency(a, plottable_scan_1)
 a.set_xlabel(None)
 
 #Plot second experiment in bottom row
-a = axs[1,0]
-plot_averaged_scan(a, plottable_scan_2, PlotColor.BLACK,ecolor=PlotColor.RED,marker='d',label=None,elinewidth=0)
+a = axs[1]
+plot_averaged_scan(a, plottable_scan_2, PlotColor.BLACK,ecolor=PlotColor.RED,marker='d',label=None,elinewidth=1)
 a.grid()
 a.set_ylim([YMIN,YMAX])
 
-a = axs[1,1]
-plot_Spectrogram(a, plottable_spectrogram_2,shading="auto",v_range=Range(0,1))
-#print('Colour axis is different for second row.')
-a.set_ylim([0,100])
-a.set_ylabel('Oscillation\nFrequency (GHz)')
-a.yaxis.set_label_coords(YLABELX,0.5)
-#plot_nyquist_frequency(a, plottable_scan_2)
+#Plot second experiment in bottom row
+a = axs[2]
+plot_averaged_scan(a, plottable_scan_0, PlotColor.BLACK,ecolor=PlotColor.RED,marker='d',label=None,elinewidth=1)
+a.grid()
+a.set_ylim([YMIN,YMAX])
 
 mainfig.suptitle(PlotTitle,fontsize=MAJORTITLEFONTSIZE,color='black')
 
