@@ -94,9 +94,6 @@ def average_scans(scans: List[ScanDataBase], *, key_digits: int = 12) -> C2TScan
             for t, c in zip(s.delays, s.ions_per_frame):
                 j = key_to_idx[_key(t)]
                 ions_mat[i,j] = np.nanmean(c, axis=0)
-                
-            if len(s.delays) != len(ions_mat[i,:]):
-                raise ValueError(f"Scan {i} has mismatched delay/ions_per_frame lengths.")
             #ions_per_frame.append(s.ions_per_frame)
 
         #avg ions/frame over the multiple scan folders
@@ -117,5 +114,6 @@ def average_scans(scans: List[ScanDataBase], *, key_digits: int = 12) -> C2TScan
         delays=x_union.copy(),
         measured_values=avg_c2t,
         run_ids=[s.run_id for s in scans],
-        run_id=None
+        run_id=None,
+        ions_per_point=i_per_point
         )
