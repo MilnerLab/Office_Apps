@@ -66,8 +66,13 @@ class StftAnalysis:
         fs = 1 / self.config.resample_time
         return nperseg, noverlap, fs
 
-    def calculate_spectrogram(self, resampled_scan: ResampledScan) -> SpectrogramResult:
-        c2t, _ = resampled_scan.detrend()
+    def calculate_spectrogram(self, resampled_scan: ResampledScan, detrend_mode: str = "gaussian", moving_average_window: int = 10) -> SpectrogramResult:
+        if detrend_mode == "none":
+            c2t = np.asarray([c.value for c in resampled_scan.measured_values], dtype=float)
+        elif detrend_mode == "moving_average":
+            c2t, _ = resampled_scan.detrend_moving_average(moving_average_window)
+        else:
+            c2t, _ = resampled_scan.detrend()
         nperseg, noverlap, fs = self._stft_params()
 
         f, t_s, Zxx = stft(
@@ -91,8 +96,10 @@ class StftAnalysis:
             run_id=resampled_scan.run_id,
         )
 
-    def calculate_averaged_spectrogram(self) -> AggregateSpectrogram:
-        specs: list[SpectrogramResult] = [self.calculate_spectrogram(scan) for scan in self.scans]
+    def calculate_averaged_spectrogram(self, detrend_mode: str = "gaussian", moving_average_window: int = 10) -> AggregateSpectrogram:
+        specs: list[SpectrogramResult] = [
+            self.calculate_spectrogram(scan, detrend_mode, moving_average_window) for scan in self.scans
+        ]
 
         base_freq = np.asarray(specs[0].frequency, dtype=float)
         n_freq = int(base_freq.size)

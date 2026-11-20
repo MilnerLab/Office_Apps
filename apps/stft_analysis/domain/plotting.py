@@ -61,16 +61,17 @@ def plot_scan_and_spectrogram(
 
     return ax_freq, mesh
 
-def plot_Spectrogram(ax: Axes, data: SpectrogramBase, v_range: Range[float] = Range(0, 1), colormap: PlotColorMap = PlotColorMap.MAGMA,shading:str = 'gouraud') -> None:
-    
+def plot_Spectrogram(ax: Axes, data: SpectrogramBase, v_range: Range[float] = Range(0, 1), colormap: PlotColorMap = PlotColorMap.MAGMA,shading:str = 'gouraud'):
+
     delay = [d.value(Prefix.PICO) for d in data.delay]
     frequency = [f.value(Prefix.GIGA) for f in data.frequency]
-    P = np.array(data.power)       
-    
-    ax.pcolormesh(delay, frequency, P, shading=shading,cmap=colormap, vmin=v_range.min, vmax=v_range.max)
+    P = np.array(data.power)
+
+    mesh = ax.pcolormesh(delay, frequency, P, shading=shading,cmap=colormap, vmin=v_range.min, vmax=v_range.max)
     ax.set_xlabel("Probe Delay (ps)")
     ax.set_ylabel("Oscillation \n Frequency (GHz)")
     ax.grid(color='grey',linewidth=0.3)
+    return mesh
     
 def plot_nyquist_frequency(ax: Axes, data: ScanDataBase) -> None:
     
