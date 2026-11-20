@@ -70,17 +70,20 @@ def _ensure_cached(folder: Path) -> Path:
             for path in folder.rglob(ION_FILE_PATTERN):
                 rel = path.relative_to(folder)
                 target = dest / rel
-                if not target.exists():
-                    
-                    #target.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(path,target)
-                    # compare modification time + size
-                    
-                    """ if (
-                        path.stat().st_mtime > dest.stat().st_mtime
-                        or path.stat().st_size != dest.stat().st_size
+                # CLAUDE COMMENT:
+                # Re-copy if missing, or if the cached copy doesn't match the source
+                # (copy2 preserves mtime, so a good copy has the same size and mtime).
+                # This replaces copies corrupted by an interrupted copy or by a file
+                # that was still being written when it was cached.
+                if target.exists():
+                    src_stat, dst_stat = path.stat(), target.stat()
+                    if (
+                        src_stat.st_size == dst_stat.st_size
+                        and abs(src_stat.st_mtime - dst_stat.st_mtime) <= 2
                     ):
-                        shutil.copy2(path, dest) """
+                        continue
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(path, target)
         #dest.parent.mkdir(parents=True, exist_ok=True)
         else:
             shutil.copytree(folder, dest, dirs_exist_ok=True)

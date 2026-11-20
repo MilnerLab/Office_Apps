@@ -147,22 +147,45 @@ from manuscript_plotting_scripts.shaped_usCFG_paper.domain import xcorr_fit as P
 from manuscript_plotting_scripts.shaped_usCFG_paper.domain.typed import TypedLaw
 
 STAGE_ZERO_MM = 64.500             # probe stage position of zero delay
-
+#FOUR SCANS:
 X0, Y0 = 162.0, 220.0              # VMI centre (px), from the run sheets
 SCALE_X = 0.85                     # aspect correction applied to x
+#THREE SCANS:
+X0, Y0 = 190.0, 185.0  
+SCALE_X = 0.83
+   
 R_MIN, R_MAX = 30.0, 120.0         # radial mask (px, after scaling)
+
+
 
 DATA_ROOT = config.JET_ROOT
 OSC_DIR = os.path.join(DATA_ROOT, "Jet Centrifuge Oscillations")
 TRUNC_ROOT = os.path.join(DATA_ROOT, "Jet Truncation")
+SIM_ROOT = os.path.join(DATA_ROOT, "Truncation Simulations")
 
 #: the four mechanically-averaged scans, in the order they are plotted
+#USING THE SPARSE DATA:
 TRUNCATION_SCANS = [
     ("20260904/Scan3_CFG", "Full centrifuge", None),
     ("20260907/Scan2_CFG", "Prism 15.0 mm", 15.0),
     ("20260904/Scan4_CFG", "Prism 14.5 mm", 14.5),
     ("20260907/Scan1_CFG", "Prism 13.5 mm", 13.5),
 ]
+
+#USING THE DENSER DATA
+TRUNCATION_SCANS = [
+    ("20260922/Scan2_CFG", "Full centrifuge", None),
+    ("20260922/Scan3_CFG_Truncated", "Prism 13.5 mm", 13.5),
+    ("20260922/Scan4_CFG_Truncated", "Prism 14.75 mm", 14.75),
+]
+SIM_SCALE = 0.1375   # scaling applied to simulated <cos^2> - 0.5
+TRUNCATION_SIMS = [
+    ("CS2_run_trunc_none_3e12_10K.csv", "Full centrifuge", None),
+    ("CS2_run_trunc_30ps_3e12_10K.csv", "Prism 13.5 mm", 13.5),
+    ("CS2_run_trunc_190ps_3e12_10K.csv", "Prism 14.75 mm", 14.75),
+]
+
+print("Simulations rescaled about 0.5 by",SIM_SCALE)
 
 WIN_PS = 90.0           # STFT window (Blackman), full width
 STEP_PS = 3.0           # STFT hop
@@ -614,6 +637,28 @@ def truncation_traces() -> tuple[Angle, list[TruncationTrace]]:
             prism=None if prism is None else Length(prism, Prefix.MILLI)))
     return psi, traces
 
+
+SIM_COLUMN = "cos2theta_2D_phase_averaged"   # matches the mechanically-averaged scans
+
+
+def simulation_traces() -> list[TruncationTrace]:
+    """The `TRUNCATION_SIMS` as `TruncationTrace`s, in the same plotting order as
+    `truncation_traces`: delays from ``time_ps``; Measurement(``SIM_COLUMN``, 0.0), since
+    the simulation carries no error; label; prism position, None for the full
+    centrifuge; ``n_ions`` None.  There is no ``psi``: the simulation is already the
+    phase-averaged <cos^2 theta_2D>."""
+    simtraces = []
+    for fname, label, prism in TRUNCATION_SIMS:
+        d = np.genfromtxt(os.path.join(SIM_ROOT, fname), delimiter=",", names=True)
+        t, y = d["time_ps"], d[SIM_COLUMN]
+        y = 0.5 + SIM_SCALE * (y - 0.5) #NONAXIAL RECOIL RESCALING
+        print(f"{label:18s} {fname:34s} {len(t):4d} points, {t.min():.0f}..{t.max():.0f} ps")
+        simtraces.append(TruncationTrace(
+            delays=[Time(float(ti), Prefix.PICO) for ti in t],
+            measured_values=[Measurement(float(yi), 0.0) for yi in y],
+            run_id=None, label=label, rel=fname, n_ions=None,
+            prism=None if prism is None else Length(prism, Prefix.MILLI)))
+    return simtraces
 
 def run_truncation(out_dir: Path) -> None:
     """Reduce the four truncation scans; write ``truncation.csv``."""
