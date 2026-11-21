@@ -56,8 +56,32 @@ class SceneLayout:
     ribbon_width: float = 1.35
     ribbon_opacity: float = 0.42
     seconds_per_manim_unit: float = 80e-12
+    # The envelope peak sits at s ~ pulse_advance.
     pulse_advance: float = 0.6
-    intensity_cutoff: float = 0.3
+    # Drawn extent of the beam along s (manim units). Fixed, rather than tied
+    # to an intensity cutoff, so the corkscrew keeps its length and position
+    # when the pulse duration or pulse_advance is changed.
+    beam_start: float = -6.13
+    beam_end: float = 7.31
+    # Zoom inset (frame coordinates, relative to the camera's frame center).
+    inset_center: np.ndarray = field(default_factory=lambda: np.array([-4.2, -2.4, 0.0]))
+    inset_width: float = 5.3
+    inset_height: float = 2.8
+    inset_padding: float = 0.3
+    # Gap between the zoomed drawing (incl. labels) and the box's lower edge.
+    inset_bottom_gap: float = 0.12
+    inset_label_space: float = 1.2
+    # Length (along z) of the zoomed segment, trailing behind the E-vector.
+    inset_window: float = 1.6
+    # Minimum on-screen gap between the zoom target and the PBS outline.
+    inset_target_margin: float = 0.12
+    # The zoom target is the point nearest the envelope peak (but left of the
+    # cube) where the field makes this angle with the lab x axis, so that
+    # Theta_0 is readable.
+    inset_theta_0_deg: float = 45.0
+    inset_title: str = "Phase at max. Intensity"
+    # Gap above and below the title; the zoomed drawing stays below it.
+    inset_title_gap: float = 0.15
 
     @property
     def lab_axes_origin(self) -> np.ndarray:
@@ -91,7 +115,7 @@ class SceneColors:
         return SceneColors()
 
 
-def create_centrifuge_for_animation(pulse_duration: Time = Time(490, Prefix.PICO)) -> OpticalCentrifuge:
+def create_centrifuge_for_animation(pulse_duration: Time = Time(320, Prefix.PICO)) -> OpticalCentrifuge:
     left_chirp = AngularChirp(BETA_0 + DELTA_BETA * 0.4)
     additional_phase = Angle(225, AngleUnit.DEG)
 
@@ -193,7 +217,7 @@ class CfgProjectionThroughPBS(ThreeDScene):
         z_R_extra = Length(0.65, Prefix.MILLI)
         z_L_extra = Length(0)
 
-        amplitude, angle, s_start, s_end = self._build_model(cfg, z_R_extra, z_L_extra, layout)
+        amplitude, angle, s_start, s_end, s_peak = self._build_model(cfg, z_R_extra, z_L_extra, layout)
 
         lab_axes, lab_axis_labels = self._make_lab_axes(layout.lab_axes_origin, colors)
         self.add(lab_axes)
@@ -203,8 +227,163 @@ class CfgProjectionThroughPBS(ThreeDScene):
             self._add_whole_centrifuge(layout, colors, geometry, amplitude, angle, s_start, s_end)
         else:
             self._add_projection(layout, colors, geometry, amplitude, angle, s_start, s_end)
+            self._add_zoom_inset(layout, colors, geometry, amplitude, angle, s_peak)
 
         self.wait(1 / self.camera.frame_rate)
+
+    def _add_zoom_inset(
+        self,
+        layout: SceneLayout,
+        colors: SceneColors,
+        geometry: dict[str, tuple[int, int]],
+        amplitude,
+        angle,
+        s_peak: float,
+    ) -> None:
+        camera = self.renderer.camera
+        camera.reset_rotation_matrix()
+        rotation = camera.get_rotation_matrix()
+
+        # Last point on the incoming beam that is visibly left of the cube's
+        # on-screen outline; the zoom target must not lie beyond it.
+        half = layout.pbs_size / 2.0
+        cube_corners = layout.pbs_center + half * np.array(
+            [[i, j, k] for i in (-1, 1) for j in (-1, 1) for k in (-1, 1)]
+        )
+        cube_left = camera.project_points(cube_corners)[:, 0].min() - layout.inset_target_margin
+        s_limit = 0.0
+        while camera.project_point(layout.pbs_center + np.array([s_limit, 0.0, 0.0]))[0] > cube_left:
+            s_limit -= 0.01
+
+        def angle_to_x_deg(s: float) -> float:
+            # Lab x is world -y; field direction is (0, cos, sin) in world coordinates.
+            return float(np.degrees(np.arccos(abs(np.cos(angle(s))))))
+
+        # Nearest point to the envelope peak (left of the cube) with the wanted Theta_0.
+        s_high = min(s_peak + 1.0, s_limit)
+        candidates = np.arange(s_high - 2.0, s_high, 0.002)
+        matches = [s for s in candidates if abs(angle_to_x_deg(s) - layout.inset_theta_0_deg) < 1.0]
+        s_target = min(matches, key=lambda s: abs(s - s_peak)) if matches else min(s_peak, s_limit)
+        target = layout.pbs_center + np.array([s_target, 0.0, 0.0])
+        target_2d = camera.project_point(target)
+
+        # The segment fills the left part of the box, the label sits to its right.
+        inset_center = camera.frame_center + layout.inset_center
+        fit_width = layout.inset_width - layout.inset_label_space
+        segment_center = inset_center + np.array([(fit_width - layout.inset_width) / 2.0, 0.0, 0.0])
+        segment = self._make_incoming_beam(
+            layout,
+            colors,
+            {"centrifuge": geometry["inset"]},
+            amplitude,
+            angle,
+            s_target - layout.inset_window,
+            s_target,
+        )
+
+        title = Tex(layout.inset_title, font_size=44, color=colors.coordinate_system)
+        if title.width > layout.inset_width - 0.5:
+            title.scale_to_fit_width(layout.inset_width - 0.5)
+        label = MathTex(r"\vec{E}_\mathrm{CFG}", font_size=44, color=colors.e_field)
+
+        # Magnify the segment's on-screen projection so that it fills the space
+        # below the title, leaving room for the E-label hanging below the arrow.
+        fit_height = (
+            layout.inset_height
+            - (title.height + 2.0 * layout.inset_title_gap)
+            - (label.height / 2.0 + layout.inset_bottom_gap)
+        )
+        projected = camera.project_points(np.vstack([m.points for m in segment.family_members_with_points()]))[:, :2]
+        lower, upper = projected.min(axis=0), projected.max(axis=0)
+        anchor = np.array([*(lower + upper) / 2.0, 0.0])
+        zoom = min(
+            (fit_width - 2.0 * layout.inset_padding) / (upper - lower)[0],
+            fit_height / (upper - lower)[1],
+        )
+
+        def to_inset(points: np.ndarray) -> np.ndarray:
+            flat = segment_center + zoom * (camera.project_points(points) - anchor)
+            flat[:, 2] = 0.0
+            return flat
+
+        def flatten(mob: Mobject) -> VGroup:
+            # Bake the 3D shading and depth order in, then project into the inset.
+            faces = mob.family_members_with_points()
+            for face in faces:
+                rgbas = camera.modified_rgbas(face, face.get_fill_rgbas())
+                face.set_fill(rgb_to_color(rgbas[:, :3].mean(axis=0)), opacity=float(rgbas[:, 3].mean()))
+            faces.sort(key=lambda face: (face.get_center() @ rotation.T)[2])
+            for face in faces:
+                face.points = to_inset(face.points)
+                face.set_shade_in_3d(False)
+            return VGroup(*faces)
+
+        th = angle(s_target)
+        direction = np.array([0.0, np.cos(th), np.sin(th)])
+        e_length = layout.ribbon_width * amplitude(s_target)
+        e_vector = make_double_arrow(
+            target,
+            direction,
+            colors.e_field,
+            length=e_length,
+            cone_height=0.20 / zoom,
+            cone_radius=0.09 / zoom,
+            thickness=0.045 / zoom,
+        )
+
+        segment_2d = flatten(segment)
+        e_vector_2d = flatten(e_vector)
+
+        # Gray reference line along the lab x axis (world -y) through the
+        # E-vector's center, and the angle Theta_0 between it and the E-vector.
+        x_axis_dir = np.array([0.0, -1.0, 0.0])
+        x_line_ends = to_inset(np.array([target - 0.65 * e_length * x_axis_dir, target + 0.65 * e_length * x_axis_dir]))
+        x_line = Line(x_line_ends[0], x_line_ends[1], color=GREY, stroke_width=3)
+
+        # Of the two acute (arrow-half, line-half) pairs, draw the angle on the
+        # side facing away from the ribbon tail, i.e. towards the right of the inset.
+        candidates = [(sign * direction, sign * np.sign(direction @ x_axis_dir or 1.0) * x_axis_dir) for sign in (1.0, -1.0)]
+        e_half, x_half = max(candidates, key=lambda pair: to_inset(np.array([target + pair[0] + pair[1]]))[0, 0])
+        theta_0 = np.arccos(np.clip(e_half @ x_half, -1.0, 1.0))
+        sweep_dir = normalize(e_half - (e_half @ x_half) * x_half)
+        arc_radius = 0.38 * e_length
+        phis = np.linspace(0.0, theta_0, 40)
+        arc_points = to_inset(target + arc_radius * (np.outer(np.cos(phis), x_half) + np.outer(np.sin(phis), sweep_dir)))
+        theta_arc = VMobject(color=colors.coordinate_system, stroke_width=3)
+        theta_arc.set_points_smoothly(arc_points)
+
+        # Centre the label in front of the arc as drawn: just outside its
+        # on-screen midpoint (by arc length), along the ray from the vertex.
+        seg_lengths = np.linalg.norm(np.diff(arc_points, axis=0), axis=1)
+        cumulative = np.concatenate([[0.0], np.cumsum(seg_lengths)])
+        arc_mid = np.array([np.interp(cumulative[-1] / 2.0, cumulative, arc_points[:, i]) for i in range(3)])
+        vertex = to_inset(np.array([target]))[0]
+        theta_label = MathTex(r"\alpha", font_size=40, color=colors.coordinate_system)
+        theta_label.next_to(arc_mid, normalize(arc_mid - vertex), buff=0.08)
+
+        # The angle sits by the upper arrow tip, so the label goes by the lower one.
+        tips_2d = to_inset(np.array([target + 0.5 * e_length * direction, target - 0.5 * e_length * direction]))
+        lower_tip = min(tips_2d, key=lambda p: p[1])
+        label.next_to(lower_tip, RIGHT, buff=0.2)
+
+        box = Rectangle(width=layout.inset_width, height=layout.inset_height)
+        box.move_to(inset_center)
+        box.set_fill(colors.background, opacity=1.0)
+        box.set_stroke(BLACK, width=2.5)
+
+        # Sit the zoomed drawing close to the box's lower edge.
+        drawing = VGroup(segment_2d, x_line, theta_arc, e_vector_2d, label, theta_label)
+        drawing.shift((box.get_bottom()[1] + layout.inset_bottom_gap - drawing.get_bottom()[1]) * UP)
+
+        corners = [box.get_corner(c) for c in (UL, UR, DL, DR)]
+        start = min(corners, key=lambda p: np.linalg.norm(p[:2] - target_2d[:2]))
+        pointer = Line(start, np.array([target_2d[0], target_2d[1], 0.0]), color=BLACK, stroke_width=2.5)
+
+        title.next_to(box.get_top(), DOWN, buff=layout.inset_title_gap)
+
+        self.add_fixed_in_frame_mobjects(
+            box, segment_2d, x_line, theta_arc, e_vector_2d, label, theta_label, title, pointer
+        )
 
     def _add_whole_centrifuge(
         self,
@@ -253,9 +432,9 @@ class CfgProjectionThroughPBS(ThreeDScene):
 
     def _geometry_resolution(self, mode: RenderMode) -> dict[str, tuple[int, int]]:
         if mode.high_detail:
-            return {"centrifuge": (28, 320)}
+            return {"centrifuge": (28, 320), "inset": (28, 120)}
 
-        return {"centrifuge": (12, 120)}
+        return {"centrifuge": (12, 120), "inset": (12, 48)}
 
     def _build_model(
         self,
@@ -267,38 +446,18 @@ class CfgProjectionThroughPBS(ThreeDScene):
         def pulse_time(s: float) -> float:
             return (layout.pulse_advance - s) * layout.seconds_per_manim_unit
 
-        # Find the envelope's peak and the two points where it has fallen to
-        # layout.intensity_cutoff of the peak, by probing a wide, fine window
-        # of physical time, independent of how the figure's s-domain is laid
-        # out. The drawn beams are then trimmed to exactly this window so
-        # both ends taper to the same (small) amplitude instead of an
-        # arbitrary, visually mismatched cutoff.
+        # Find the envelope's peak by probing a wide, fine window of physical
+        # time. The drawn extent is fixed by the layout, independent of it.
         t_probe = np.linspace(-3000e-12, 3000e-12, 6001)
         intensity_probe = np.asarray(cfg.intensity(t_probe, z_R_extra, z_L_extra), dtype=float)
         intensity_max = float(np.max(intensity_probe))
         if intensity_max <= 0:
             raise ValueError("Centrifuge intensity is zero in the sampled window.")
         peak_index = int(np.argmax(intensity_probe))
-        cutoff_intensity = layout.intensity_cutoff * intensity_max
 
-        def crossing(indices: range) -> float:
-            prev_t, prev_i = t_probe[indices[0]], intensity_probe[indices[0]]
-            for idx in indices[1:]:
-                t, i = t_probe[idx], intensity_probe[idx]
-                if i <= cutoff_intensity:
-                    frac = (prev_i - cutoff_intensity) / (prev_i - i)
-                    return prev_t + frac * (t - prev_t)
-                prev_t, prev_i = t, i
-            return t_probe[indices[-1]]
-
-        # Positive pulse_time is the not-yet-split (incoming) side, negative
-        # pulse_time is the already-split (output) side, since pulse_time
-        # decreases as s increases past pulse_advance.
-        t_incoming_edge = crossing(range(peak_index, len(t_probe)))
-        t_output_edge = crossing(range(peak_index, -1, -1))
-
-        s_start = layout.pulse_advance - t_incoming_edge / layout.seconds_per_manim_unit
-        s_end = layout.pulse_advance - t_output_edge / layout.seconds_per_manim_unit
+        s_peak = layout.pulse_advance - t_probe[peak_index] / layout.seconds_per_manim_unit
+        s_start = layout.beam_start
+        s_end = layout.beam_end
 
         def amplitude(s: float) -> float:
             intensity = float(cfg.intensity(pulse_time(s), z_R_extra, z_L_extra))
@@ -307,7 +466,7 @@ class CfgProjectionThroughPBS(ThreeDScene):
         def angle(s: float) -> float:
             return float(cfg.polarization_angle(pulse_time(s), z_R_extra, z_L_extra))
 
-        return amplitude, angle, s_start, s_end
+        return amplitude, angle, s_start, s_end, s_peak
 
     def _make_incoming_beam(
         self,
