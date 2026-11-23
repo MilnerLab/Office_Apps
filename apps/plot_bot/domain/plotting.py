@@ -19,7 +19,7 @@ from apps.stft_analysis.domain.config import StftAnalysisConfig
 from apps.stft_analysis.domain.plotting import plot_Spectrogram, plot_nyquist_frequency
 from apps.stft_analysis.domain.resampling import resample_scans
 from apps.stft_analysis.domain.stft_calculation import StftAnalysis
-from plot_bot.domain.config import USE_SPEC
+from apps.plot_bot.domain.config import BotConfig
 
 SPECTROGRAM_THRESHOLD = Time(10, Prefix.PICO)
 
@@ -42,14 +42,14 @@ class PlottingBotPlotting:
         self.output_path = output_path  
         self.color_cos2 = color_cos2
         self.color_data_ions = color_data_ions
-        
+        self.spec_toggle = BotConfig().USE_SPEC
         self.plot_double()
     
         
     def plot_double(self):
         use_spec = np.mean(np.abs(np.diff(self.current_scan.delays))) < SPECTROGRAM_THRESHOLD
 
-        if use_spec and USE_SPEC:
+        if use_spec and self.spec_toggle:
             fig, (ax_scan, ax_avg, ax_spec) = plt.subplots(
                 nrows=3,
                 ncols=1,
