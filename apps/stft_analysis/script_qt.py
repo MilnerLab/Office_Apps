@@ -7,7 +7,6 @@ import sys
 import matplotlib as mpl
 import numpy as np
 from PySide6.QtCore import Qt, QThread, Signal
-from PySide6.QtGui import QFontMetrics
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -15,6 +14,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QProgressBar,
     QPushButton,
     QScrollArea,
@@ -26,6 +26,7 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolb
 from matplotlib.colorbar import make_axes
 from matplotlib.colors import LogNorm, Normalize
 from matplotlib.figure import Figure
+from matplotlib.ticker import AutoMinorLocator
 from matplotlib.widgets import RangeSlider
 
 from _data_io.dat_finder import DatFinder
@@ -441,12 +442,20 @@ def render_stft_plot(ax_scan, ax_spec, ax_ions, result: StftComputeResult):
 
     ax_scan.legend(loc="best")
     ax_scan.grid(visible=True, which="major", alpha=1.0)
+    # Twice the density of the major grid: one minor tick splits each major interval in half.
+    ax_scan.xaxis.set_minor_locator(AutoMinorLocator(2))
+    ax_scan.yaxis.set_minor_locator(AutoMinorLocator(2))
+    ax_scan.grid(visible=True, which="minor", alpha=0.3)
 
     mesh = plot_Spectrogram(ax_spec, result.spectrogram, v_range=Range(0, 1), shading="auto")
     plot_nyquist_frequency(ax_spec, result.first_group_average)
 
     ax_spec.set_axisbelow(False)
-    ax_spec.grid(visible=True, color="grey", linewidth=0.3, zorder=5)
+    # Shares the x-axis with ax_scan, so its vertical gridlines need the same minor locator
+    # or they fall at different x positions and the two panels' grids won't line up.
+    ax_spec.xaxis.set_minor_locator(AutoMinorLocator(2))
+    ax_spec.grid(visible=True, which="major", color="grey", linewidth=0.3, zorder=5)
+    ax_spec.grid(visible=True, which="minor", axis="x", color="grey", linewidth=0.3, alpha=0.3, zorder=5)
 
     ax_ions.tick_params(axis="y", left=False, right=True, labelleft=False)
     ax_ions.grid(False)
@@ -494,6 +503,15 @@ class _StftWorker(QThread):
 # ============================================================
 # GUI
 # ============================================================
+def _display_path(path: str) -> str:
+    """Shorten a folder path to whatever follows its "Droplets" directory, if any."""
+    marker = "Droplets"
+    idx = path.find(marker)
+    if idx == -1:
+        return path
+    return path[idx + len(marker):].lstrip("\\/")
+
+
 class FolderSelectionWidget(QWidget):
     """One row per remembered folder: include checkbox, path, and a colour-group ID.
 
@@ -502,9 +520,10 @@ class FolderSelectionWidget(QWidget):
     checkbox toggle or ID edit would trigger an immediate, expensive replot.
     """
 
-    def __init__(self, on_dirty, parent: QWidget | None = None) -> None:
+    def __init__(self, on_dirty, on_purge, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._on_dirty = on_dirty
+        self._on_purge = on_purge
         self._entries: list[FolderEntry] = []
         self._indicators: list[DirtyIndicator] = []
 
@@ -519,6 +538,11 @@ class FolderSelectionWidget(QWidget):
         )
         hint.setWordWrap(True)
         outer.addWidget(hint)
+
+        purge_button = QPushButton("Purge selections")
+        purge_button.setToolTip("Remove every folder from this list")
+        purge_button.clicked.connect(self._purge)
+        outer.addWidget(purge_button)
 
         self._rows_container = QWidget()
         self._rows_layout = QVBoxLayout(self._rows_container)
@@ -557,9 +581,9 @@ class FolderSelectionWidget(QWidget):
             checkbox.setChecked(entry.include)
             checkbox.toggled.connect(lambda checked, e=entry, ind=indicator: self._set_include(e, checked, ind))
 
-            label = QLabel()
+            label = QLineEdit(_display_path(entry.path))
             label.setFixedWidth(120)
-            label.setText(QFontMetrics(label.font()).elidedText(entry.path, Qt.TextElideMode.ElideMiddle, label.width()))
+            label.setReadOnly(True)
             label.setToolTip(entry.path)
 
             id_edit = QLineEdit(entry.group_id)
@@ -614,6 +638,21 @@ class FolderSelectionWidget(QWidget):
             entry.cut_selection = text
             indicator.set_dirty(True)
             self._on_dirty()
+
+    def _purge(self) -> None:
+        if not self._entries:
+            return
+        answer = QMessageBox.question(
+            self,
+            "Purge selections",
+            "Remove all folders from the Selection tab? This cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        self.set_entries([])
+        self._on_purge()
 
     def commit_pending(self, config_entries: list[FolderEntry]) -> None:
         """Write staged include/group_id/scan_selection/cut_selection edits back onto the
@@ -687,7 +726,7 @@ class StftForm(DirtyFormWidget):
         # Not spec-driven like the tabs above (its rows are dynamic, added as folders are
         # plotted); edits there are staged locally and only committed to the config below,
         # when Apply is pressed, same as every other field on this form.
-        self._selection_widget = FolderSelectionWidget(on_dirty=lambda: None)
+        self._selection_widget = FolderSelectionWidget(on_dirty=lambda: None, on_purge=self._handle_purge)
         self._selection_widget.set_entries(self._config.folder_entries)
         tabs.addTab(self._selection_widget, "Selection")
 
@@ -695,6 +734,12 @@ class StftForm(DirtyFormWidget):
 
     def refresh_selection(self) -> None:
         self._selection_widget.set_entries(self._config.folder_entries)
+
+    def _handle_purge(self) -> None:
+        # Purging is immediate, bypassing the Apply gate -- same as adding a folder from
+        # the bottom-row Browse/Refresh controls, which also writes straight to the config.
+        self._config.folder_entries.clear()
+        self._on_apply()
 
     def __init__(self, settings: StftSettings, on_apply, parent: QWidget | None = None) -> None:
         super().__init__(settings, parent)
@@ -796,9 +841,8 @@ class StftPanel(Panel):
         side_panel = QWidget()
         side_col = QVBoxLayout(side_panel)
         side_col.setContentsMargins(0, 0, 0, 0)
-        side_col.addWidget(self._form)
+        side_col.addWidget(self._form, stretch=1)
         side_col.addLayout(apply_row)
-        side_col.addStretch(1)
         # Fixed, because the spin boxes' huge ranges make their size hints far too wide
         side_panel.setFixedWidth(400)
 

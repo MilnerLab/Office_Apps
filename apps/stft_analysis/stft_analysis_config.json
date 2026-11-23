@@ -7,7 +7,7 @@
     "min": 60,
     "max": 120
   },
-  "transform_parameter": 0.73,
+  "transform_parameter": 0.75,
   "window_size": 1.8e-10,
   "spectrogram_averaging_mode": "averaged_curve",
   "baseline_mode": "gaussian",
@@ -15,7 +15,7 @@
   "plot_detrend_curve": true,
   "x_limits_enabled": true,
   "x_limits": {
-    "min": -350.0,
+    "min": -720.0,
     "max": 250.0
   },
   "y_limits_enabled": true,
@@ -26,38 +26,24 @@
   "log_colorscale": false,
   "folder_entries": [
     {
-      "path": "Z:\\Droplets\\20261120\\Scan1_CFG",
-      "include": false,
+      "path": "Z:\\Droplets\\20261123\\Scan3_CFG",
+      "include": true,
       "group_id": "1",
-      "scan_selection": "2,3,4,6",
+      "scan_selection": "",
       "cut_selection": ""
     },
     {
-      "path": "Z:\\Droplets\\20261122\\Scan2_CFG",
+      "path": "Z:\\Droplets\\20261123\\Scan2_CFG",
       "include": true,
-      "group_id": "2",
-      "scan_selection": "",
-      "cut_selection": "3:"
+      "group_id": "1",
+      "scan_selection": "0",
+      "cut_selection": ""
     },
     {
-      "path": "Z:\\Droplets\\20261122\\Scan1_CFG",
+      "path": "Z:\\Droplets\\20261123\\Scan1_CFG",
       "include": true,
-      "group_id": "2",
-      "scan_selection": "",
-      "cut_selection": "0:20,50:"
-    },
-    {
-      "path": "Z:\\Droplets\\20261121\\Scan1_CFG",
-      "include": false,
       "group_id": "1",
       "scan_selection": "",
-      "cut_selection": "3:35"
-    },
-    {
-      "path": "Z:\\Droplets\\20261121\\Scan4_CFG",
-      "include": false,
-      "group_id": "1",
-      "scan_selection": "2:",
       "cut_selection": ""
     }
   ]
