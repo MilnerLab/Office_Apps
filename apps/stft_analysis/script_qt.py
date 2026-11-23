@@ -117,26 +117,35 @@ def _group_entries(entries: list[FolderEntry]) -> list[tuple[str, list[tuple[Pat
 
 
 def _parse_scan_selection(spec: str, n: int) -> list[int]:
-    """Numpy-style index/slice ("2:8", "::2", "-3:", "0,2,4", "[0,2,4]") applied to a
-    sequence of length n, returning the selected 0-based positions."""
+    """Numpy-style index/slice applied to a sequence of length n, returning the selected
+    0-based positions. Comma-separated terms are unioned, and each term is either a bare
+    index ("4") or its own ":"-slice ("2:8", "::2", "-3:") -- so "0:20,60:70" and "0,2,4" and
+    "0:5,8,12:15" ("[...]" brackets optional) all work, rather than the whole spec being
+    forced into one slice or one flat index list."""
     spec = spec.strip()
     spec = spec[1:-1].strip() if spec.startswith("[") and spec.endswith("]") else spec
     idx = np.arange(n)
     if not spec:
         return idx.tolist()
     try:
-        if ":" in spec:
-            parts = [p.strip() for p in spec.split(":")]
-            if len(parts) > 3:
-                raise ValueError("too many ':' in slice")
-            selected = idx[slice(*(int(p) if p else None for p in parts))]
-        else:
-            selected = idx[[int(p.strip()) for p in spec.split(",")]]
+        selected: list[int] = []
+        for term in spec.split(","):
+            term = term.strip()
+            if not term:
+                continue
+            if ":" in term:
+                parts = [p.strip() for p in term.split(":")]
+                if len(parts) > 3:
+                    raise ValueError("too many ':' in slice")
+                selected.extend(idx[slice(*(int(p) if p else None for p in parts))].tolist())
+            else:
+                selected.append(int(idx[int(term)]))
     except (ValueError, IndexError) as e:
         raise ValueError(
-            f"Invalid scan selection '{spec}': use numpy-style indexing, e.g. '0:5', '::2', '-3:', or '0,2,4'."
+            f"Invalid scan selection '{spec}': use numpy-style indexing, e.g. '0:5', '::2', '-3:', "
+            "'0,2,4', or '0:20,60:70'."
         ) from e
-    return np.atleast_1d(selected).tolist()
+    return np.atleast_1d(np.array(selected, dtype=int)).tolist()
 
 
 def _group_files_by_position(files: list[Path]) -> dict:

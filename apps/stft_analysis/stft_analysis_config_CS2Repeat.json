@@ -1,0 +1,50 @@
+{
+  "delay_center": 0.125,
+  "center_x": 174.0,
+  "center_y": 202.0,
+  "angle": 0.2094395102393194,
+  "analysis_zone": {
+    "min": 60,
+    "max": 120
+  },
+  "transform_parameter": 0.73,
+  "window_size": 1.8e-10,
+  "spectrogram_averaging_mode": "averaged_curve",
+  "baseline_mode": "gaussian",
+  "moving_average_window": 3e-10,
+  "plot_detrend_curve": true,
+  "x_limits_enabled": true,
+  "x_limits": {
+    "min": -250.0,
+    "max": 250.0
+  },
+  "y_limits_enabled": true,
+  "y_limits": {
+    "min": 0.0,
+    "max": 120.0
+  },
+  "log_colorscale": false,
+  "folder_entries": [
+    {
+      "path": "Z:\\Droplets\\20261121\\Scan4_CFG",
+      "include": true,
+      "group_id": "1",
+      "scan_selection": "2:",
+      "cut_selection": ""
+    },
+    {
+      "path": "Z:\\Droplets\\20261121\\Scan1_CFG",
+      "include": true,
+      "group_id": "1",
+      "scan_selection": "",
+      "cut_selection": "3:50"
+    },
+    {
+      "path": "Z:\\Droplets\\20261120\\Scan1_CFG",
+      "include": false,
+      "group_id": "1",
+      "scan_selection": "2,3,4,6",
+      "cut_selection": ""
+    }
+  ]
+}
