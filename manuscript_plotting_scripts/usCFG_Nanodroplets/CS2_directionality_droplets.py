@@ -19,7 +19,7 @@ from base_core.math.enums import AngleUnit
 from base_core.math.models import Angle, Point, Range
 from base_core.plotting.enums import PlotColor
 from base_core.quantities.enums import Prefix
-from base_core.quantities.models import Length
+from base_core.quantities.models import Length, Time
 
 DROPLETRADIUSMIN = 65
 
@@ -155,7 +155,7 @@ configs_2.append(IonDataAnalysisConfig(
 #--------------------------------------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------------------------------------
 # SIMULATION
-folder_ML_Latex = r"C:\milnergitfolder\Latex"
+folder_ML_Latex = r"C:\git\milnerlab-python\Latex"
 simulation_filename1 = folder_ML_Latex + r"\droplet_theory_paper\theory_calc\CS2_accelerating_droplets_CS2_cos2theta2D_vs_t_model_only.csv"
 simulation_filename2 = folder_ML_Latex+ r"\droplet_theory_paper\theory_calc\CS2_decelerating_droplets_CS2_cos2theta2D_vs_t_model_only.csv"
 
@@ -170,6 +170,21 @@ plt.style.use(r"stylefiles/compare_c2t_spectrogram.mplstyle")
 #Pipeline
 plottable_scan_1 = calculating(folders_1, configs_1)
 plottable_scan_2 = calculating(folders_2, configs_2)
+
+
+#Truncate times within axis limits
+plottable_scan_1.cut_time(t_min = Time(EARLIEST_DELAY_PS,Prefix.PICO),t_max = Time(LATEST_DELAY_PS,Prefix.PICO))
+plottable_scan_2.cut_time(t_min = Time(EARLIEST_DELAY_PS,Prefix.PICO),t_max = Time(LATEST_DELAY_PS,Prefix.PICO))
+
+#Have to truncate the simulated range as well
+x = forward.time
+mask = (
+    (x >= EARLIEST_DELAY_PS) & (x <= LATEST_DELAY_PS)
+)
+
+# Filter data
+forward = forward[mask]
+reverse = reverse[mask] #beware this only works because they were generated the same
 
 #(a) (b) placement etc
 #Labels
@@ -202,7 +217,7 @@ a.legend_.remove()
 #Plot second experiment
 a = axs[1]
 plot_averaged_scan(a, plottable_scan_2, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d',label=None,elinewidth=0)
-a.plot(forward.time,reverse.signal_scaled,color=PlotColor.RED) #plot theory simulation
+a.plot(reverse.time,reverse.signal_scaled,color=PlotColor.RED) #plot theory simulation
 a.text(textx, texty, '(b)',color='k', family='DejaVu Sans', usetex=False, fontsize=9, horizontalalignment='center', verticalalignment='center', transform=a.transAxes, bbox=dict(boxstyle='round,pad=0.4', facecolor='lightgray', edgecolor='none'))
 a.set_ylabel(None)
 a.legend_.remove()
