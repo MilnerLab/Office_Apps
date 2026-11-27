@@ -27,7 +27,6 @@ EARLIEST_DELAY_PS = -200
 LATEST_DELAY_PS = -EARLIEST_DELAY_PS
 POSZEROSHIFT = 0 #millimetres :)
 
-MAJORTITLEFONTSIZE = 16
 
 #FUNCTION TO GENERATE THE PLOTTABLE DATA
 def calculating(folders: list[Path], configs: list[IonDataAnalysisConfig]) -> AveragedScansData:
@@ -165,7 +164,7 @@ reverse = pd.read_csv(simulation_filename2,names = ['time','signal_raw','signal_
 
 #--------------------------------------------------------------------------------------------------
 #Update the matplotlib settings
-plt.style.use(r"stylefiles/compare_c2t_spectrogram.mplstyle")
+plt.style.use(r"stylefiles/natcomm_2026_stylefile.mplstyle")
 
 #Pipeline
 plottable_scan_1 = calculating(folders_1, configs_1)
@@ -197,7 +196,7 @@ texty = 0.85
 mainfig, (axs) = plt.subplots(
             nrows=2,
             ncols=1,
-            figsize=(3.375, 3.5),
+            figsize=(88/25.4, 100/25.4), #Nature requires 88mm width for single-column figures
             sharex=True,
             gridspec_kw={'hspace': 0.1},
         )
@@ -206,26 +205,26 @@ mainfig.tight_layout()
 a = axs[0]
 plot_averaged_scan(a, plottable_scan_1, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d', label = None,elinewidth=0)
 a.plot(forward.time,forward.signal_scaled,color=PlotColor.RED) #plot theory simulation
-a.text(textx, texty, '(a)',color='k', family='DejaVu Sans', usetex=False, fontsize=9, horizontalalignment='center', verticalalignment='center', transform=a.transAxes, bbox=dict(boxstyle='round,pad=0.4', facecolor='lightgray', edgecolor='none'))
+a.text(textx, texty, '(a)',color='k', family='DejaVu Sans', usetex=False, fontsize=7, horizontalalignment='center', verticalalignment='center', transform=a.transAxes, bbox=dict(boxstyle='round,pad=0.4', facecolor='lightgray', edgecolor='none'))
 
 a.grid()
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 a.set_xlabel(None)
-a.set_ylabel(None)
+#a.set_ylabel(None)
 a.legend_.remove()
 
 #Plot second experiment
 a = axs[1]
 plot_averaged_scan(a, plottable_scan_2, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d',label=None,elinewidth=0)
 a.plot(reverse.time,reverse.signal_scaled,color=PlotColor.RED) #plot theory simulation
-a.text(textx, texty, '(b)',color='k', family='DejaVu Sans', usetex=False, fontsize=9, horizontalalignment='center', verticalalignment='center', transform=a.transAxes, bbox=dict(boxstyle='round,pad=0.4', facecolor='lightgray', edgecolor='none'))
-a.set_ylabel(None)
+a.text(textx, texty, '(b)',color='k', family='DejaVu Sans', usetex=False, fontsize=7, horizontalalignment='center', verticalalignment='center', transform=a.transAxes, bbox=dict(boxstyle='round,pad=0.4', facecolor='lightgray', edgecolor='none'))
+#a.set_ylabel(None)
 a.legend_.remove()
 
 a.grid()
 
-#mainfig.suptitle(PlotTitle,fontsize=MAJORTITLEFONTSIZE,color='black')
-mainfig.supylabel("$\langle \cos^2\\theta_{2D}\\rangle$\n",horizontalalignment="center")
+#a single bigger label looks better, but nature has a font size limit of 7, and this looks awful that small
+#mainfig.supylabel("$\langle \cos^2\\theta_{2D}\\rangle$\n",horizontalalignment="center",fontsize=7)
 
 #Save scans
 plottable_scan_1.to_csv(savedata_filename_1)
