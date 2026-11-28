@@ -205,7 +205,7 @@ mainfig.tight_layout()
 a = axs[0]
 plot_averaged_scan(a, plottable_scan_1, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d', label = None,elinewidth=0)
 a.plot(forward.time,forward.signal_scaled,color=PlotColor.RED) #plot theory simulation
-a.text(textx, texty, '(a)',color='k', family='DejaVu Sans', usetex=False, fontsize=7, horizontalalignment='center', verticalalignment='center', transform=a.transAxes, bbox=dict(boxstyle='round,pad=0.4', facecolor='lightgray', edgecolor='none'))
+a.text(textx, texty, '(\\textbf{a})',color='k', usetex=True, fontsize=7, horizontalalignment='center', verticalalignment='center', transform=a.transAxes, bbox=dict(boxstyle='round,pad=0.4', facecolor='lightgray', edgecolor='none'))
 
 a.grid()
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
@@ -217,7 +217,7 @@ a.legend_.remove()
 a = axs[1]
 plot_averaged_scan(a, plottable_scan_2, PlotColor.BLUE,ecolor=PlotColor.RED,marker='d',label=None,elinewidth=0)
 a.plot(reverse.time,reverse.signal_scaled,color=PlotColor.RED) #plot theory simulation
-a.text(textx, texty, '(b)',color='k', family='DejaVu Sans', usetex=False, fontsize=7, horizontalalignment='center', verticalalignment='center', transform=a.transAxes, bbox=dict(boxstyle='round,pad=0.4', facecolor='lightgray', edgecolor='none'))
+a.text(textx, texty, '(\\textbf{b})',color='k', usetex=True, fontsize=7, horizontalalignment='center', verticalalignment='center', transform=a.transAxes, bbox=dict(boxstyle='round,pad=0.4', facecolor='lightgray', edgecolor='none'))
 #a.set_ylabel(None)
 a.legend_.remove()
 
@@ -231,5 +231,5 @@ plottable_scan_1.to_csv(savedata_filename_1)
 plottable_scan_2.to_csv(savedata_filename_2)
 
 mainfig.savefig(fig_filename,format='pdf',dpi=300)
+print('Done! Figure shown.')
 plt.show()
-print('Done!')

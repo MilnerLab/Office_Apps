@@ -24,12 +24,18 @@ from base_core.math.enums import AngleUnit
 from base_core.math.models import Angle, Point, Range
 from base_core.plotting.enums import PlotColor
 from base_core.quantities.enums import Prefix
-from base_core.quantities.models import Length, Time
+from base_core.quantities.models import Frequency, Length, Time
 
 #Update the matplotlib settings
-plt.style.use(r"stylefiles/compare_c2t_spectrogram.mplstyle")
+plt.style.use(r"stylefiles/natcomm_2026_stylefile.mplstyle")
 
 DROPLETRADIUSMIN = 60
+
+EARLIEST_DELAY_PS = -250
+LATEST_DELAY_PS = 220
+
+LOWEST_FREQUENCY_GHZ = 0
+LARGEST_FREQUENCY_GHZ = 120
 
 STFTWINDOWSIZE = Time(180,Prefix.PICO)  
 POSZEROSHIFT = 5 #millimetres :)
@@ -44,7 +50,10 @@ def calculating(folders: list[Path], configs: list[IonDataAnalysisConfig]) -> tu
     resampled_scans = resample_scans(calculated_scans, config.axis)
 
     spectrogram = StftAnalysis(resampled_scans, config).calculate_averaged_spectrogram()
-    
+    #Truncate times within axis limits
+    averagedScanData.cut_time(t_min = Time(EARLIEST_DELAY_PS,Prefix.PICO),t_max = Time(LATEST_DELAY_PS,Prefix.PICO))
+    spectrogram.cut_time(t_min = Time(EARLIEST_DELAY_PS,Prefix.PICO),t_max = Time(LATEST_DELAY_PS,Prefix.PICO))
+    spectrogram.cut_frequency(f_min = Frequency(LOWEST_FREQUENCY_GHZ,Prefix.GIGA),f_max = Frequency(LARGEST_FREQUENCY_GHZ,Prefix.GIGA))
     return (averagedScanData, spectrogram)
 
 #--------------------------------------------------------------------------------------------------
@@ -123,7 +132,7 @@ savefig1_filename = savefig_folder + r"cs2-breakingwall_TEMP.pdf"
 fig1, axs = plt.subplots(
             nrows=2,
             ncols=2,
-            figsize=(6.75, 2.8),
+            figsize=(180/25.4, 70/25.4), #Nature has 180mm for 2-column
             sharex='col',
             gridspec_kw={'hspace': 0.1,'wspace': 0.25,'width_ratios': [3,2]}
         )
@@ -150,16 +159,17 @@ plot_averaged_scan(ax2,plottable_scan_drop,PlotColor.BLUE,ecolor=PlotColor.RED,m
 
 #Spectrograms
 plot_Spectrogram(axB, plottable_spec_jet, shading='auto')
-axB.set_ylim([0,120])
+axB.set_ylim([LOWEST_FREQUENCY_GHZ,LARGEST_FREQUENCY_GHZ])
 
 plot_Spectrogram(axD, plottable_spec_drop, shading='auto')
-axD.set_ylim([0,120])
+axD.set_ylim([LOWEST_FREQUENCY_GHZ,LARGEST_FREQUENCY_GHZ])
 
 #Horizontal marker line on droplets spectrogram
 axD.axhline(22, color='w', linestyle='--', linewidth=1)
 
-ax1.set_xlim([-250,220])
-axB.set_xlim([-250,220])
+#Only have to change two out of four because of shareX
+ax1.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS]) 
+axB.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 
 #Enable the grids
 ax1.grid(True)
@@ -175,11 +185,11 @@ ax2.plot(x,y,'k--',linewidth=1)
 #(a) (b) (c) (d) placement etc
 textx = 0.1
 texty = 0.82
-label_kwargs = dict(color='k', family='DejaVu Sans', usetex=False, fontsize=9, horizontalalignment='center', verticalalignment='center', bbox=dict(boxstyle='round,pad=0.4', facecolor='lightgray', edgecolor='none'))
-ax1.text(textx, texty, '(a)', transform=ax1.transAxes, **label_kwargs)
-axB.text(textx, texty, '(b)', transform=axB.transAxes, **label_kwargs)
-ax2.text(textx, texty, '(c)', transform=ax2.transAxes, **label_kwargs)
-axD.text(textx, texty, '(d)', transform=axD.transAxes, **label_kwargs)
+label_kwargs = dict(color='k',  usetex=True, fontsize=7, horizontalalignment='center', verticalalignment='center', bbox=dict(boxstyle='round,pad=0.4', facecolor='lightgray', edgecolor='none'))
+ax1.text(textx, texty, '(\\textbf{a})', transform=ax1.transAxes, **label_kwargs)
+axB.text(textx, texty, '(\\textbf{b})', transform=axB.transAxes, **label_kwargs)
+ax2.text(textx, texty, '(\\textbf{c})', transform=ax2.transAxes, **label_kwargs)
+axD.text(textx, texty, '(\\textbf{d})', transform=axD.transAxes, **label_kwargs)
 
 axB.tick_params(axis='both',color="white")
 axD.tick_params(axis='both',color="white")
@@ -192,15 +202,15 @@ axB.set_xlabel(None)
 #ax2.set_ylabel(r'$\langle \cos^2\theta_{2D}\rangle$')
 ax1.set_ylabel(None)
 ax2.set_ylabel(None)
-fig1.text(0.05,0.5,r'$\langle \cos^2\theta_{2D}\rangle$',va="center",rotation="vertical")
+fig1.text(0.06,0.5,r'$\langle \cos^2\theta_{\mathrm{2D}}\rangle$',va="center",rotation="vertical",fontsize=7)
 
 axB.set_ylabel(None)
 axD.set_ylabel(None)
-fig1.text(0.56,0.5,r'Oscillation Frequency (GHz)',va="center",rotation="vertical")
+fig1.text(0.57,0.5,r'Oscillation Frequency (GHz)',va="center",rotation="vertical",fontsize=7)
 
 ax1.legend_.remove()
 ax2.legend_.remove()
 
 fig1.savefig(savefig1_filename,format='pdf',dpi=300)
+print('Done! Figure displayed.')
 plt.show()
-print('Done!')
