@@ -2,6 +2,7 @@ print('Code start!')
 from pathlib import Path
 from altair import FontWeight
 import matplotlib as mpl
+import numpy as np
 
 from matplotlib import pyplot as plt
 
@@ -41,6 +42,9 @@ def calculating(folders: list[Path], configs: list[IonDataAnalysisConfig]) -> tu
     print('Data loaded!')
     calculated_scans = run_pipeline(raw_datas, configs)
     averagedScanData = average_scans(calculated_scans)
+    #Truncate times within axis limits
+    averagedScanData.cut_time(t_min = Time(EARLIEST_DELAY_PS,Prefix.PICO),t_max = Time(LATEST_DELAY_PS,Prefix.PICO))
+
     print('Scans resampled!')
     
     return (averagedScanData)
@@ -124,7 +128,7 @@ cs2_droplets_configs.append(IonDataAnalysisConfig(
 ##--------------------------------------------------------------------------------------------------
 
 #Update the matplotlib settings
-plt.style.use(r"stylefiles/compare_c2t_spectrogram.mplstyle")
+plt.style.use(r"stylefiles/natcomm_2026_stylefile.mplstyle")
 ##--------------------------------------------------------------------------------------------------
 
 #Pipeline for the usCFG data
@@ -139,18 +143,22 @@ print('Done importing data.')
 mainfig, ax = plt.subplots(
             nrows=1,
             ncols=1,
-            figsize=(3.375, 2)
+            figsize=(88/25.4, 50/25.4) #nature 1-col 8mm
         )
 
-plot_averaged_scan(ax, OCS_usCFG, marker='s',color='black',ecolor=PlotColor.GRAY, label = None)
-plot_averaged_scan(ax, cs2_droplets_CFG, marker='d',color=PlotColor.BLUE,ecolor=PlotColor.RED, label = None)
+plot_averaged_scan(ax, OCS_usCFG, marker='s',color='black',ecolor=PlotColor.BLACK, label = None)
+plot_averaged_scan(ax, cs2_droplets_CFG, marker='d',color=PlotColor.BLUE,ecolor=PlotColor.BLUE, label = None)
 
-ax.set_ylabel(None)
+#ax.set_ylabel(None)
 ax.grid()
 ax.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 ax.set_xlabel('Probe Delay (ps)')
 ax.legend_.remove()
-mainfig.supylabel('$\langle \cos^2 \\theta_{\mathrm{2D}} \\rangle$\n',horizontalalignment = 'right')
+#mainfig.supylabel('$\langle \cos^2 \\theta_{\mathrm{2D}} \\rangle$\n',horizontalalignment = 'right')
+
+
+#Force 500ps step size
+ax.xaxis.set_ticks(np.arange(-500, 1500, 500))
 
 
 mainfig.savefig(fig_filename,format='pdf',dpi=300)
