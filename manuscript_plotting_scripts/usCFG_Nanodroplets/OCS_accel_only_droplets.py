@@ -4,6 +4,7 @@ from altair import FontWeight
 import matplotlib as mpl
 from matplotlib import pyplot as plt
 import pandas as pd
+import numpy as np
 
 from _data_io.dat_finder import DatFinder
 from _data_io.dat_loader import load_ion_data
@@ -25,16 +26,18 @@ from base_core.math.enums import AngleUnit
 from base_core.math.models import Angle, Point, Range
 from base_core.plotting.enums import PlotColor
 from base_core.quantities.enums import Prefix
-from base_core.quantities.models import Length, Time
+from base_core.quantities.models import Length, Time, Frequency
 
 DROPLETRADIUSMIN = 65
 
 STFTWINDOWSIZE = Time(180,Prefix.PICO)  
-EARLIEST_DELAY_PS = -230
-LATEST_DELAY_PS = -EARLIEST_DELAY_PS
+EARLIEST_DELAY_PS = -229
+LATEST_DELAY_PS = 230
+LOWEST_FREQUENCY_GHZ = 0
+LARGEST_FREQUENCY_GHZ = 99
+
 POSZEROSHIFT = 0 #millimetres :)
 
-MAJORTITLEFONTSIZE = 16
 YLABELX = -0.135
 
 #FUNCTION TO GENERATE THE PLOTTABLE DATA
@@ -49,7 +52,11 @@ def calculating(folders: list[Path], configs: list[IonDataAnalysisConfig]) -> tu
     resampled_scans = resample_scans(calculated_scans, config.axis)
 
     spectrogram = StftAnalysis(resampled_scans, config).calculate_averaged_spectrogram()
-    
+   #Truncate times within axis limits
+    averagedScanData.cut_time(t_min = Time(EARLIEST_DELAY_PS,Prefix.PICO),t_max = Time(LATEST_DELAY_PS,Prefix.PICO))
+    spectrogram.cut_time(t_min = Time(EARLIEST_DELAY_PS,Prefix.PICO),t_max = Time(LATEST_DELAY_PS,Prefix.PICO))
+    spectrogram.cut_frequency(f_min = Frequency(LOWEST_FREQUENCY_GHZ,Prefix.GIGA),f_max = Frequency(LARGEST_FREQUENCY_GHZ,Prefix.GIGA))
+     
     return (averagedScanData, spectrogram)
 #--------------------------------------------------------------------------------------------------
 
@@ -80,15 +87,25 @@ configs_1.append(IonDataAnalysisConfig(
 #--------------------------------------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------------------------------------
 # SIMULATION
-folder_ML_Latex = r"C:\milnergitfolder\Latex"
+folder_ML_Latex = r"C:\git\milnerlab-python\Latex"
 
 simulation_filename1 =folder_ML_Latex+ r"\droplet_theory_paper\theory_calc\OCS_accelerating_droplets_OCS_cos2theta2D_vs_t_model_only.csv"
 
 forward = pd.read_csv(simulation_filename1,names = ['time','signal_raw','signal_scaled'])
 
+#Have to truncate the simulated range as well
+x = forward.time
+mask = (
+    (x >= EARLIEST_DELAY_PS) & (x <= LATEST_DELAY_PS)
+)
+
+# Filter data
+forward = forward[mask]
+
+
 #--------------------------------------------------------------------------------------------------
 #Update the matplotlib settings
-plt.style.use(r"stylefiles/compare_c2t_spectrogram.mplstyle")
+plt.style.use(r"stylefiles/natcomm_2026_stylefile.mplstyle")
 
 #Pipeline 
 plottable_scan_1, plottable_spectrogram_1 = calculating(folders_1, configs_1)
@@ -97,14 +114,14 @@ plottable_scan_1, plottable_spectrogram_1 = calculating(folders_1, configs_1)
 
 #(a) (b) placement etc
 #Labels 
-textx = 0.89
-texty = 0.2
+textx = 0.1
+texty = 0.85
 
 #Main figure
 mainfig, (axs) = plt.subplots(
             nrows=2,
             ncols=1,
-            figsize=(6.75/2, 3.5),
+            figsize=(88/25.4, 110/25.4), #nature 1-col = 88mm
             sharex=True,             
             gridspec_kw={'hspace': 0.1,'wspace': 0.3}
         )
@@ -118,19 +135,23 @@ a.grid()
 a.legend_.remove()
 a.set_xlim([EARLIEST_DELAY_PS,LATEST_DELAY_PS])
 a.set_xlabel(None)
-a.text(textx, texty, '(a)',color='k', family='DejaVu Sans', usetex=False, fontsize=9, horizontalalignment='center', verticalalignment='center', transform=a.transAxes, bbox=dict(boxstyle='round,pad=0.4', facecolor='lightgray', edgecolor='none'))
+a.text(textx, texty, '(\\textbf{a})',color='k', usetex=True, fontsize=7, horizontalalignment='center', verticalalignment='center', transform=a.transAxes, bbox=dict(boxstyle='round,pad=0.4', facecolor='lightgray', edgecolor='none'))
 
 a = axs[1]
 plot_Spectrogram(a, plottable_spectrogram_1,shading="auto",v_range=Range(0,0.6))
 a.axhline(36, color='w', linestyle='--', linewidth=1)
-a.set_ylim([0,100])
-a.set_ylabel('Oscillation\nFrequency (GHz)')
-a.yaxis.set_label_coords(YLABELX,0.5)
+a.set_ylim([LOWEST_FREQUENCY_GHZ,LARGEST_FREQUENCY_GHZ])
+a.set_ylabel('Oscillation Frequency (GHz)')
+#mainfig.text(0.06,0.5,r'Oscillation Frequency (GHz)',va="center",rotation="vertical",fontsize=7)
+#a.yaxis.set_label_coords(YLABELX,0.5)
 a.tick_params(axis='both',color="white")
 #plot_nyquist_frequency(a, plottable_scan_1)
 #a.set_xlabel(None)
-a.text(textx, texty, '(b)',color='k', family='DejaVu Sans', usetex=False, fontsize=9, horizontalalignment='center', verticalalignment='center', transform=a.transAxes, bbox=dict(boxstyle='round,pad=0.4', facecolor='lightgray', edgecolor='none'))
+a.text(textx, texty, '(\\textbf{b})',color='k',  usetex=True, fontsize=7, horizontalalignment='center', verticalalignment='center', transform=a.transAxes, bbox=dict(boxstyle='round,pad=0.4', facecolor='lightgray', edgecolor='none'))
+
+#Force 100ps step size
+a.xaxis.set_ticks(np.arange(np.round(EARLIEST_DELAY_PS,-2), 100+np.round(LATEST_DELAY_PS,-2), 100))
 
 mainfig.savefig(fig_filename,format='pdf',dpi=300)
+print('Done! Showing figure.')
 plt.show()
-print('Done!')
